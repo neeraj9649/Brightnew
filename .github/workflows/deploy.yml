@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
           - app: portal
-            domain: portal.brightwingstravel.in
+            domain: portal.brightwingstravel.com
             directory: BrightP
             output: BrightP/build
 
@@ -53,7 +53,7 @@ jobs:
         env:
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_RESOURCE_URL: ${{ secrets.REACT_APP_RESOURCE_URL || 'https://resource.brightwingstravel.in' }}
-          REACT_APP_PORTAL_URL: ${{ secrets.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.in' }}
+          REACT_APP_PORTAL_URL: ${{ secrets.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.com' }}
         run: |
           set -euo pipefail
           test -n "$REACT_APP_API_URL" || { echo '::error::Set REACT_APP_API_URL'; exit 1; }
@@ -109,7 +109,7 @@ jobs:
       matrix:
         include:
           - app: portal
-            domain: portal.brightwingstravel.in
+            domain: portal.brightwingstravel.com
             path-secret: PORTAL_DEPLOY_PATH
     env:
       SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -205,7 +205,7 @@ jobs:
           [[ "$2" =~ ^brightnew-portal-[0-9]+-[0-9]+$ ]] || \
             { echo '::error::Invalid staging directory'; exit 1; }
           case "$3" in
-            portal.brightwingstravel.in) ;;
+            portal.brightwingstravel.com) ;;
             *) echo '::error::Unexpected deployment domain'; exit 1 ;;
           esac
           APP="${1:-$HOME/domains/$3/public_html}"

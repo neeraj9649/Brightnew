@@ -6,7 +6,7 @@ portal changes pushed to `main`, or manually from GitHub Actions:
 
 | Frontend | Build command | Uploaded directory | Domain |
 | --- | --- | --- | --- |
-| BrightP portal | `npm run build` in `BrightP` | `BrightP/build` | `portal.brightwingstravel.in` |
+| BrightP portal | `npm run build` in `BrightP` | `BrightP/build` | `portal.brightwingstravel.com` |
 
 The workflow checks out this repository and only builds and deploys the portal.
 The backend is never built, tested, or deployed by this workflow.
@@ -26,7 +26,7 @@ Set these under repository Settings → Secrets and variables → Actions:
 | `SSH_KNOWN_HOSTS` (optional) | Verified server host-key entry in OpenSSH known_hosts format; for a custom port use `[HOST]:PORT`. If unset, the workflow uses `ssh-keyscan` |
 | `REACT_APP_API_URL` | Production backend URL used by BrightP |
 
-By default, the workflow publishes to `~/domains/portal.brightwingstravel.in/public_html`
+By default, the workflow publishes to `~/domains/portal.brightwingstravel.com/public_html`
 on the server. Create the portal website in hPanel first. If hPanel uses a different
 document root, set the optional `PORTAL_DEPLOY_PATH` secret to its absolute path.
 The destination must exist and point to the portal website's document root.
@@ -49,7 +49,7 @@ Keep the destination path under your SSH account's
 
 Optional secrets: `REACT_APP_RESOURCE_URL` (default
 `https://resource.brightwingstravel.in`), and `REACT_APP_PORTAL_URL` (default
-`https://portal.brightwingstravel.in`).
+`https://portal.brightwingstravel.com`).
 
 ## Frontend source
 
