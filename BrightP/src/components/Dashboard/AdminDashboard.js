@@ -85,7 +85,7 @@ const getLabel = (value) =>
     .join(" ");
 
 const AdminDashboard = () => {
-  const { userData, currentUser, logout, isAdmin, isStaff, changePassword } =
+  const { userData, logout, isAdmin, isStaff, changePassword } =
     useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
@@ -117,7 +117,6 @@ const AdminDashboard = () => {
 
   // Booking management states
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedUser, setSelectedUser] = useState(null);
 
   // Get booking management functions and REAL DATA
   const {
@@ -130,7 +129,6 @@ const AdminDashboard = () => {
     assignEmployee,
     searchUsers,
     createUser,
-    getBookingStats,
   } = useAdminBooking();
 
   // Booking CRM detail panel (notes/tasks/quotations/assignment)

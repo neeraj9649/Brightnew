@@ -183,19 +183,6 @@ const MembershipCard = ({ userData, compact = false }) => {
     }
   };
 
-  const getMembershipBenefits = (tier) => {
-    switch (tier) {
-      case 'Platinum':
-        return ['Priority Support', 'Exclusive Deals', 'Free Upgrades', 'Lounge Access'];
-      case 'Gold':
-        return ['Priority Support', 'Exclusive Deals', 'Free Upgrades'];
-      case 'Silver':
-        return ['Priority Support', 'Member Discounts'];
-      default:
-        return ['Member Discounts'];
-    }
-  };
-
   // Shared glass-card face. Decorative gradients/animations are inline arbitrary
   // values; keyframes (float/holo-shift/shine) live in tailwind.config.js.
   const faceCls =

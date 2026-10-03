@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBooking } from '../contexts/BookingContext';
@@ -478,61 +478,61 @@ const VisaForm = ({ formData, onInputChange, onSubmit, submitting, calculateCost
   </form>
 );
 
+// Static initial states - these never change
+const INITIAL_STATES = {
+  flights: {
+    type: 'flight',
+    from: '',
+    to: '',
+    departureDate: '',
+    returnDate: '',
+    passengers: 1,
+    class: 'economy',
+    tripType: 'roundtrip',
+    specialRequests: ''
+  },
+  hotels: {
+    type: 'hotel',
+    destination: '',
+    checkIn: '',
+    checkOut: '',
+    guests: 1,
+    rooms: 1,
+    roomType: 'standard',
+    specialRequests: ''
+  },
+  tours: {
+    type: 'tour',
+    destination: '',
+    tourType: 'cultural',
+    startDate: '',
+    endDate: '',
+    participants: 1,
+    accommodation: 'standard',
+    activities: [],
+    specialRequests: ''
+  },
+  visa: {
+    type: 'visa',
+    country: '',
+    visaType: 'tourist',
+    purpose: 'tourism',
+    duration: '',
+    travelDate: '',
+    urgency: 'regular',
+    specialRequests: ''
+  }
+};
+
 const BookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { userData, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { submitBooking, bookings, loading } = useBooking();
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'flights');
   const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
-
-  // Static initial states - these never change
-  const INITIAL_STATES = {
-    flights: {
-      type: 'flight',
-      from: '',
-      to: '',
-      departureDate: '',
-      returnDate: '',
-      passengers: 1,
-      class: 'economy',
-      tripType: 'roundtrip',
-      specialRequests: ''
-    },
-    hotels: {
-      type: 'hotel',
-      destination: '',
-      checkIn: '',
-      checkOut: '',
-      guests: 1,
-      rooms: 1,
-      roomType: 'standard',
-      specialRequests: ''
-    },
-    tours: {
-      type: 'tour',
-      destination: '',
-      tourType: 'cultural',
-      startDate: '',
-      endDate: '',
-      participants: 1,
-      accommodation: 'standard',
-      activities: [],
-      specialRequests: ''
-    },
-    visa: {
-      type: 'visa',
-      country: '',
-      visaType: 'tourist',
-      purpose: 'tourism',
-      duration: '',
-      travelDate: '',
-      urgency: 'regular',
-      specialRequests: ''
-    }
-  };
 
   // Initialize form data only once when component mounts or tab changes
   useEffect(() => {

@@ -40,7 +40,7 @@ const relTime = (iso) => {
 const UserDashboard = () => {
   const navigate = useNavigate();
   const { userData, loading: authLoading } = useAuth();
-  const { bookings, loading: bookingsLoading, loadUserBookings } = useBooking();
+  const { bookings, loading: bookingsLoading } = useBooking();
 
   // How many tokens each service earns (env-configured on the backend).
   const [pointsConfig, setPointsConfig] = useState(null);
@@ -172,13 +172,6 @@ const UserDashboard = () => {
       )
       .catch(() => {});
   }, []);
-
-  // Load user bookings when component mounts
-  useEffect(() => {
-    if (userData) {
-      loadUserBookings();
-    }
-  }, [userData]);
 
   const quickActions = [
     {
