@@ -35,7 +35,8 @@ jobs:
           - app: travel
             domain: brightwingstravel.com
             directory: Go_Travel_Brightwings/gotur-nextjs-main
-            output: Go_Travel_Brightwings/gotur-nextjs-main/out
+            # Matches distDir in next.config.ts for the static export.
+            output: Go_Travel_Brightwings/gotur-nextjs-main/build
 
     steps:
       - name: Get latest code
@@ -78,7 +79,7 @@ jobs:
           FRONTEND_APP: ${{ matrix.app }}
         run: |
           set -euo pipefail
-          test -f "$BUILD_OUTPUT/index.html"
+          test -f "$BUILD_OUTPUT/index.html" || { echo "::error::Static entry point missing: $BUILD_OUTPUT/index.html"; exit 1; }
           cp -a "$BUILD_OUTPUT" dist
           # React Router needs Apache to serve index.html for client routes.
           if [ "$FRONTEND_APP" = portal ] && [ ! -f dist/.htaccess ]; then
