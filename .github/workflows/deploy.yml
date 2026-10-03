@@ -1,4 +1,4 @@
-name: Build and Deploy Frontends to Hostinger
+name: Build and Deploy Portal to Hostinger
 
 on:
   push:
@@ -6,8 +6,6 @@ on:
     paths:
       - BrightP
       - BrightP/**
-      - Go_Travel_Brightwings
-      - Go_Travel_Brightwings/**
       - .github/workflows/deploy.yml
   workflow_dispatch:
 
@@ -32,11 +30,6 @@ jobs:
             domain: portal.brightwingstravel.in
             directory: BrightP
             output: BrightP/build
-          - app: travel
-            domain: brightwingstravel.com
-            directory: Go_Travel_Brightwings/gotur-nextjs-main
-            # Matches distDir in next.config.ts for the static export.
-            output: Go_Travel_Brightwings/gotur-nextjs-main/build
 
     steps:
       - name: Get latest code
@@ -61,28 +54,20 @@ jobs:
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_RESOURCE_URL: ${{ secrets.REACT_APP_RESOURCE_URL || 'https://resource.brightwingstravel.in' }}
           REACT_APP_PORTAL_URL: ${{ secrets.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.in' }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_RESOURCE_URL: ${{ secrets.NEXT_PUBLIC_RESOURCE_URL || 'https://resource.brightwingstravel.in' }}
-          FRONTEND_APP: ${{ matrix.app }}
         run: |
           set -euo pipefail
-          if [ "$FRONTEND_APP" = portal ]; then
-            test -n "$REACT_APP_API_URL" || { echo '::error::Set REACT_APP_API_URL'; exit 1; }
-          else
-            test -n "$NEXT_PUBLIC_API_URL" || { echo '::error::Set NEXT_PUBLIC_API_URL'; exit 1; }
-          fi
+          test -n "$REACT_APP_API_URL" || { echo '::error::Set REACT_APP_API_URL'; exit 1; }
           npm run build
 
       - name: Prepare static output
         env:
           BUILD_OUTPUT: ${{ matrix.output }}
-          FRONTEND_APP: ${{ matrix.app }}
         run: |
           set -euo pipefail
           test -f "$BUILD_OUTPUT/index.html" || { echo "::error::Static entry point missing: $BUILD_OUTPUT/index.html"; exit 1; }
           cp -a "$BUILD_OUTPUT" dist
           # React Router needs Apache to serve index.html for client routes.
-          if [ "$FRONTEND_APP" = portal ] && [ ! -f dist/.htaccess ]; then
+          if [ ! -f dist/.htaccess ]; then
             cat > dist/.htaccess <<'APACHE'
           DirectoryIndex index.html
           Options -MultiViews
@@ -126,9 +111,6 @@ jobs:
           - app: portal
             domain: portal.brightwingstravel.in
             path-secret: PORTAL_DEPLOY_PATH
-          - app: travel
-            domain: brightwingstravel.com
-            path-secret: TRAVEL_DEPLOY_PATH
     env:
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_USER: ${{ secrets.SSH_USER }}
@@ -220,10 +202,10 @@ jobs:
             -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "$remote_command" <<'REMOTE'
           set -euo pipefail
           umask 022
-          [[ "$2" =~ ^brightnew-(portal|travel)-[0-9]+-[0-9]+$ ]] || \
+          [[ "$2" =~ ^brightnew-portal-[0-9]+-[0-9]+$ ]] || \
             { echo '::error::Invalid staging directory'; exit 1; }
           case "$3" in
-            portal.brightwingstravel.in|brightwingstravel.com) ;;
+            portal.brightwingstravel.in) ;;
             *) echo '::error::Unexpected deployment domain'; exit 1 ;;
           esac
           APP="${1:-$HOME/domains/$3/public_html}"
