@@ -167,7 +167,18 @@ jobs:
         run: |
           set -euo pipefail
           : "${SSH_HOST:?Set SSH_HOST}" "${SSH_USER:?Set SSH_USER}" "${SSH_PORT:?Set SSH_PORT}"
-          [[ "$SSH_PORT" =~ ^[0-9]+$ ]] && (( SSH_PORT >= 1 && SSH_PORT <= 65535 ))
+          SSH_PORT=$(printf '%s' "$SSH_PORT" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+          if [[ ! "$SSH_PORT" =~ ^[0-9]{1,5}$ ]]; then
+            echo '::error::SSH_PORT must contain only the SSH port number from hPanel (no hostname, colon, or command).'
+            exit 1
+          fi
+          SSH_PORT=$((10#$SSH_PORT))
+          if (( SSH_PORT < 1 || SSH_PORT > 65535 )); then
+            echo '::error::SSH_PORT must be between 1 and 65535. Use the SSH port shown in hPanel.'
+            exit 1
+          fi
+          # Later SCP/SSH steps must use the same normalized port.
+          printf 'SSH_PORT=%s\n' "$SSH_PORT" >> "$GITHUB_ENV"
           [[ "$SSH_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
           [[ "$SSH_USER" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_-]*$ ]]
           mkdir -p ~/.ssh

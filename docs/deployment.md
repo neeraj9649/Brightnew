@@ -7,7 +7,7 @@ frontend changes pushed to `main`, or manually from GitHub Actions:
 | Frontend | Build command | Uploaded directory | Domain |
 | --- | --- | --- | --- |
 | BrightP portal | `npm run build` in `BrightP` | `BrightP/build` | `portal.brightwingstravel.in` |
-| Next.js travel website | `npm run build` in `Go_Travel_Brightwings/gotur-nextjs-main` | `Go_Travel_Brightwings/gotur-nextjs-main/out` | `brightwingstravel.com` |
+| Next.js travel website | `npm run build` in `Go_Travel_Brightwings/gotur-nextjs-main` | `Go_Travel_Brightwings/gotur-nextjs-main/build` | `brightwingstravel.com` |
 
 The workflow checks out this repository and only builds and deploys the frontends.
 The backend is never built, tested, or deployed by this workflow.
@@ -23,7 +23,7 @@ Set these under repository Settings → Secrets and variables → Actions:
 | --- | --- |
 | `SSH_HOST` | Hostinger SSH hostname or IP |
 | `SSH_USER` | Hostinger SSH username |
-| `SSH_PORT` | SSH port shown in hPanel |
+| `SSH_PORT` | SSH port shown in hPanel, digits only (1–65535); do not paste the hostname, `:PORT`, or a full SSH command |
 | `SSH_KEY` or `SSH_KEY_B64` | Full private key or its base64 encoding; base64 takes precedence |
 | `SSH_KNOWN_HOSTS` (optional) | Verified server host-key entry in OpenSSH known_hosts format; for a custom port use `[HOST]:PORT`. If unset, the workflow uses `ssh-keyscan` |
 | `REACT_APP_API_URL` | Production backend URL used by BrightP |
@@ -38,6 +38,10 @@ corresponding website's document root. Enable SSH access in Hostinger and instal
 the matching public key there. Frontend API URLs are embedded in the build;
 they must be reachable by visitors' browsers. Frontend variables become public
 browser code; never put private API credentials in them.
+
+If both deployments fail in Configure SSH with `Bad port`, update the shared
+`SSH_PORT` repository secret to contain only the SSH port shown in hPanel.
+The workflow trims surrounding whitespace and validates the port before using it.
 
 To obtain `SSH_KNOWN_HOSTS`, run `ssh-keyscan -p PORT HOST` from your machine,
 verify the fingerprint against a trusted Hostinger/server source, then store
