@@ -1,0 +1,13 @@
+/* optional: container styling */
+.listing-from__control {
+    width: 100%;
+  }
+  
+  /* optional custom arrow via icon font like IcoMoon */
+  .react-select-wrapper .react-select__dropdown-indicator::after {
+    content: "\e920";
+    font-family: "icomoon";
+    font-weight: 600;
+    color: var(--gotur-black, #1d231f);
+  }
+  

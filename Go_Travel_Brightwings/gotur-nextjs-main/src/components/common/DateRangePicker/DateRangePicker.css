@@ -1,0 +1,32 @@
+.custom-range-picker.ant-picker {
+    border: none !important;
+    box-shadow: none !important;
+    padding-left: 0 !important;
+  }
+  
+  .custom-range-picker .ant-picker-focused {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  .custom-range-picker input::placeholder {
+    color: #888 !important; /* Custom placeholder color */
+    font-style: italic;
+  }
+  
+  .custom-range-picker input {
+    box-shadow: none !important;
+  }
+  .custom-range-picker .ant-picker-suffix {
+    display: none !important;
+  }
+  .custom-range-picker input {
+    font-size: 12px !important;
+    line-height: 1.5;
+  
+  }
+  :where(.css-dev-only-do-not-override-1m63z2v).ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-selected:not(.ant-picker-cell-disabled) .ant-picker-cell-inner, :where(.css-dev-only-do-not-override-1m63z2v).ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-start:not(.ant-picker-cell-disabled) .ant-picker-cell-inner, :where(.css-dev-only-do-not-override-1m63z2v).ant-picker-dropdown .ant-picker-cell-in-view.ant-picker-cell-range-end:not(.ant-picker-cell-disabled) .ant-picker-cell-inner {
+    color: #fff;
+    background: var(--gotur-base, #63AB45)
+}
+  

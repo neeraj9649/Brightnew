@@ -1,0 +1,80 @@
+/* Wrapper and width */
+.top-one__language-sort {
+  width: 130px;
+}
+
+/* Custom styles for react-select with classNamePrefix="custom-select" */
+.custom-select__control {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  min-height: auto;
+  cursor: pointer;
+  color: #fff !important;
+}
+
+.custom-select__single-value {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px !important;
+  line-height: 20px;
+  color: var(--gotur-white, #fff) !important;
+}
+
+.custom-select__value-container {
+  padding: 0 0 0 4px;
+}
+
+.custom-select__indicator {
+  padding: 0 6px;
+  color: var(--gotur-white, #fff);
+}
+
+/* The menu list wrapper */
+.custom-select__menu-list {
+  padding: 4px 0 !important;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Each option in the list */
+.custom-select__option {
+  font-size: 14px !important;
+  line-height: 1.5;
+  padding: 8px 12px !important;
+  color: #fff;
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+/* Hover/focus */
+.custom-select__option--is-focused {
+  background-color: #a4db8c !important;
+  color: #fff !important;
+}
+
+/* Selected item */
+.custom-select__option--is-selected {
+  background-color: var(--gotur-base, #63ab45) !important;
+  font-weight: 400 !important;
+}
+
+/* Scrollbar (optional) */
+.custom-select__menu-list::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-select__menu-list::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 3px;
+}
+
+.custom-select__menu {
+  background: #000;
+  border-radius: 0;
+  z-index: 10000 !important;
+}
+.custom-select__value-container.custom-select__value-container--has-value {
+  padding: 0 !important;
+}

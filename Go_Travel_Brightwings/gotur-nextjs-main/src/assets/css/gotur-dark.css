@@ -1,0 +1,21 @@
+:root {
+  --gotur-text: #ffffff;
+  --gotur-text-rgb: 255, 255, 255;
+  --gotur-text2: #79767C;
+  --gotur-text2-rgb: 121, 118, 124;
+  --gotur-gray: #DDD8DB;
+  --gotur-gray-rgb: 221, 216, 219;
+  --gotur-black: #ffffff;
+  --gotur-black-rgb: 255, 255, 255;
+  --gotur-black2: #362048;
+  --gotur-black2-rgb: 54, 32, 72;
+  --gotur-black3: #251632;
+  --gotur-black3-rgb: 37, 22, 50;
+  --gotur-white: #362048;
+  --gotur-white-rgb: 54, 32, 72;
+  --gotur-white2: #F5F2F4;
+  --gotur-white2-rgb: 245, 242, 244;
+  --gotur-white3: #ffffff;
+  --gotur-white3-rgb: 255, 255, 255;
+}
+/*# sourceMappingURL=gotur-dark.css.map */

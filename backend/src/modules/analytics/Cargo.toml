@@ -1,0 +1,16 @@
+[package]
+name = "analytics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
+
+base = { path = "../../base" }
+
+[lib]
+path = "src/lib.rs"

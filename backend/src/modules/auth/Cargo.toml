@@ -1,0 +1,27 @@
+[package]
+name = "auth"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+
+actix-web = { workspace = true }
+sqlx = { workspace = true }
+bigdecimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+jsonwebtoken = { workspace = true }
+futures-util = { workspace = true }
+hex = { workspace = true }
+
+base = { path = "../../base" }
+shared = { path = "../../shared" }
+rewards = { path = "../rewards" }
+referral = { path = "../referral" }
+
+[lib]
+path = "src/lib.rs"

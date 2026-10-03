@@ -1,0 +1,92 @@
+.calendar-container {
+  width: 100%;
+  max-width: 100%;
+}
+
+.full-width-calendar {
+  width: 100% !important;
+  border: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+.react-calendar {
+  width: 100%;
+  border: none;
+  font-family: sans-serif;
+  background-color: white;
+}
+
+/* Navigation bar (month/year and arrows) */
+.react-calendar__navigation {
+  background-color: #63ab45;
+  color: white;
+  font-weight: bold;
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.react-calendar__navigation button {
+  color: white;
+  font-size: 1rem;
+  background: none;
+  border: none;
+}
+
+.react-calendar__navigation button:disabled {
+  opacity: 0.4;
+}
+
+/* Weekday headers */
+.react-calendar__month-view__weekdays {
+  background-color: var(--gotur-gray);
+  color: #63ab45;
+  font-weight: 600;
+}
+
+.react-calendar__month-view__weekdays__weekday {
+  font-size: 14px;
+  font-weight: 600;
+
+  padding: 10px 21px;
+  text-align: right;
+  border: 0.5px solid rgba(var(--gotur-text-rgb, 89, 89, 89), 0.1) !important;
+}
+.react-calendar__tile {
+  text-align: right !important;
+  padding: 11px 21px !important;
+  background-color: transparent;
+  color: var(--gotur-text, #595959) !important;
+  font-size: 14px !important;
+  font-weight: 500;
+  border: 1px solid rgba(var(--gotur-text-rgb, 89, 89, 89), 0.1) !important;
+  transition: all 400ms ease;
+}
+
+abbr[title] {
+  text-decoration: none !important;
+}
+
+/* Active (selected) date */
+.react-calendar__tile--active {
+  background: #63ab45 !important;
+  color: white !important;
+  border-radius: 0;
+}
+
+/* Hover effect on date tiles */
+.react-calendar__tile:hover {
+  background: rgba(99, 171, 69, 0.2);
+  cursor: pointer;
+}
+
+/* Today's date (highlight) */
+.react-calendar__tile--now {
+  background: #e8f4e1;
+  color: #63ab45;
+}
+
+/* Remove borders from tiles */
+.react-calendar__tile {
+  border: none;
+  padding: 0.75rem 0;
+  text-align: center;
+}

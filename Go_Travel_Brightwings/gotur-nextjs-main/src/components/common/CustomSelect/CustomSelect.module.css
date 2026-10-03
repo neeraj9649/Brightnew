@@ -1,0 +1,31 @@
+.dropdownSelect {
+  width: 100%;
+  padding: 0px;
+  background-color: transparent !important;
+  border: none;
+  outline: none;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  transition: all 500ms ease;
+  text-align: left;
+  
+}
+
+.dropdownOption {
+  font-size: 16px;
+  transition: background-color 300ms ease, color 300ms ease;
+}
+
+.dropdownOption:hover,
+.dropdownOption:focus,
+.dropdownOption:active {
+  background-color: var(--gotur-base, #63ab45) !important;
+  color: var(--gotur-white, #fff) !important;
+}
+
+.btn:hover {
+  background-color: transparent !important;
+}

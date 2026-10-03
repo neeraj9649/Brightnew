@@ -1,0 +1,19 @@
+[package]
+name = "referral"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+dotenv = { workspace = true }
+
+base = { path = "../../base" }
+rewards = { path = "../rewards" }
+
+[lib]
+path = "src/lib.rs"

@@ -1,0 +1,27 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = { workspace = true }
+actix-multipart = { workspace = true }
+actix-cors = { workspace = true }
+futures-util = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true }
+bigdecimal = { workspace = true }
+base = { path = "../base" }
+shared = { path = "../shared" }
+auth = { path = "../modules/auth" }
+bookings = { path = "../modules/bookings" }
+rewards = { path = "../modules/rewards" }
+referral = { path = "../modules/referral" }
+crm = { path = "../modules/crm" }
+analytics = { path = "../modules/analytics" }
+
+[lib]
+path = "src/lib.rs"

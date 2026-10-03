@@ -1,0 +1,111 @@
+body.rtl {
+  overflow-x: hidden;
+  direction: rtl;
+}
+
+.owl-carousel {
+  direction: ltr;
+}
+
+.rtl .owl-carousel .owl-nav,
+.rtl .owl-carousel .owl-dots,
+.rtl .owl-carousel .owl-item {
+  direction: rtl;
+}
+
+.rtl .contact__input-box .bootstrap-select .dropdown-menu,
+.rtl .bootstrap-select .dropdown-toggle .filter-option {
+  text-align: right;
+}
+
+.rtl .list-unstyled {
+  padding-right: 0;
+}
+
+/***Header Css**/
+.rtl .main-header__info a:first-child {
+  margin-right: 20px;
+}
+
+.rtl .main-header__info a + a {
+  margin-right: 0;
+}
+
+.rtl .main-slider-one__bottom__nav button {
+  transform: rotate(90deg);
+}
+
+.rtl .feature-package__carousel__nav--left,
+.rtl .feature-package__carousel__nav--right {
+  transform: rotateY(-180deg);
+}
+
+.rtl .offer-one__card__thumb {
+  transform: rotateY(-180deg);
+}
+
+.rtl .offer-one__card--two .offer-one__card__thumb {
+  left: -1px;
+  right: auto;
+  transform: rotateY(0deg);
+}
+
+.rtl .offer-one__card--two .offer-one__card__btn {
+  text-align: start;
+}
+
+.rtl .offer-one__card--two::before {
+  right: 40px;
+  left: auto;
+}
+
+.rtl .testimonials-three__carousel__nav--left,
+.rtl .testimonials-three__carousel__nav--right {
+  transform: rotateX(-180deg);
+}
+
+.rtl .testimonials-three::after,
+.rtl .testimonials-three__thumb img,
+.rtl .footer-widget__newsletter .form-group__form button[type="submit"],
+.rtl .blog-card-two__meta a i,
+.rtl .offer-one__element {
+  transform: rotateY(-180deg);
+}
+
+.rtl .destination-card-one__content::after,
+.rtl .destination-card-one__content::before {
+  transform: rotate(40deg);
+}
+.gotur-owl__carousel--with-shadow .owl-item,
+.gotur-owl__carousel--with-shadow .tns-item {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 500ms ease, visibility 500ms ease;
+}
+.gotur-owl__carousel--with-shadow .owl-item.active,
+.gotur-owl__carousel--with-shadow .tns-item.tns-slide-active {
+  opacity: 1;
+  visibility: visible;
+}
+.gotur-owl__carousel--with-shadow .tns-ovh {
+  overflow: visible;
+}
+.testimonials-three__inner .tns-ovh {
+  overflow: visible;
+}
+
+.testimonials-three__inner .tns-item {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 500ms ease, visibility 500ms ease;
+}
+
+.testimonials-three__inner .tns-item.tns-slide-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.offer-one__card--two .offer-one__card__content.text-end .text-animation {
+  justify-content: flex-end !important;
+  text-align: right !important;
+}

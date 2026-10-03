@@ -1,0 +1,21 @@
+[package]
+name = "bookings"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = { workspace = true }
+sqlx = { workspace = true }
+bigdecimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+rand = { workspace = true }
+
+base = { path = "../../base" }
+rewards = { path = "../rewards" }
+
+[lib]
+path = "src/lib.rs"

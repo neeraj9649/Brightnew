@@ -1,0 +1,166 @@
+name: Build and Deploy Frontends to Hostinger
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - BrightP
+      - BrightP/**
+      - Go_Travel_Brightwings
+      - Go_Travel_Brightwings/**
+      - .github/workflows/deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Finish the current publication before starting another deployment.
+concurrency:
+  group: deploy-hostinger-frontends
+  cancel-in-progress: false
+
+jobs:
+  web-deploy:
+    name: Deploy ${{ matrix.domain }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: portal
+            domain: portal.brightwingstravel.in
+            directory: BrightP
+            output: BrightP/build
+            path-secret: PORTAL_DEPLOY_PATH
+          - app: travel
+            domain: brightwingstravel.com
+            directory: Go_Travel_Brightwings/gotur-nextjs-main
+            output: Go_Travel_Brightwings/gotur-nextjs-main/out
+            path-secret: TRAVEL_DEPLOY_PATH
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets[matrix.path-secret] }}
+      DEPLOY_DOMAIN: ${{ matrix.domain }}
+      STAGING_NAME: brightnew-${{ matrix.app }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Get latest code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ matrix.directory }}/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ${{ matrix.directory }}
+        run: npm ci --legacy-peer-deps
+
+      - name: Build frontend
+        working-directory: ${{ matrix.directory }}
+        env:
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+          REACT_APP_RESOURCE_URL: ${{ secrets.REACT_APP_RESOURCE_URL || 'https://resource.brightwingstravel.in' }}
+          REACT_APP_PORTAL_URL: ${{ secrets.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.in' }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_RESOURCE_URL: ${{ secrets.NEXT_PUBLIC_RESOURCE_URL || 'https://resource.brightwingstravel.in' }}
+          FRONTEND_APP: ${{ matrix.app }}
+        run: |
+          set -euo pipefail
+          if [ "$FRONTEND_APP" = portal ]; then
+            test -n "$REACT_APP_API_URL" || { echo '::error::Set REACT_APP_API_URL'; exit 1; }
+          else
+            test -n "$NEXT_PUBLIC_API_URL" || { echo '::error::Set NEXT_PUBLIC_API_URL'; exit 1; }
+          fi
+          npm run build
+
+      - name: Prepare static output
+        env:
+          BUILD_OUTPUT: ${{ matrix.output }}
+          FRONTEND_APP: ${{ matrix.app }}
+        run: |
+          set -euo pipefail
+          test -f "$BUILD_OUTPUT/index.html"
+          cp -a "$BUILD_OUTPUT" dist
+          # React Router needs Apache to serve index.html for client routes.
+          if [ "$FRONTEND_APP" = portal ] && [ ! -f dist/.htaccess ]; then
+            cat > dist/.htaccess <<'APACHE'
+          DirectoryIndex index.html
+          Options -MultiViews
+          RewriteEngine On
+          RewriteCond %{REQUEST_FILENAME} !-f
+          RewriteCond %{REQUEST_FILENAME} !-d
+          RewriteRule ^ index.html [L]
+          APACHE
+          fi
+          find dist -type f | wc -l > "$RUNNER_TEMP/local_count"
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          : "${SSH_HOST:?Set SSH_HOST}" "${SSH_USER:?Set SSH_USER}" "${SSH_PORT:?Set SSH_PORT}"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          if [ -n "${SSH_KEY_B64:-}" ]; then
+            printf '%s' "$SSH_KEY_B64" | tr -d '\r\n ' | base64 -d > ~/.ssh/deploy_key
+          else
+            printf '%s\n' "$SSH_KEY" | perl -pe 's/\\n/\n/g; s/\r$//' > ~/.ssh/deploy_key
+          fi
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -y -P "" -f ~/.ssh/deploy_key > /dev/null
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload static files over SCP
+        run: |
+          set -euo pipefail
+          SSH_OPTS=(-i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          ssh "${SSH_OPTS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "mkdir -p ~/$STAGING_NAME"
+          # Copy the directory itself to include .htaccess and other dotfiles.
+          scp -r "${SSH_OPTS[@]}" -P "$SSH_PORT" dist "$SSH_USER@$SSH_HOST:~/$STAGING_NAME/"
+          remote_count=$(ssh "${SSH_OPTS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "find ~/$STAGING_NAME/dist -type f | wc -l")
+          test "$(cat "$RUNNER_TEMP/local_count")" -eq "$remote_count" || { echo '::error::Upload incomplete'; exit 1; }
+
+      - name: Publish into Hostinger document root
+        run: |
+          set -euo pipefail
+          printf -v remote_command 'bash -s -- %q %q %q' "$DEPLOY_PATH" "$STAGING_NAME" "$DEPLOY_DOMAIN"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "$remote_command" <<'REMOTE'
+          set -euo pipefail
+          APP="${1:-$HOME/domains/$3/public_html}"
+          STAGE="$HOME/$2/dist"
+          # Paths must be absolute; create the website in hPanel first.
+          case "$APP" in
+            /*/public_html|/*/public_html/*) ;;
+            *) echo '::error::Deployment path must be an absolute Hostinger public_html path'; exit 1 ;;
+          esac
+          test -d "$APP" || { echo "::error::Document root does not exist: $APP"; exit 1; }
+          test -f "$STAGE/index.html"
+          shopt -s nullglob dotglob
+          for dir in "$STAGE"/*/; do
+            name=$(basename "$dir")
+            rm -rf "$APP/$name.new" "$APP/$name.old"
+            cp -a "$dir" "$APP/$name.new"
+            if [ -d "$APP/$name" ]; then mv "$APP/$name" "$APP/$name.old"; fi
+            mv "$APP/$name.new" "$APP/$name"
+            rm -rf "$APP/$name.old"
+          done
+          find "$STAGE" -maxdepth 1 -type f ! -name index.html -exec cp -a {} "$APP/" \;
+          cp -a "$STAGE/index.html" "$APP/index.html.new"
+          mv "$APP/index.html.new" "$APP/index.html"
+          rm -rf "$HOME/$2"
+          echo "Deployed to $APP"
+          REMOTE
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
