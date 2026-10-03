@@ -20,9 +20,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  web-deploy:
-    name: Deploy ${{ matrix.domain }}
+  build:
+    name: Build ${{ matrix.app }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -31,26 +32,19 @@ jobs:
             domain: portal.brightwingstravel.in
             directory: BrightP
             output: BrightP/build
-            path-secret: PORTAL_DEPLOY_PATH
           - app: travel
             domain: brightwingstravel.com
             directory: Go_Travel_Brightwings/gotur-nextjs-main
             output: Go_Travel_Brightwings/gotur-nextjs-main/out
-            path-secret: TRAVEL_DEPLOY_PATH
-    env:
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_PORT: ${{ secrets.SSH_PORT }}
-      DEPLOY_PATH: ${{ secrets[matrix.path-secret] }}
-      DEPLOY_DOMAIN: ${{ matrix.domain }}
-      STAGING_NAME: brightnew-${{ matrix.app }}-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - name: Get latest code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
@@ -97,15 +91,84 @@ jobs:
           RewriteRule ^ index.html [L]
           APACHE
           fi
-          find dist -type f | wc -l > "$RUNNER_TEMP/local_count"
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in Path('dist').rglob('*'):
+              if path.is_symlink():
+                  raise SystemExit('::error::Build output contains a symlink')
+              if any(part in ('.git', '.github', '.env') or part.startswith('.env.') for part in path.parts):
+                  raise SystemExit('::error::Build output contains repository metadata or environment files')
+              if path.suffix.lower() in ('.pem', '.key'):
+                  raise SystemExit('::error::Build output contains a private-key file')
+          PY
+
+      - name: Save static build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-${{ matrix.app }}
+          path: dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+
+  deploy:
+    name: Deploy ${{ matrix.domain }}
+    needs: build
+    # Manual runs on other branches cannot publish to production.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: portal
+            domain: portal.brightwingstravel.in
+            path-secret: PORTAL_DEPLOY_PATH
+          - app: travel
+            domain: brightwingstravel.com
+            path-secret: TRAVEL_DEPLOY_PATH
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets[matrix.path-secret] }}
+      DEPLOY_DOMAIN: ${{ matrix.domain }}
+      STAGING_NAME: brightnew-${{ matrix.app }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Download static build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: frontend-${{ matrix.app }}
+          path: dist
+
+      - name: Validate static files and generate checksums
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          for path in Path('dist').rglob('*'):
+              if path.is_symlink():
+                  raise SystemExit('::error::Build output contains a symlink')
+              if any(part in ('.git', '.github', '.env') or part.startswith('.env.') for part in path.parts):
+                  raise SystemExit('::error::Build output contains repository metadata or environment files')
+              if path.suffix.lower() in ('.pem', '.key'):
+                  raise SystemExit('::error::Build output contains a private-key file')
+          PY
+          (cd dist && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$RUNNER_TEMP/SHA256SUMS"
 
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           : "${SSH_HOST:?Set SSH_HOST}" "${SSH_USER:?Set SSH_USER}" "${SSH_PORT:?Set SSH_PORT}"
+          [[ "$SSH_PORT" =~ ^[0-9]+$ ]] && (( SSH_PORT >= 1 && SSH_PORT <= 65535 ))
+          [[ "$SSH_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$SSH_USER" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_-]*$ ]]
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           if [ -n "${SSH_KEY_B64:-}" ]; then
@@ -115,19 +178,27 @@ jobs:
           fi
           chmod 600 ~/.ssh/deploy_key
           ssh-keygen -y -P "" -f ~/.ssh/deploy_key > /dev/null
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          if [ -n "${SSH_KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -T 10 -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts
+          fi
+          test -s ~/.ssh/known_hosts || { echo '::error::No SSH host keys available'; exit 1; }
+          chmod 600 ~/.ssh/known_hosts
+          ssh-keygen -F "[$SSH_HOST]:$SSH_PORT" -f ~/.ssh/known_hosts > /dev/null || \
+            { [ "$SSH_PORT" = 22 ] && ssh-keygen -F "$SSH_HOST" -f ~/.ssh/known_hosts > /dev/null; }
 
       - name: Upload static files over SCP
         run: |
           set -euo pipefail
           SSH_OPTS=(-i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes)
           ssh "${SSH_OPTS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "mkdir -p ~/$STAGING_NAME"
+            "umask 077; mkdir ~/$STAGING_NAME"
           # Copy the directory itself to include .htaccess and other dotfiles.
           scp -r "${SSH_OPTS[@]}" -P "$SSH_PORT" dist "$SSH_USER@$SSH_HOST:~/$STAGING_NAME/"
-          remote_count=$(ssh "${SSH_OPTS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "find ~/$STAGING_NAME/dist -type f | wc -l")
-          test "$(cat "$RUNNER_TEMP/local_count")" -eq "$remote_count" || { echo '::error::Upload incomplete'; exit 1; }
+          scp "${SSH_OPTS[@]}" -P "$SSH_PORT" "$RUNNER_TEMP/SHA256SUMS" "$SSH_USER@$SSH_HOST:~/$STAGING_NAME/SHA256SUMS"
+          ssh "${SSH_OPTS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "cd ~/$STAGING_NAME/dist && sha256sum --strict --quiet -c ../SHA256SUMS"
 
       - name: Publish into Hostinger document root
         run: |
@@ -136,29 +207,66 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
             -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "$remote_command" <<'REMOTE'
           set -euo pipefail
+          umask 022
+          [[ "$2" =~ ^brightnew-(portal|travel)-[0-9]+-[0-9]+$ ]] || \
+            { echo '::error::Invalid staging directory'; exit 1; }
+          case "$3" in
+            portal.brightwingstravel.in|brightwingstravel.com) ;;
+            *) echo '::error::Unexpected deployment domain'; exit 1 ;;
+          esac
           APP="${1:-$HOME/domains/$3/public_html}"
           STAGE="$HOME/$2/dist"
-          # Paths must be absolute; create the website in hPanel first.
+          # Resolve traversal and symlinks before checking the destination.
+          [[ "$APP" = /* ]] || { echo '::error::Document root must be absolute'; exit 1; }
+          APP=$(realpath -e -- "$APP")
           case "$APP" in
-            /*/public_html|/*/public_html/*) ;;
-            *) echo '::error::Deployment path must be an absolute Hostinger public_html path'; exit 1 ;;
+            "$HOME"/domains/*/public_html|"$HOME"/domains/*/public_html/*) ;;
+            *) echo '::error::Document root must be under your Hostinger domains directory'; exit 1 ;;
           esac
           test -d "$APP" || { echo "::error::Document root does not exist: $APP"; exit 1; }
           test -f "$STAGE/index.html"
-          shopt -s nullglob dotglob
-          for dir in "$STAGE"/*/; do
-            name=$(basename "$dir")
-            rm -rf "$APP/$name.new" "$APP/$name.old"
-            cp -a "$dir" "$APP/$name.new"
-            if [ -d "$APP/$name" ]; then mv "$APP/$name" "$APP/$name.old"; fi
-            mv "$APP/$name.new" "$APP/$name"
-            rm -rf "$APP/$name.old"
-          done
-          find "$STAGE" -maxdepth 1 -type f ! -name index.html -exec cp -a {} "$APP/" \;
-          cp -a "$STAGE/index.html" "$APP/index.html.new"
-          mv "$APP/index.html.new" "$APP/index.html"
-          rm -rf "$HOME/$2"
-          echo "Deployed to $APP"
+          cd "$STAGE"
+          sha256sum --strict --quiet -c ../SHA256SUMS
+          # No /dev/fd or process substitution: Hostinger may not provide them.
+          find "$STAGE" -type f ! -path "$STAGE/index.html" -print0 > ../files
+          printf '%s\0' "$STAGE/index.html" >> ../files
+          BACKUP="$HOME/.brightnew-backups/$3/$2"
+          (umask 077; mkdir -p "$BACKUP")
+          # Validate every target and back up files before modifying the site.
+          while IFS= read -r -d '' file; do
+            relative="${file#"$STAGE/"}"
+            target="$APP/$relative"
+            cursor="$target"
+            while [ "$cursor" != "$APP" ]; do
+              [ ! -L "$cursor" ] || { echo '::error::Destination contains a symlink'; exit 1; }
+              if [ "$cursor" != "$target" ] && [ -e "$cursor" ]; then
+                test -d "$cursor" || { echo '::error::Destination parent is not a directory'; exit 1; }
+              fi
+              cursor=$(dirname "$cursor")
+            done
+            if [ -e "$target" ]; then
+              test -f "$target" || { echo '::error::Destination is not a regular file'; exit 1; }
+              mkdir -p "$BACKUP/$(dirname "$relative")"
+              cp -p -- "$target" "$BACKUP/$relative"
+            fi
+          done < ../files
+          # Keep old assets for open browser sessions. Each file is renamed
+          # into place, with index.html last; this is not a whole-site swap.
+          temporary=''
+          trap '[ -z "$temporary" ] || rm -f -- "$temporary"' EXIT
+          while IFS= read -r -d '' file; do
+            relative="${file#"$STAGE/"}"
+            target="$APP/$relative"
+            mkdir -p "$(dirname "$target")"
+            temporary=$(mktemp "$(dirname "$target")/.brightnew-XXXXXX")
+            cp -- "$file" "$temporary"
+            chmod 644 "$temporary"
+            mv -f -- "$temporary" "$target"
+            temporary=''
+          done < ../files
+          cd "$HOME"
+          rm -rf -- "$HOME/$2"
+          echo "Deployed to $APP; previous overwritten files saved in $BACKUP"
           REMOTE
 
       - name: Clean up SSH key
