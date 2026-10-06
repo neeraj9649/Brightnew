@@ -24,6 +24,37 @@ impl BookingServiceImpl {
             rewards_service,
         }
     }
+
+    fn validate_booking_type(booking_type: &str) -> bool {
+        matches!(
+            booking_type,
+            "flight"
+                | "visa"
+                | "tour"
+                | "hotel"
+                | "airport_transfer"
+                | "cruise"
+                | "insurance"
+                | "activity"
+                | "car_rental"
+                | "custom"
+        )
+    }
+
+    fn validate_status(status: &str) -> bool {
+        matches!(
+            status,
+            "new"
+                | "assigned"
+                | "contacted"
+                | "awaiting_approval"
+                | "awaiting_payment"
+                | "payment_received"
+                | "booking_confirmed"
+                | "completed"
+                | "cancelled"
+        )
+    }
 }
 
 #[async_trait]
@@ -32,6 +63,14 @@ impl BookingService for BookingServiceImpl {
         &self,
         mut new_booking: CreateBooking,
     ) -> Result<Booking, BookingError> {
+        if !Self::validate_booking_type(&new_booking.booking_type) {
+            return Err(BookingError::InvalidBookingType);
+        }
+        if new_booking.estimated_cost < bigdecimal::BigDecimal::from(0) {
+            return Err(BookingError::InternalServerError(RepositoryError::new(
+                "Estimated cost cannot be negative".to_string(),
+            )));
+        }
         new_booking.display_code =
             CreateBooking::generate_display_code(&new_booking.booking_type);
 
@@ -86,7 +125,10 @@ impl BookingService for BookingServiceImpl {
         booking_id: Uuid,
         user_id: Uuid,
     ) -> Result<Booking, BookingError> {
-        self.get_owned(booking_id, user_id).await?;
+        let current = self.get_owned(booking_id, user_id).await?;
+        if matches!(current.status.as_str(), "completed" | "cancelled") {
+            return Err(BookingError::BookingCannotBeCancelled);
+        }
 
         self.repository
             .update(&UpdateBooking {
@@ -114,6 +156,17 @@ impl BookingService for BookingServiceImpl {
             if previous.assigned_employee_id != Some(employee_id) {
                 return Err(BookingError::BookingNotAssignedToEmployee);
             }
+            if update_booking.assigned_employee_id.is_some()
+                && update_booking.assigned_employee_id != Some(employee_id)
+            {
+                return Err(BookingError::BookingNotAssignedToEmployee);
+            }
+        }
+
+        if let Some(status) = update_booking.status.as_deref() {
+            if !Self::validate_status(status) {
+                return Err(BookingError::InvalidBookingStatus);
+            }
         }
 
         let updated = self
@@ -122,10 +175,11 @@ impl BookingService for BookingServiceImpl {
             .await
             .map_err(BookingError::InternalServerError)?;
 
-        let just_completed = update_booking.status.as_deref()
-            == Some("completed")
-            && previous.status != "completed";
-        if just_completed {
+        // Re-run the idempotent reward operation for an already-completed
+        // booking too. If a transient reward/database error happened after
+        // the status update, the next admin retry can repair the missing
+        // ledger rows instead of permanently losing the reward.
+        if updated.status == "completed" {
             self.rewards_service
                 .award_for_completed_booking(
                     updated.user_id,

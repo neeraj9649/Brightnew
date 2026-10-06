@@ -141,11 +141,13 @@ async fn create_redemption_handler(
     claims: JwtClaims,
     body: web::Json<CreateRedemptionDTO>,
 ) -> Result<ApiResponse<RedemptionDTO>, ApiError> {
+    let rid = Uuid::new_v4();
+    let mut tx = pool.begin().await.map_err(db_err)?;
     let item = sqlx::query!(
-        "SELECT name, wings_cost, is_active FROM reward_items WHERE id = $1",
+        "SELECT name, wings_cost, is_active FROM reward_items WHERE id = $1 FOR SHARE",
         body.reward_item_id
     )
-    .fetch_optional(pool.get_ref())
+    .fetch_optional(&mut *tx)
     .await
     .map_err(db_err)?
     .ok_or_else(|| ApiError::new("Reward not found", 404))?;
@@ -153,9 +155,6 @@ async fn create_redemption_handler(
     if !item.is_active {
         return Err(ApiError::new("Reward is not available", 400));
     }
-
-    let rid = Uuid::new_v4();
-    let mut tx = pool.begin().await.map_err(db_err)?;
     let wallet = sqlx::query!(
         r#"UPDATE users
            SET tokens = tokens - $1
@@ -339,6 +338,17 @@ async fn update_status_handler(
     .map_err(db_err)?
     .ok_or_else(|| ApiError::new("Redemption not found", 404))?;
 
+    let allowed = match cur.status.as_str() {
+        "requested" => matches!(body.status.as_str(), "requested" | "approved" | "rejected"),
+        "approved" => matches!(body.status.as_str(), "approved" | "voucher_issued" | "rejected"),
+        "voucher_issued" => matches!(body.status.as_str(), "voucher_issued" | "delivered" | "rejected"),
+        "delivered" | "rejected" | "cancelled" => body.status == cur.status,
+        _ => false,
+    };
+    if !allowed {
+        return Err(ApiError::new("Invalid redemption status transition", 400));
+    }
+
     if body.status == "rejected" && ACTIVE.contains(&cur.status.as_str()) {
         refund_in_transaction(&mut tx, cur.user_id, id, cur.wings_cost, "Redemption rejected").await?;
     }
@@ -386,8 +396,8 @@ async fn create_item_handler(
     body: web::Json<CreateRewardItemDTO>,
 ) -> Result<ApiResponse<RewardItemDTO>, ApiError> {
     let b = body.into_inner();
-    if b.wings_cost <= 0 {
-        return Err(ApiError::new("Wings cost must be positive", 400));
+    if b.name.trim().is_empty() || b.wings_cost <= 0 {
+        return Err(ApiError::new("Reward name and positive Wings cost are required", 400));
     }
     let r = sqlx::query!(
         r#"INSERT INTO reward_items (name, description, category, wings_cost, image_file_id, is_active)
@@ -422,6 +432,11 @@ async fn update_item_handler(
 ) -> Result<ApiResponse<RewardItemDTO>, ApiError> {
     let id = path.into_inner();
     let b = body.into_inner();
+    if b.name.as_deref().is_some_and(|name| name.trim().is_empty())
+        || b.wings_cost.is_some_and(|cost| cost <= 0)
+    {
+        return Err(ApiError::new("Reward name and positive Wings cost are required", 400));
+    }
     let r = sqlx::query!(
         r#"UPDATE reward_items SET
                name = COALESCE($2, name),

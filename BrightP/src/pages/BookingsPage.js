@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBooking } from '../contexts/BookingContext';
@@ -34,6 +34,22 @@ const checkboxLabelCls =
   "flex items-center gap-[12px] p-[12px] bg-[var(--color-secondary)] border border-[var(--color-border)] rounded-[8px] cursor-pointer transition-all duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-[var(--color-secondary-hover)] hover:border-[var(--color-primary)]";
 
 const STATUS_CLS = {
+  new:
+    "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)] border-[rgba(var(--color-warning-rgb),0.25)]",
+  assigned:
+    "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)] border-[rgba(var(--color-warning-rgb),0.25)]",
+  contacted:
+    "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)] border-[rgba(var(--color-warning-rgb),0.25)]",
+  awaiting_approval:
+    "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)] border-[rgba(var(--color-warning-rgb),0.25)]",
+  awaiting_payment:
+    "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)] border-[rgba(var(--color-warning-rgb),0.25)]",
+  payment_received:
+    "bg-[rgba(var(--color-info-rgb),0.15)] text-[var(--color-info)] border-[rgba(var(--color-info-rgb),0.25)]",
+  booking_confirmed:
+    "bg-[rgba(var(--color-success-rgb),0.15)] text-[var(--color-success)] border-[rgba(var(--color-success-rgb),0.25)]",
+  completed:
+    "bg-[rgba(var(--color-success-rgb),0.15)] text-[var(--color-success)] border-[rgba(var(--color-success-rgb),0.25)]",
   pending:
     "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)] border-[rgba(var(--color-warning-rgb),0.25)]",
   confirmed:
@@ -43,6 +59,11 @@ const STATUS_CLS = {
   cancelled:
     "bg-[rgba(var(--color-info-rgb),0.15)] text-[var(--color-info)] border-[rgba(var(--color-info-rgb),0.25)]",
 };
+const formatStatus = (status = "") =>
+  status
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 const statusBaseCls =
   "inline-block py-[2px] px-[8px] rounded-full text-[11px] font-[550] uppercase border";
 
@@ -481,7 +502,7 @@ const VisaForm = ({ formData, onInputChange, onSubmit, submitting, calculateCost
 const BookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { userData, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { submitBooking, bookings, loading } = useBooking();
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'flights');
@@ -742,7 +763,7 @@ const BookingPage = () => {
                     <h4 className="text-[var(--color-text)] text-[12px] font-[550] mb-[4px] font-[family-name:var(--font-family-mono)]">{booking.id}</h4>
                     <p className="text-[var(--color-text-secondary)] text-[11px] mb-[4px]">{booking.type.charAt(0).toUpperCase() + booking.type.slice(1)}</p>
                     <span className={`${statusBaseCls} ${STATUS_CLS[booking.status] || ''}`}>
-                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                      {formatStatus(booking.status)}
                     </span>
                   </div>
                   <div className="text-[var(--color-success)] font-[600] text-[12px]">

@@ -5,6 +5,7 @@ use serde_json::json;
 
 use crate::api::dto::auth::{AuthResponseDTO, LoginRequestDTO, RegisterRequestDTO};
 use crate::api::dto::user::UserDTO;
+use crate::api::utils::phone::{is_valid_phone, normalize_phone};
 use crate::api::utils::pin::{hash_pin, is_valid_pin_format};
 use crate::domain::errors::user_errors::UserError;
 use crate::domain::models::user::User;
@@ -41,6 +42,9 @@ pub async fn register_handler(
     body: web::Json<RegisterRequestDTO>,
 ) -> Result<HttpResponse, ApiError> {
     let body = body.into_inner();
+    if !is_valid_phone(&body.phone) {
+        return Err(ApiError::from(UserError::InvalidPhoneFormat));
+    }
 
     if !is_valid_pin_format(&body.pin) {
         return Err(ApiError::from(UserError::InvalidPinFormat));
@@ -53,14 +57,16 @@ pub async fn register_handler(
                 pin_hash: hash_pin(&body.pin),
                 first_name: body.first_name,
                 last_name: body.last_name,
-                phone: body.phone.trim().to_string(),
+                phone: normalize_phone(&body.phone),
                 membership_tier: "Silver".to_string(),
                 membership_code: String::new(),
                 referral_code: String::new(),
                 hr_code: None,
                 date_of_birth: body.date_of_birth,
             },
-            body.referred_by_code,
+            body.referred_by_code
+                .map(|code| code.trim().to_uppercase())
+                .filter(|code| !code.is_empty()),
         )
         .await
         .map_err(ApiError::from)?;
@@ -73,8 +79,9 @@ pub async fn login_handler(
     refresh_token_service: web::Data<dyn RefreshTokenService>,
     body: web::Json<LoginRequestDTO>,
 ) -> Result<HttpResponse, ApiError> {
+    let phone = normalize_phone(&body.phone);
     let user = user_service
-        .authenticate(body.phone.trim(), &body.pin)
+        .authenticate(&phone, &body.pin)
         .await
         .map_err(ApiError::from)?;
 

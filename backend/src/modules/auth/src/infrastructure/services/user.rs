@@ -79,23 +79,25 @@ impl UserService for UserServiceImpl {
             match self.repository.create(&new_user).await {
                 Ok(mut user) => {
                     let welcome_points = self.rewards_service.welcome_bonus().await;
-                    self.rewards_service
-                        .award(
-                            user.id,
-                            welcome_points,
-                            RewardReason::WelcomeBonus,
-                            None,
-                            None,
-                            None,
-                            None,
-                        )
-                        .await
-                        .map_err(|err| {
-                            UserError::InternalServerError(RepositoryError::new(
-                                err.to_string(),
-                            ))
-                        })?;
-                    user.tokens = welcome_points;
+                    if welcome_points > 0 {
+                        self.rewards_service
+                            .award(
+                                user.id,
+                                welcome_points,
+                                RewardReason::WelcomeBonus,
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
+                            .await
+                            .map_err(|err| {
+                                UserError::InternalServerError(RepositoryError::new(
+                                    err.to_string(),
+                                ))
+                            })?;
+                        user.tokens = welcome_points;
+                    }
 
                     if let Some(referrer_id) = referrer_id {
                         self.referral_service

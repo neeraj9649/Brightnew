@@ -10,6 +10,7 @@ pub enum UserError {
     UserDoesNotExist,
     InvalidCredentials,
     InvalidPinFormat,
+    InvalidPhoneFormat,
     InvalidReferralCode,
     UserNotAuthorised,
     InternalServerError(RepositoryError),
@@ -33,6 +34,9 @@ impl fmt::Display for UserError {
             UserError::InvalidPinFormat => {
                 write!(f, "PIN must be exactly 4 digits")
             }
+            UserError::InvalidPhoneFormat => {
+                write!(f, "Phone number must contain 5 to 20 digits")
+            }
             UserError::InvalidReferralCode => {
                 write!(f, "Invalid referral code")
             }
@@ -55,6 +59,7 @@ impl From<UserError> for ApiError {
             UserError::DuplicateHrCode => ApiResponseCode::Conflict,
             UserError::InvalidCredentials => ApiResponseCode::Unauthorized,
             UserError::InvalidPinFormat => ApiResponseCode::BadRequest,
+            UserError::InvalidPhoneFormat => ApiResponseCode::BadRequest,
             UserError::InvalidReferralCode => ApiResponseCode::BadRequest,
             UserError::InternalServerError(_) => {
                 ApiResponseCode::InternalServerError

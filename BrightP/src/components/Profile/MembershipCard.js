@@ -30,7 +30,7 @@ const loadImg = (src) =>
 // to the portal domain so DOWNLOADED cards scan correctly off any device;
 // override with REACT_APP_PORTAL_URL.
 const PORTAL_BASE = (
-  process.env.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.in'
+  process.env.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.com'
 ).replace(/\/$/, '');
 
 const MembershipCard = ({ userData, compact = false }) => {

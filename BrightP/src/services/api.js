@@ -1,6 +1,9 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_BASE_URL = (
+  process.env.REACT_APP_API_URL || 'http://localhost:9010'
+).replace(/\/$/, '');
 
 let accessToken = null;
+let refreshPromise = null;
 
 export const setAccessToken = (token) => {
   accessToken = token;
@@ -28,13 +31,23 @@ async function rawRequest(path, options = {}) {
 }
 
 async function tryRefresh() {
-  const { response, body } = await rawRequest('/auth/refresh', { method: 'POST' });
-  if (response.ok && body?.data?.access_token) {
-    setAccessToken(body.data.access_token);
-    return true;
+  // Several requests can fail together when a short-lived access token
+  // expires. Rotate the httpOnly refresh token once and let the others share
+  // the result instead of racing the single-use refresh-token endpoint.
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const { response, body } = await rawRequest('/auth/refresh', { method: 'POST' });
+      if (response.ok && body?.data?.access_token) {
+        setAccessToken(body.data.access_token);
+        return true;
+      }
+      setAccessToken(null);
+      return false;
+    })().finally(() => {
+      refreshPromise = null;
+    });
   }
-  setAccessToken(null);
-  return false;
+  return refreshPromise;
 }
 
 /**

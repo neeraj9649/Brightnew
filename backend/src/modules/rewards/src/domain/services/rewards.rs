@@ -19,14 +19,6 @@ pub trait RewardsService: 'static + Sync + Send {
         created_by: Option<Uuid>,
     ) -> Result<RewardTransaction, RewardError>;
 
-    async fn award_referral_once(
-        &self,
-        user_id: Uuid,
-        source_id: Uuid,
-        points: i32,
-        description: Option<String>,
-    ) -> Result<Option<RewardTransaction>, RewardError>;
-
     /// Awards the configured per-type points for a just-completed booking,
     /// plus the first-booking bonus if this is the user's first one ever.
     async fn award_for_completed_booking(
@@ -38,8 +30,6 @@ pub trait RewardsService: 'static + Sync + Send {
 
     /// The configured welcome-bonus amount (DB-backed, admin-editable).
     async fn welcome_bonus(&self) -> i32;
-
-    async fn referral_bonus(&self) -> i32;
 
     async fn history(
         &self,

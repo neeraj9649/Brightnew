@@ -16,13 +16,6 @@ pub trait RewardTransactionRepository: Send + Sync {
         &self,
         new_transaction: &CreateRewardTransaction,
     ) -> RepositoryResult<RewardTransaction>;
-    /// Creates a referral transaction only if the referred member has not
-    /// already produced one. The unique partial index is the concurrency
-    /// guard; returning None means another request won the race.
-    async fn create_referral_once(
-        &self,
-        new_transaction: &CreateRewardTransaction,
-    ) -> RepositoryResult<Option<RewardTransaction>>;
     /// Creates the service reward and, when applicable, first-booking bonus
     /// once while serializing completions for the member's wallet.
     async fn create_booking_rewards_once(

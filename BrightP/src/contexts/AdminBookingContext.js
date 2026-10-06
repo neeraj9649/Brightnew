@@ -109,7 +109,34 @@ export const AdminBookingProvider = ({ children }) => {
       try {
         setLoading(true);
         const dtos = await api.get("/admin/bookings");
-        const users = usersOverride || allUsers;
+        let users = usersOverride || allUsers;
+        // Admins already loaded the full directory. Employees receive only
+        // their assigned bookings, so hydrate the small set of customer
+        // records referenced by those bookings before rendering the queue.
+        if (!isAdmin) {
+          const knownIds = new Set(users.map((u) => u.uid));
+          const missingIds = [...new Set(dtos.map((dto) => dto.user_id))].filter(
+            (id) => !knownIds.has(id),
+          );
+          const fetched = await Promise.all(
+            missingIds.map(async (id) => {
+              try {
+                return mapUserDTO(await api.get(`/staff/users/${id}`));
+              } catch {
+                return null;
+              }
+            }),
+          );
+          const fetchedUsers = fetched.filter(Boolean);
+          users = [...users, ...fetchedUsers];
+          if (fetchedUsers.length) {
+            setAllUsers((prev) => {
+              const byId = new Map(prev.map((u) => [u.uid, u]));
+              fetchedUsers.forEach((u) => byId.set(u.uid, u));
+              return [...byId.values()];
+            });
+          }
+        }
         const usersById = new Map(users.map((u) => [u.uid, u]));
         const bookings = dtos.map((dto) => mapBookingDTO(dto, usersById));
         setAllBookings(bookings);
@@ -123,12 +150,16 @@ export const AdminBookingProvider = ({ children }) => {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isStaff, allUsers],
+    [isAdmin, isStaff, allUsers],
   );
 
   const addUserTokens = useCallback(
     async (userId, amount, reason = "Admin Added") => {
       if (!isAdmin) return false;
+      if (!Number.isInteger(amount) || amount <= 0) {
+        toast.error("Enter a positive whole number of Wings");
+        return false;
+      }
       const user = allUsers.find((u) => u.uid === userId);
       if (!user) {
         toast.error("User not found");
@@ -136,21 +167,23 @@ export const AdminBookingProvider = ({ children }) => {
       }
 
       try {
-        const dto = await api.patch("/admin/users", {
-          id: userId,
-          tokens: (user.tokens || 0) + amount,
+        await api.post("/admin/rewards/award", {
+          user_id: userId,
+          points: amount,
+          description: reason,
         });
+        const dto = await api.get(`/staff/users/${userId}`);
         const updated = mapUserDTO(dto);
         setAllUsers((prev) =>
           prev.map((u) => (u.uid === userId ? updated : u)),
         );
         toast.success(
-          `Added ${amount} tokens to ${user.displayName}'s account. Reason: ${reason}`,
+          `Added ${amount} Wings to ${user.displayName}'s account. Reason: ${reason}`,
         );
         return true;
       } catch (error) {
         console.error("Error adding tokens:", error);
-        toast.error("Failed to add tokens");
+        toast.error(error.message || "Failed to add Wings");
         return false;
       }
     },
@@ -160,6 +193,10 @@ export const AdminBookingProvider = ({ children }) => {
   const removeUserTokens = useCallback(
     async (userId, amount, reason = "Admin Removed") => {
       if (!isAdmin) return false;
+      if (!Number.isInteger(amount) || amount <= 0) {
+        toast.error("Enter a positive whole number of Wings");
+        return false;
+      }
       const user = allUsers.find((u) => u.uid === userId);
       if (!user) {
         toast.error("User not found");
@@ -167,21 +204,23 @@ export const AdminBookingProvider = ({ children }) => {
       }
 
       try {
-        const dto = await api.patch("/admin/users", {
-          id: userId,
-          tokens: Math.max(0, (user.tokens || 0) - amount),
+        await api.post("/admin/rewards/award", {
+          user_id: userId,
+          points: -amount,
+          description: reason,
         });
+        const dto = await api.get(`/staff/users/${userId}`);
         const updated = mapUserDTO(dto);
         setAllUsers((prev) =>
           prev.map((u) => (u.uid === userId ? updated : u)),
         );
         toast.success(
-          `Removed ${amount} tokens from ${user.displayName}'s account. Reason: ${reason}`,
+          `Removed ${amount} Wings from ${user.displayName}'s account. Reason: ${reason}`,
         );
         return true;
       } catch (error) {
         console.error("Error removing tokens:", error);
-        toast.error("Failed to remove tokens");
+        toast.error(error.message || "Failed to remove Wings");
         return false;
       }
     },
@@ -195,12 +234,17 @@ export const AdminBookingProvider = ({ children }) => {
       if (!isStaff) return null;
 
       try {
+        const digits = String(phone || "").replace(/\D/g, "");
+        if (digits.length < 5) {
+          toast.error("Phone number must contain at least 5 digits");
+          return null;
+        }
         const dto = await api.post("/staff/users", {
           email: email || undefined,
           first_name: firstName,
           last_name: lastName || null,
           phone,
-          pin: phone.replace(/\D/g, "").slice(-4).padEnd(4, "0"),
+          pin: digits.slice(-4),
           date_of_birth: dateOfBirth || undefined,
         });
         const created = mapUserDTO(dto);

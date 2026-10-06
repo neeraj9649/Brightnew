@@ -6,6 +6,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum RewardError {
     InvalidPoints,
+    InsufficientBalance,
     InternalServerError(RepositoryError),
 }
 
@@ -14,6 +15,9 @@ impl fmt::Display for RewardError {
         match self {
             RewardError::InvalidPoints => {
                 write!(f, "Points must be a non-zero number")
+            }
+            RewardError::InsufficientBalance => {
+                write!(f, "Insufficient Wings balance")
             }
             RewardError::InternalServerError(error) => {
                 write!(
@@ -30,6 +34,7 @@ impl From<RewardError> for ApiError {
     fn from(value: RewardError) -> Self {
         let code = match value {
             RewardError::InvalidPoints => ApiResponseCode::BadRequest,
+            RewardError::InsufficientBalance => ApiResponseCode::BadRequest,
             RewardError::InternalServerError(_) => {
                 ApiResponseCode::InternalServerError
             }

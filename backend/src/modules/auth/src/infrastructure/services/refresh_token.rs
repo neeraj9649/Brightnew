@@ -151,27 +151,28 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
         &self,
         raw_token: String,
     ) -> Cookie<'static> {
+        let secure = !cfg!(debug_assertions);
         Cookie::build(
             (*constants::REFRESH_TOKEN_COOKIE_NAME).clone(),
             raw_token,
         )
         .http_only(true)
-        // Local previews run over http; production deployments should keep
-        // the refresh token cookie secure. This preserves the same-site,
-        // httpOnly protections without making the local portal impossible to
-        // refresh after a reload.
-        .secure(!cfg!(debug_assertions))
-        .same_site(SameSite::None)
+        // SameSite=None is required for a cross-site production portal/API
+        // pair and browsers require Secure with it. Local HTTP previews use
+        // Lax so the refresh cookie is not silently rejected.
+        .secure(secure)
+        .same_site(if secure { SameSite::None } else { SameSite::Lax })
         .path("/")
         .max_age(CookieDuration::days(*constants::REFRESH_TOKEN_EXP_DAYS))
         .finish()
     }
 
     fn build_expired_refresh_token_cookie(&self) -> Cookie<'static> {
+        let secure = !cfg!(debug_assertions);
         Cookie::build((*constants::REFRESH_TOKEN_COOKIE_NAME).clone(), "")
             .http_only(true)
-            .secure(!cfg!(debug_assertions))
-            .same_site(SameSite::None)
+            .secure(secure)
+            .same_site(if secure { SameSite::None } else { SameSite::Lax })
             .path("/")
             .max_age(CookieDuration::seconds(0))
             .finish()

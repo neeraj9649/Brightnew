@@ -9,6 +9,8 @@ pub enum BookingError {
     BookingNotOwnedByUser,
     BookingNotAssignedToEmployee,
     InvalidBookingType,
+    InvalidBookingStatus,
+    BookingCannotBeCancelled,
     InternalServerError(RepositoryError),
 }
 
@@ -26,6 +28,12 @@ impl fmt::Display for BookingError {
             }
             BookingError::InvalidBookingType => {
                 write!(f, "Invalid booking type")
+            }
+            BookingError::InvalidBookingStatus => {
+                write!(f, "Invalid booking status")
+            }
+            BookingError::BookingCannotBeCancelled => {
+                write!(f, "This booking cannot be cancelled")
             }
             BookingError::InternalServerError(error) => {
                 write!(
@@ -47,6 +55,8 @@ impl From<BookingError> for ApiError {
             }
             BookingError::BookingDoesNotExist => ApiResponseCode::NotFound,
             BookingError::InvalidBookingType => ApiResponseCode::BadRequest,
+            BookingError::InvalidBookingStatus => ApiResponseCode::BadRequest,
+            BookingError::BookingCannotBeCancelled => ApiResponseCode::BadRequest,
             BookingError::InternalServerError(_) => {
                 ApiResponseCode::InternalServerError
             }

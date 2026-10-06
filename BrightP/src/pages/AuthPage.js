@@ -22,17 +22,12 @@ const submitBase =
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState("login");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
   const [registrationStep, setRegistrationStep] = useState(1);
 
   const navigate = useNavigate();
   const {
     signIn,
     signUp,
-    signInWithGoogle,
-    resetPassword,
-    isFirebaseConfigured,
   } = useAuth();
 
   const {
@@ -45,7 +40,6 @@ const AuthPage = () => {
     getValues,
   } = useForm();
 
-  const phoneValue = watch("phone");
   const passwordValue = watch("password");
 
   // Handle Login
@@ -80,6 +74,7 @@ const AuthPage = () => {
         name: data.name,
         phone: data.phone,
         dob: data.dob,
+        referredByCode: data.referredByCode,
       });
       toast.success("Account created successfully!");
       navigate("/dashboard");
@@ -97,52 +92,6 @@ const AuthPage = () => {
       toast.error(errorMessage);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Handle Google Sign-In
-  const handleGoogleAuth = async () => {
-    try {
-      setGoogleLoading(true);
-      await signInWithGoogle();
-      toast.success("Welcome to Bright Wings!");
-      navigate("/dashboard");
-    } catch (error) {
-      console.error("Google auth error:", error);
-      let errorMessage = "Failed to sign in with Google.";
-
-      if (error.message === "Sign in was cancelled") {
-        errorMessage = "Google sign in was cancelled.";
-      }
-
-      toast.error(errorMessage);
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  // Handle pin Reset
-  const handlePasswordReset = async () => {
-    if (!phoneValue) {
-      toast.error("Please enter your phone number first.");
-      return;
-    }
-
-    try {
-      await resetPassword(phoneValue);
-      setShowResetPassword(false);
-      toast.success("pin reset phone sent!");
-    } catch (error) {
-      console.error("pin reset error:", error);
-      let errorMessage = "Failed to send password reset phone.";
-
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this phone number.";
-      } else if (error.code === "auth/invalid-phone") {
-        errorMessage = "Please enter a valid phone number.";
-      }
-
-      toast.error(errorMessage);
     }
   };
 
@@ -321,28 +270,6 @@ const AuthPage = () => {
 
             {/* Form Content */}
             <div className="mb-[24px] rounded-[12px] border border-[var(--color-card-border)] bg-[var(--color-surface)] p-[32px] shadow-[var(--shadow-sm)]">
-              {/* Demo Notice */}
-              {!isFirebaseConfigured && (
-                <div className="mb-[24px] flex items-start gap-[12px] rounded-[10px] border border-[var(--color-warning)] bg-[linear-gradient(135deg,var(--color-bg-2),var(--color-warning))] p-[16px]">
-                  <div className="mt-[2px] text-[18px] text-[var(--color-warning)]">
-                    <i className="fas fa-info-circle"></i>
-                  </div>
-                  <div>
-                    <h3 className="mb-[4px] text-[12px] font-[550] text-[var(--color-warning)]">Demo Mode</h3>
-                    <p className="mb-[8px] text-[11px] text-[var(--color-warning)]">Firebase not configured. Use demo credentials:</p>
-                    <div className="flex flex-col gap-[4px]">
-                      <div className="rounded-[6px] bg-[rgba(255,255,255,0.5)] py-[4px] px-[8px] font-[var(--font-family-mono)] text-[11px] text-[var(--color-text)]">
-                        <strong>User:</strong> user@brightwings.com /
-                        password123
-                      </div>
-                      <div className="rounded-[6px] bg-[rgba(255,255,255,0.5)] py-[4px] px-[8px] font-[var(--font-family-mono)] text-[11px] text-[var(--color-text)]">
-                        <strong>Admin:</strong> admin@brightwings.com / admin123
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Header */}
               <div className="mb-[32px] text-center">
                 <h2 className="mb-[8px] text-[20px] font-[550] text-[var(--color-text)]">
@@ -356,27 +283,6 @@ const AuthPage = () => {
                     : "Join thousands of travelers and start your journey with us"}
                 </p>
               </div>
-
-              {/* Google Sign In/Up Button */}
-              <button
-                type="button"
-                className="mb-[24px] flex w-full cursor-pointer items-center justify-center gap-[12px] rounded-[8px] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-[12px] font-medium text-[var(--color-text)] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={handleGoogleAuth}
-                disabled={googleLoading || loading}
-              >
-                {googleLoading ? (
-                  <div className="h-[16px] w-[16px] animate-spin rounded-full border-2 border-transparent border-t-current"></div>
-                ) : (
-                  <>
-                    <img
-                      className="h-[18px] w-[18px]"
-                      src="https://developers.google.com/identity/images/g-logo.png"
-                      alt="Google"
-                    />
-                    <span>Continue with Google</span>
-                  </>
-                )}
-              </button>
 
               <div className="relative mb-[24px] text-center before:absolute before:top-1/2 before:left-0 before:right-0 before:h-px before:bg-[var(--color-border)] before:content-['']">
                 <span className="relative bg-[var(--color-surface)] px-[16px] text-[12px] text-[var(--color-text-secondary)]">
@@ -451,22 +357,15 @@ const AuthPage = () => {
                       )}
                     </div>
 
-                    {/* Forgot pin */}
-                    <div className="mb-[24px] flex justify-end">
-                      <button
-                        type="button"
-                        className="cursor-pointer border-none bg-none text-[12px] text-[var(--color-primary)] transition-colors duration-150 hover:underline"
-                        onClick={() => setShowResetPassword(true)}
-                      >
-                        Forgot your password?
-                      </button>
-                    </div>
+                    <p className="mb-[24px] text-right text-[11px] text-[var(--color-text-secondary)]">
+                      Forgot your PIN? Contact support to reset it.
+                    </p>
 
                     {/* Login Button */}
                     <button
                       type="submit"
                       className={`${submitBase} bg-[var(--color-primary)] text-[var(--color-btn-primary-text)]`}
-                      disabled={loading || googleLoading}
+                      disabled={loading}
                     >
                       {loading ? (
                         <>
@@ -638,43 +537,15 @@ const AuthPage = () => {
                           <p className="m-0 text-[12px] text-[var(--color-text-secondary)]">Help us personalize your travel experience</p>
                         </div>
 
-                        {/* Phone Number */}
-                        <div className={groupCls}>
-                          <label htmlFor="phone" className={labelCls}>Phone Number</label>
-                          <div className="relative">
-                            <i className={`fas fa-phone ${iconCls}`}></i>
-                            <input
-                              type="tel"
-                              id="phone"
-                              placeholder="+1 (555) 123-4567"
-                              {...registerField("phone", {
-                                pattern: {
-                                  value: /^[\+]?[0-9\(\)\-\s]+$/,
-                                  message: "Please enter a valid phone number",
-                                },
-                              })}
-                              className={inputCls(errors.phone)}
-                            />
-                          </div>
-                          {errors.phone && (
-                            <span className={errMsgCls}>
-                              <i className="fas fa-exclamation-circle"></i>
-                              {errors.phone.message}
-                            </span>
-                          )}
-                        </div>
-
                         {/* Date of Birth */}
                         <div className={groupCls}>
-                          <label htmlFor="dob" className={labelCls}>Date of Birth *</label>
+                          <label htmlFor="dob" className={labelCls}>Date of Birth (optional)</label>
                           <div className="relative">
                             <i className={`fas fa-calendar ${iconCls}`}></i>
                             <input
                               type="date"
                               id="dob"
-                              {...registerField("dob", {
-                                required: "Date of birth is required",
-                              })}
+                              {...registerField("dob")}
                               className={inputCls(errors.dob)}
                             />
                           </div>
@@ -684,6 +555,21 @@ const AuthPage = () => {
                               {errors.dob.message}
                             </span>
                           )}
+                        </div>
+
+                        {/* Referral code */}
+                        <div className={groupCls}>
+                          <label htmlFor="referredByCode" className={labelCls}>Referral Code (optional)</label>
+                          <div className="relative">
+                            <i className={`fas fa-user-plus ${iconCls}`}></i>
+                            <input
+                              type="text"
+                              id="referredByCode"
+                              placeholder="Enter a referral code"
+                              {...registerField("referredByCode")}
+                              className={inputCls(false)}
+                            />
+                          </div>
                         </div>
 
                         {/* Newsletter Subscription */}
@@ -719,7 +605,7 @@ const AuthPage = () => {
                           <button
                             type="submit"
                             className={`${submitBase} flex-1 bg-[var(--color-success)] text-[var(--color-btn-primary-text)]`}
-                            disabled={loading || googleLoading}
+                            disabled={loading}
                           >
                             {loading ? (
                               <>
@@ -745,69 +631,19 @@ const AuthPage = () => {
             <div className="pt-[16px] text-center">
               <p className="m-0 text-[11px] leading-[1.5] text-[var(--color-text-secondary)]">
                 By continuing, you agree to our{" "}
-                <a href="#" className="font-medium text-[var(--color-primary)] hover:underline" onClick={(e) => e.preventDefault()}>
+                <button type="button" className="border-none bg-transparent p-0 font-medium text-[var(--color-primary)] hover:underline">
                   Terms of Service
-                </a>{" "}
+                </button>{" "}
                 and{" "}
-                <a href="#" className="font-medium text-[var(--color-primary)] hover:underline" onClick={(e) => e.preventDefault()}>
+                <button type="button" className="border-none bg-transparent p-0 font-medium text-[var(--color-primary)] hover:underline">
                   Privacy Policy
-                </a>
+                </button>
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* pin Reset Modal */}
-      {showResetPassword && (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.5)] p-[16px]"
-          onClick={() => setShowResetPassword(false)}
-        >
-          <div className="w-full max-w-[400px] rounded-[10px] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] p-[24px]">
-              <h3 className="m-0 text-[16px] font-[550] text-[var(--color-text)]">Reset pin</h3>
-              <button
-                className="cursor-pointer rounded-[6px] border-none bg-none p-[4px] text-[16px] text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-secondary)] hover:text-[var(--color-text)]"
-                onClick={() => setShowResetPassword(false)}
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="p-[24px]">
-              <p className="mb-[16px] leading-[1.5] text-[var(--color-text-secondary)]">
-                Enter your phone number and we'll send you a link to reset your
-                password.
-              </p>
-              <div className={groupCls}>
-                <label className={labelCls}>phone number</label>
-                <input
-                  type="phone"
-                  value={phoneValue || ""}
-                  readOnly
-                  placeholder="Please enter phone in the login form first"
-                  className={inputCls(false)}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-[12px] border-t border-[var(--color-border)] p-[24px]">
-              <button
-                className="cursor-pointer rounded-[8px] border border-[var(--color-border)] bg-transparent py-[8px] px-[16px] text-[12px] font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-secondary)] hover:text-[var(--color-text)]"
-                onClick={() => setShowResetPassword(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="cursor-pointer rounded-[8px] border border-transparent bg-[var(--color-primary)] py-[8px] px-[16px] text-[12px] font-medium text-[var(--color-btn-primary-text)] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={handlePasswordReset}
-                disabled={!phoneValue}
-              >
-                Send Reset Link
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

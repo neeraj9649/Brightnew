@@ -10,14 +10,14 @@ import { api } from "../../services/api";
 const SERVICE_LABELS = {
   flight: { label: "Flight", icon: "fa-plane" },
   hotel: { label: "Hotel", icon: "fa-hotel" },
-  holiday_package: { label: "Holiday Package", icon: "fa-umbrella-beach" },
   tour: { label: "Tour Package", icon: "fa-map-marked-alt" },
   visa: { label: "Visa", icon: "fa-passport" },
   airport_transfer: { label: "Airport Transfer", icon: "fa-shuttle-van" },
+  cruise: { label: "Cruise", icon: "fa-ship" },
+  insurance: { label: "Travel Insurance", icon: "fa-shield-alt" },
   activity: { label: "Activity Tickets", icon: "fa-ticket-alt" },
   car_rental: { label: "Car Rental", icon: "fa-car" },
-  office_visit: { label: "Office Visit", icon: "fa-building" },
-  referral_booking: { label: "Referral Booking", icon: "fa-user-plus" },
+  custom: { label: "Custom Service", icon: "fa-concierge-bell" },
 };
 
 // Per-kind accent backgrounds for notification icons (replaces .notification-icon.<kind>).
@@ -65,7 +65,7 @@ const UserDashboard = () => {
     // Calculate active trips (confirmed bookings with future dates)
     const today = new Date();
     const activeTrips = bookings.filter((booking) => {
-      if (booking.status !== "confirmed") return false;
+      if (booking.status !== "booking_confirmed") return false;
 
       // Check based on booking type
       let tripDate;
@@ -178,6 +178,9 @@ const UserDashboard = () => {
     if (userData) {
       loadUserBookings();
     }
+    // BookingProvider exposes this loader as a plain function; depending on
+    // it here would rerun the effect after every provider render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
 
   const quickActions = [

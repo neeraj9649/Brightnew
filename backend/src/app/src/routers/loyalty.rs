@@ -11,6 +11,7 @@ use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use referral::domain::services::referral::ReferralService;
+use referral::domain::rate_config::referral_rate_percent;
 use rewards::domain::models::reward_transaction::RewardTransaction;
 use rewards::domain::services::rewards::RewardsService;
 use rewards::domain::tier_config::tier_for_lifetime_points;
@@ -81,7 +82,7 @@ pub struct LoyaltyRedemptionDTO {
 pub struct ReferralStatusDTO {
     pub code: Option<String>,
     pub direct_referrals: i64,
-    pub reward_wings: i32,
+    pub monthly_rate_percent: f64,
     pub milestone: String,
 }
 
@@ -250,8 +251,8 @@ async fn summary_handler(
     let referral = ReferralStatusDTO {
         code: member.referral_code.clone(),
         direct_referrals: referral_count,
-        reward_wings: 50,
-        milestone: "Earn 50 Wings when a referred friend completes their first booking".to_string(),
+        monthly_rate_percent: referral_rate_percent(),
+        milestone: "Referral Wings are calculated in the monthly bottom-up payout".to_string(),
     };
 
     Ok(ApiResponse(LoyaltySummaryDTO {

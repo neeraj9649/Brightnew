@@ -16,7 +16,6 @@ rand = { workspace = true }
 
 base = { path = "../../base" }
 rewards = { path = "../rewards" }
-referral = { path = "../referral" }
 
 [lib]
 path = "src/lib.rs"

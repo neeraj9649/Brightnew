@@ -53,8 +53,6 @@ pub struct AdminUpdateUserDTO {
     pub is_active: Option<bool>,
     #[serde(default)]
     pub membership_tier: Option<String>,
-    #[serde(default)]
-    pub tokens: Option<i32>,
 }
 
 /// Admin sets the customer's initial PIN directly (e.g. in person at a

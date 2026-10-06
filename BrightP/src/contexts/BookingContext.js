@@ -55,8 +55,9 @@ export const BookingProvider = ({ children }) => {
       const createdBooking = mapBookingDTO(dto);
       setBookings((prev) => [createdBooking, ...prev]);
 
-      const tokenReward = Math.floor((estimatedCost || 0) / 100) * 10;
-      toast.success(`Booking submitted! You earned ${tokenReward} tokens.`);
+      toast.success(
+        "Booking submitted! Wings are credited when the booking is completed.",
+      );
 
       return createdBooking;
     } catch (error) {

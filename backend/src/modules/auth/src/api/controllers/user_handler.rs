@@ -7,6 +7,7 @@ use crate::api::dto::user::{
     AdminCreateUserDTO, AdminUpdateUserDTO, ChangePinDTO, UpdateProfileDTO, UserDTO,
 };
 use crate::api::utils::pin::{hash_pin, is_valid_pin_format};
+use crate::api::utils::phone::{is_valid_phone, normalize_phone};
 use crate::domain::errors::user_errors::UserError;
 use crate::domain::models::user::{CreateUser, UpdateUser};
 use crate::domain::services::user::UserService;
@@ -25,12 +26,15 @@ pub async fn update_me_profile_handler(
     body: web::Json<UpdateProfileDTO>,
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let body = body.into_inner();
+    if body.phone.as_deref().is_some_and(|phone| !is_valid_phone(phone)) {
+        return Err(ApiError::from(UserError::InvalidPhoneFormat));
+    }
     let user = user_service
         .update(UpdateUser {
             id: claims.sub,
             first_name: body.first_name,
             last_name: body.last_name,
-            phone: body.phone,
+            phone: body.phone.map(|phone| normalize_phone(&phone)),
             profile_image_file_id: body.profile_image_file_id,
             ..Default::default()
         })
@@ -60,6 +64,14 @@ pub async fn admin_update_user_handler(
     body: web::Json<AdminUpdateUserDTO>,
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let body = body.into_inner();
+    if body.phone.as_deref().is_some_and(|phone| !is_valid_phone(phone)) {
+        return Err(ApiError::from(UserError::InvalidPhoneFormat));
+    }
+    if body.role.as_deref().is_some_and(|role| {
+        !matches!(role, "customer" | "employee" | "admin")
+    }) {
+        return Err(ApiError::new("Invalid user role", 400));
+    }
     let membership_tier = body.membership_tier.map(|tier| match tier.as_str() {
         // Bronze was used by the legacy portal; Silver is the v2 entry tier.
         "Bronze" | "bronze" => "Silver".to_string(),
@@ -73,11 +85,10 @@ pub async fn admin_update_user_handler(
             id: body.id,
             first_name: body.first_name,
             last_name: body.last_name,
-            phone: body.phone,
+            phone: body.phone.map(|phone| normalize_phone(&phone)),
             role: body.role,
             is_active: body.is_active,
             membership_tier,
-            tokens: body.tokens,
             ..Default::default()
         })
         .await?;
@@ -90,6 +101,7 @@ pub async fn change_pin_handler(
     body: web::Json<ChangePinDTO>,
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let body = body.into_inner();
+
     if !is_valid_pin_format(&body.new_pin) {
         return Err(ApiError::from(UserError::InvalidPinFormat));
     }
@@ -108,6 +120,9 @@ pub async fn admin_create_user_handler(
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let body = body.into_inner();
 
+    if !is_valid_phone(&body.phone) {
+        return Err(ApiError::from(UserError::InvalidPhoneFormat));
+    }
     if !is_valid_pin_format(&body.pin) {
         return Err(ApiError::from(UserError::InvalidPinFormat));
     }
@@ -119,14 +134,16 @@ pub async fn admin_create_user_handler(
                 pin_hash: hash_pin(&body.pin),
                 first_name: body.first_name,
                 last_name: body.last_name,
-                phone: body.phone.trim().to_string(),
+                phone: normalize_phone(&body.phone),
                 membership_tier: "Silver".to_string(),
                 membership_code: String::new(),
                 referral_code: String::new(),
                 hr_code: body.hr_code.map(|c| c.trim().to_string()).filter(|c| !c.is_empty()),
                 date_of_birth: body.date_of_birth,
             },
-            body.referred_by_code,
+            body.referred_by_code
+                .map(|code| code.trim().to_uppercase())
+                .filter(|code| !code.is_empty()),
         )
         .await?;
 

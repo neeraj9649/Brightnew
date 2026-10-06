@@ -33,14 +33,15 @@ impl RewardTransactionSqlxRepository {
             r#"UPDATE users
                SET tokens = tokens + $1,
                    lifetime_points_earned = lifetime_points_earned + $2
-               WHERE id = $3
+               WHERE id = $3 AND tokens + $1 >= 0
                RETURNING lifetime_points_earned, membership_tier"#,
             new_transaction.points,
             lifetime_delta,
             new_transaction.user_id
         )
-        .fetch_one(&mut **tx)
-        .await?;
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| base::error::RepositoryError::new("INSUFFICIENT_BALANCE".to_string()))?;
 
         let target_tier = tier_for_lifetime_points(updated.lifetime_points_earned);
         if tier_rank(target_tier) > tier_rank(&updated.membership_tier) {
@@ -73,72 +74,6 @@ impl RewardTransactionSqlxRepository {
         .await?)
     }
 
-    async fn create_referral_once_inner(
-        &self,
-        new_transaction: &CreateRewardTransaction,
-    ) -> RepositoryResult<Option<RewardTransaction>> {
-        let mut tx = self.pool.begin().await?;
-        let transaction = sqlx::query_as::<_, RewardTransaction>(
-            r#"
-            INSERT INTO reward_transactions
-                (id, user_id, points, reason, source_type, source_id,
-                 description, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (source_type, source_id)
-                WHERE reason = 'referral' AND source_id IS NOT NULL
-            DO NOTHING
-            RETURNING id, user_id, points, reason, source_type, source_id,
-                description, created_by, created_at
-            "#,
-        )
-        .bind(Uuid::new_v4())
-        .bind(new_transaction.user_id)
-        .bind(new_transaction.points)
-        .bind(new_transaction.reason.as_str())
-        .bind(&new_transaction.source_type)
-        .bind(new_transaction.source_id)
-        .bind(&new_transaction.description)
-        .bind(new_transaction.created_by)
-        .fetch_optional(&mut *tx)
-        .await?;
-
-        let Some(transaction) = transaction else {
-            tx.commit().await?;
-            return Ok(None);
-        };
-
-        let lifetime_delta = if new_transaction.reason == RewardReason::Redemption {
-            0
-        } else {
-            new_transaction.points.max(0) as i64
-        };
-        let updated = sqlx::query!(
-            r#"UPDATE users
-               SET tokens = tokens + $1,
-                   lifetime_points_earned = lifetime_points_earned + $2
-               WHERE id = $3
-               RETURNING lifetime_points_earned, membership_tier"#,
-            new_transaction.points,
-            lifetime_delta,
-            new_transaction.user_id
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-
-        let target_tier = tier_for_lifetime_points(updated.lifetime_points_earned);
-        if tier_rank(target_tier) > tier_rank(&updated.membership_tier) {
-            sqlx::query!(
-                "UPDATE users SET membership_tier = $1 WHERE id = $2",
-                target_tier,
-                new_transaction.user_id
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        tx.commit().await?;
-        Ok(Some(transaction))
-    }
 }
 
 #[async_trait]
@@ -163,15 +98,16 @@ impl RewardTransactionRepository for RewardTransactionSqlxRepository {
             UPDATE users
             SET tokens = tokens + $1,
                 lifetime_points_earned = lifetime_points_earned + $2
-            WHERE id = $3
+            WHERE id = $3 AND tokens + $1 >= 0
             RETURNING lifetime_points_earned, membership_tier
             "#,
             new_transaction.points,
             lifetime_delta,
             new_transaction.user_id
         )
-        .fetch_one(&mut *tx)
-        .await?;
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| base::error::RepositoryError::new("INSUFFICIENT_BALANCE".to_string()))?;
 
         let target_tier = tier_for_lifetime_points(updated.lifetime_points_earned);
         if tier_rank(target_tier) > tier_rank(&updated.membership_tier) {
@@ -210,13 +146,6 @@ impl RewardTransactionRepository for RewardTransactionSqlxRepository {
         Ok(transaction)
     }
 
-    async fn create_referral_once(
-        &self,
-        new_transaction: &CreateRewardTransaction,
-    ) -> RepositoryResult<Option<RewardTransaction>> {
-        self.create_referral_once_inner(new_transaction).await
-    }
-
     async fn create_booking_rewards_once(
         &self,
         booking_transaction: &CreateRewardTransaction,
@@ -239,7 +168,7 @@ impl RewardTransactionRepository for RewardTransactionSqlxRepository {
         .fetch_one(&mut *tx)
         .await?;
         let mut awarded = Vec::with_capacity(2);
-        if !already_awarded {
+        if !already_awarded && booking_transaction.points > 0 {
             awarded.push(Self::insert_and_apply(&mut tx, booking_transaction).await?);
         }
         let has_first_booking = sqlx::query_scalar::<_, bool>(
@@ -248,7 +177,7 @@ impl RewardTransactionRepository for RewardTransactionSqlxRepository {
         .bind(booking_transaction.user_id)
         .fetch_one(&mut *tx)
         .await?;
-        if !has_first_booking {
+        if !has_first_booking && first_booking_transaction.points > 0 {
             awarded.push(Self::insert_and_apply(&mut tx, first_booking_transaction).await?);
         }
 
@@ -295,7 +224,8 @@ impl RewardTransactionRepository for RewardTransactionSqlxRepository {
     ) -> RepositoryResult<HashMap<Uuid, i64>> {
         let rows = sqlx::query!(
             r#"
-            SELECT user_id, SUM(points)::bigint AS "total!"
+            SELECT user_id,
+                   SUM(CASE WHEN points > 0 THEN points ELSE 0 END)::bigint AS "total!"
             FROM reward_transactions
             WHERE created_at >= $1 AND created_at < $2
             GROUP BY user_id

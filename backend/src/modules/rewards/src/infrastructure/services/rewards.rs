@@ -58,31 +58,13 @@ impl RewardsService for RewardsServiceImpl {
                 created_by,
             })
             .await
-            .map_err(RewardError::InternalServerError)
-    }
-
-    async fn award_referral_once(
-        &self,
-        user_id: Uuid,
-        source_id: Uuid,
-        points: i32,
-        description: Option<String>,
-    ) -> Result<Option<RewardTransaction>, RewardError> {
-        if points <= 0 {
-            return Err(RewardError::InvalidPoints);
-        }
-        self.repository
-            .create_referral_once(&CreateRewardTransaction {
-                user_id,
-                points,
-                reason: RewardReason::Referral,
-                source_type: Some("first_booking_referral".to_string()),
-                source_id: Some(source_id),
-                description,
-                created_by: None,
+            .map_err(|err| {
+                if err.message == "INSUFFICIENT_BALANCE" {
+                    RewardError::InsufficientBalance
+                } else {
+                    RewardError::InternalServerError(err)
+                }
             })
-            .await
-            .map_err(RewardError::InternalServerError)
     }
 
     async fn award_for_completed_booking(
@@ -93,9 +75,6 @@ impl RewardsService for RewardsServiceImpl {
     ) -> Result<Vec<RewardTransaction>, RewardError> {
         let booking_points = points_for_booking_type(&self.pool, booking_type).await;
         let first_booking_points = first_booking_bonus_points(&self.pool).await;
-        if booking_points <= 0 || first_booking_points <= 0 {
-            return Err(RewardError::InvalidPoints);
-        }
         self.repository
             .create_booking_rewards_once(
                 &CreateRewardTransaction {
@@ -118,15 +97,17 @@ impl RewardsService for RewardsServiceImpl {
                 },
             )
             .await
-            .map_err(RewardError::InternalServerError)
+            .map_err(|err| {
+                if err.message == "INSUFFICIENT_BALANCE" {
+                    RewardError::InsufficientBalance
+                } else {
+                    RewardError::InternalServerError(err)
+                }
+            })
     }
 
     async fn welcome_bonus(&self) -> i32 {
         welcome_bonus_points(&self.pool).await
-    }
-
-    async fn referral_bonus(&self) -> i32 {
-        points_for_booking_type(&self.pool, "referral_booking").await
     }
 
     async fn history(

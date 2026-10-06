@@ -18,14 +18,6 @@ pub trait ReferralService: 'static + Sync + Send {
         referrer_id: Uuid,
     ) -> Result<i64, ReferralError>;
 
-    /// Pays the direct referrer once when the referred customer completes
-    /// their first booking. Repeated status updates are safe.
-    async fn award_for_completed_booking(
-        &self,
-        referred_user_id: Uuid,
-        booking_id: Uuid,
-    ) -> Result<(), ReferralError>;
-
     /// Walks the whole referral forest bottom-up and pays out the flat-rate
     /// cascade for `[period_start, period_end)`. Errors with
     /// `PayoutAlreadyRun` if this exact period was already processed.

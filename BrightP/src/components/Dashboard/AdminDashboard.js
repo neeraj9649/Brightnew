@@ -52,10 +52,15 @@ const BTN_SUCCESS_SM = `${BTN_BASE} px-[16px] py-[8px] text-[11px] bg-[#10b981] 
 
 const STATUS_BASE = "px-[12px] py-[4px] rounded-full text-[11px] font-[550] capitalize";
 const STATUS_COLOR = {
-  // Matches AdminDashboard.css's `.status.confirmed/.pending/.cancelled` exactly.
-  // Real booking.status values are mostly "booking_confirmed"/"completed"/etc,
-  // which never matched `.confirmed` in the original CSS either -- replicated as-is, not "fixed".
+  new: "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)]",
+  assigned: "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)]",
+  contacted: "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)]",
+  awaiting_approval: "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)]",
+  awaiting_payment: "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)]",
+  payment_received: "bg-[rgba(var(--color-info-rgb),0.15)] text-[var(--color-info)]",
   confirmed: "bg-[rgba(var(--color-success-rgb),0.15)] text-[var(--color-success)]",
+  booking_confirmed: "bg-[rgba(var(--color-success-rgb),0.15)] text-[var(--color-success)]",
+  completed: "bg-[rgba(var(--color-success-rgb),0.15)] text-[var(--color-success)]",
   pending: "bg-[rgba(var(--color-warning-rgb),0.15)] text-[var(--color-warning)]",
   cancelled: "bg-[rgba(var(--color-error-rgb),0.15)] text-[var(--color-error)]",
 };
@@ -306,9 +311,9 @@ const AdminDashboard = () => {
 
   const handleAddPersonSubmit = async (e) => {
     e.preventDefault();
-    const { firstName, email, phone, dateOfBirth } = addPersonForm;
-    if (!firstName || !email || !phone || !dateOfBirth) {
-      toast.error("Please fill in name, email, phone, and date of birth");
+    const { firstName, phone } = addPersonForm;
+    if (!firstName || !phone) {
+      toast.error("Please fill in name and phone");
       return;
     }
 
@@ -1373,7 +1378,7 @@ const AdminDashboard = () => {
                 />
               </div>
               <div className="mb-[14px]">
-                <label className="block mb-[5.25px] font-medium">Email *</label>
+                <label className="block mb-[5.25px] font-medium">Email (optional)</label>
                 <input
                   type="email"
                   className="form-control"
@@ -1381,7 +1386,6 @@ const AdminDashboard = () => {
                   onChange={(e) =>
                     setAddPersonForm((f) => ({ ...f, email: e.target.value }))
                   }
-                  required
                 />
               </div>
               <div className="mb-[14px]">
@@ -1397,7 +1401,7 @@ const AdminDashboard = () => {
                 />
               </div>
               <div className="mb-[14px]">
-                <label className="block mb-[5.25px] font-medium">Date of Birth *</label>
+                <label className="block mb-[5.25px] font-medium">Date of Birth (optional)</label>
                 <input
                   type="date"
                   className="form-control"
@@ -1408,7 +1412,6 @@ const AdminDashboard = () => {
                       dateOfBirth: e.target.value,
                     }))
                   }
-                  required
                 />
               </div>
               <div className="flex gap-[10.5px]">
