@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children, adminOnly = false, staffOnly = false }) => {
   const location = useLocation();
 
   if (loading) {
-    return <LoadingSpinner message="Loading.<.." />;
+    return <LoadingSpinner message="Loading..." />;
   }
 
   if (!currentUser) {
