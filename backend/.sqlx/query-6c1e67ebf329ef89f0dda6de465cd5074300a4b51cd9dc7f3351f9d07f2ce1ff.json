@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT u.id AS \"user_id!\",\n                   (u.first_name || ' ' || COALESCE(u.last_name, '')) AS \"name!\",\n                   COUNT(r.id)::bigint AS \"referral_count!\"\n            FROM referrals r\n            JOIN users u ON u.id = r.referrer_id\n            GROUP BY u.id, u.first_name, u.last_name\n            ORDER BY COUNT(r.id) DESC\n            LIMIT 10\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "referral_count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "6c1e67ebf329ef89f0dda6de465cd5074300a4b51cd9dc7f3351f9d07f2ce1ff"
+}

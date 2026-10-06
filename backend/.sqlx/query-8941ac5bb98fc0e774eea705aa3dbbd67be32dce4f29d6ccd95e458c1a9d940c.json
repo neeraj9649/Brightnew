@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT u.id AS \"user_id!\",\n                   (u.first_name || ' ' || COALESCE(u.last_name, '')) AS \"name!\",\n                   (SELECT COUNT(*) FROM bookings b WHERE b.assigned_employee_id = u.id)::bigint AS \"assigned!\",\n                   (SELECT COUNT(*) FROM bookings b WHERE b.assigned_employee_id = u.id AND b.status = 'completed')::bigint AS \"completed!\",\n                   (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status = 'pending')::bigint AS \"open_tasks!\"\n            FROM users u\n            WHERE u.role IN ('employee','admin')\n            ORDER BY (SELECT COUNT(*) FROM bookings b WHERE b.assigned_employee_id = u.id) DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "name!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "assigned!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "completed!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "open_tasks!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "8941ac5bb98fc0e774eea705aa3dbbd67be32dce4f29d6ccd95e458c1a9d940c"
+}

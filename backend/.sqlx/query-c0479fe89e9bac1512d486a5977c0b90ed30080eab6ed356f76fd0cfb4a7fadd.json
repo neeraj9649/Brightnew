@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT d.id, d.booking_id, d.kind, d.file_id, d.label,\n                d.uploaded_by, d.created_at\n            FROM booking_documents d\n            JOIN bookings b ON b.id = d.booking_id\n            WHERE d.booking_id = $1\n                AND b.user_id = $2\n                AND d.kind IN ('ticket', 'voucher', 'invoice')\n            ORDER BY d.created_at DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "booking_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "file_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "label",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "uploaded_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "c0479fe89e9bac1512d486a5977c0b90ed30080eab6ed356f76fd0cfb4a7fadd"
+}

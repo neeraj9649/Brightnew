@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n              (SELECT COUNT(*) FROM referrals)::bigint AS \"total_referrals!\",\n              (SELECT COALESCE(SUM(points),0) FROM reward_transactions WHERE reason='referral')::bigint AS \"total_referral_points_paid!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total_referrals!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_referral_points_paid!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "14d474302cf073f2caaa47a40f50bf49904e745c2b169cf9b316d9823cab35ab"
+}
