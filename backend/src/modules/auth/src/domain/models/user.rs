@@ -40,7 +40,7 @@ pub struct CreateUser {
     pub membership_code: String,
     pub referral_code: String,
     pub hr_code: Option<String>,
-    pub date_of_birth: NaiveDate,
+    pub date_of_birth: Option<NaiveDate>,
 }
 
 #[derive(Debug, Clone, Default)]

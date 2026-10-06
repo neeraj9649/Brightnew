@@ -10,6 +10,7 @@ use crate::api::dto::booking::{
 };
 use crate::domain::models::booking::UpdateBooking;
 use crate::domain::services::booking::BookingService;
+use referral::domain::services::referral::ReferralService;
 
 pub async fn create_booking_handler(
     booking_service: web::Data<dyn BookingService>,
@@ -79,6 +80,7 @@ pub async fn admin_list_bookings_handler(
 
 pub async fn admin_update_booking_handler(
     booking_service: web::Data<dyn BookingService>,
+    referral_service: web::Data<dyn ReferralService>,
     claims: JwtClaims,
     body: web::Json<AdminUpdateBookingDTO>,
 ) -> Result<ApiResponse<BookingDTO>, ApiError> {
@@ -100,5 +102,10 @@ pub async fn admin_update_booking_handler(
             acting_employee_id,
         )
         .await?;
+    if booking.status == "completed" {
+        referral_service
+            .award_for_completed_booking(booking.user_id, booking.id)
+            .await?;
+    }
     Ok(ApiResponse(booking.into()))
 }

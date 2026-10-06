@@ -649,7 +649,7 @@ const AuthPage = () => {
                               placeholder="+1 (555) 123-4567"
                               {...registerField("phone", {
                                 pattern: {
-                                  value: /^[+]?[0-9()\s-]+$/,
+                                  value: /^[\+]?[0-9\(\)\-\s]+$/,
                                   message: "Please enter a valid phone number",
                                 },
                               })}
@@ -745,13 +745,13 @@ const AuthPage = () => {
             <div className="pt-[16px] text-center">
               <p className="m-0 text-[11px] leading-[1.5] text-[var(--color-text-secondary)]">
                 By continuing, you agree to our{" "}
-                <span className="font-medium text-[var(--color-primary)] hover:underline">
+                <a href="#" className="font-medium text-[var(--color-primary)] hover:underline" onClick={(e) => e.preventDefault()}>
                   Terms of Service
-                </span>{" "}
+                </a>{" "}
                 and{" "}
-                <span className="font-medium text-[var(--color-primary)] hover:underline">
+                <a href="#" className="font-medium text-[var(--color-primary)] hover:underline" onClick={(e) => e.preventDefault()}>
                   Privacy Policy
-                </span>
+                </a>
               </p>
             </div>
           </div>

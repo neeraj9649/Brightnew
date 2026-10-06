@@ -6,6 +6,7 @@ pub mod crm;
 pub mod financials;
 pub mod health;
 pub mod notifications;
+pub mod loyalty;
 pub mod redemptions;
 pub mod referral;
 pub mod rewards;

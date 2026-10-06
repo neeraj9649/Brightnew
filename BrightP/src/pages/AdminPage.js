@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import AdminDashboard from '../components/Dashboard/AdminDashboard';
+import StaffPortalV2 from './StaffPortalV2';
 import LoadingSpinner from '../components/Common/LoadingSpinner';
 
 const AdminPage = () => {
@@ -19,13 +19,7 @@ const AdminPage = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return (
-    <div className="min-h-screen bg-[var(--color-background)]">
-      <main>
-        <AdminDashboard />
-      </main>
-    </div>
-  );
+  return <StaffPortalV2 />;
 };
 
 export default AdminPage;

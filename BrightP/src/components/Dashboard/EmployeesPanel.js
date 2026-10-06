@@ -99,7 +99,7 @@ const EmployeesPanel = () => {
           email: form.email.trim() || null,
           hr_code: form.hr_code.trim(),
           pin: form.pin,
-          date_of_birth: form.date_of_birth,
+          date_of_birth: form.date_of_birth || undefined,
         });
         await api.patch("/admin/users", { id: created.id, role: "employee" });
         toast.success("Employee added");

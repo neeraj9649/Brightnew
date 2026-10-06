@@ -143,6 +143,10 @@ impl UserService for UserServiceImpl {
             .map_err(UserError::InternalServerError)?
             .ok_or(UserError::InvalidCredentials)?;
 
+        if !user.is_active {
+            return Err(UserError::UserNotAuthorised);
+        }
+
         if !verify_pin(pin, &user.pin_hash) {
             return Err(UserError::InvalidCredentials);
         }

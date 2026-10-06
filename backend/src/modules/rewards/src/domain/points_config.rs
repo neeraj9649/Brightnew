@@ -11,8 +11,8 @@ use sqlx::PgPool;
 /// categories (holiday_package, office_visit, referral_booking, ...). Used to
 /// enumerate the editor rows and to filter writes to known keys.
 pub const BOOKING_TYPES: [&str; 10] = [
-    "flight", "hotel", "holiday_package", "tour", "visa", "airport_transfer",
-    "activity", "car_rental", "office_visit", "referral_booking",
+    "flight", "visa", "tour", "hotel", "airport_transfer", "cruise", "insurance",
+    "activity", "car_rental", "custom",
 ];
 
 const WELCOME_BONUS_KEY: &str = "welcome_bonus";

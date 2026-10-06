@@ -40,6 +40,22 @@ impl RefreshTokenServiceImpl {
         hasher.update(token.as_bytes());
         hex::encode(hasher.finalize())
     }
+
+    async fn create_refresh_token(
+        &self,
+        user_id: Uuid,
+        family_id: Uuid,
+    ) -> Result<String, RefreshTokenError> {
+        let raw_token = Uuid::new_v4().to_string();
+        let secure_hash = self.hash_token(&raw_token);
+        let mut token = CreateRefreshToken::new(user_id, secure_hash);
+        token.family_id = family_id;
+        self.repository
+            .create(&token)
+            .await
+            .map_err(RefreshTokenError::InternalServerError)?;
+        Ok(raw_token)
+    }
 }
 
 #[async_trait]
@@ -48,15 +64,7 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
         &self,
         user_id: Uuid,
     ) -> Result<String, RefreshTokenError> {
-        let raw_token = Uuid::new_v4().to_string();
-        let secure_hash = self.hash_token(&raw_token);
-
-        self.repository
-            .create(&CreateRefreshToken::new(user_id, secure_hash))
-            .await
-            .map_err(RefreshTokenError::InternalServerError)?;
-
-        Ok(raw_token)
+        self.create_refresh_token(user_id, Uuid::new_v4()).await
     }
 
     async fn renew_refresh_token(
@@ -81,13 +89,27 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
             return Err(RefreshTokenError::InvalidToken);
         }
 
+        let user = self
+            .user_repository
+            .get(refresh_token.user_id)
+            .await
+            .map_err(RefreshTokenError::InternalServerError)?
+            .ok_or(RefreshTokenError::InvalidToken)?;
+        if !user.is_active {
+            self.repository
+                .revoke_family_id(refresh_token.family_id)
+                .await
+                .map_err(RefreshTokenError::InternalServerError)?;
+            return Err(RefreshTokenError::InvalidToken);
+        }
+
         self.repository
             .revoke_token(refresh_token.id)
             .await
             .map_err(RefreshTokenError::InternalServerError)?;
 
         let new_raw_token = self
-            .create_new_user_refresh_token(refresh_token.user_id)
+            .create_refresh_token(refresh_token.user_id, refresh_token.family_id)
             .await?;
 
         Ok((new_raw_token, refresh_token.user_id))
@@ -134,7 +156,11 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
             raw_token,
         )
         .http_only(true)
-        .secure(true)
+        // Local previews run over http; production deployments should keep
+        // the refresh token cookie secure. This preserves the same-site,
+        // httpOnly protections without making the local portal impossible to
+        // refresh after a reload.
+        .secure(!cfg!(debug_assertions))
         .same_site(SameSite::None)
         .path("/")
         .max_age(CookieDuration::days(*constants::REFRESH_TOKEN_EXP_DAYS))
@@ -144,7 +170,7 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
     fn build_expired_refresh_token_cookie(&self) -> Cookie<'static> {
         Cookie::build((*constants::REFRESH_TOKEN_COOKIE_NAME).clone(), "")
             .http_only(true)
-            .secure(true)
+            .secure(!cfg!(debug_assertions))
             .same_site(SameSite::None)
             .path("/")
             .max_age(CookieDuration::seconds(0))

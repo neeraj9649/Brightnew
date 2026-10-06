@@ -10,8 +10,6 @@ pub struct PublicCardDTO {
     pub membership_code: String,
     pub name: String,
     pub membership_tier: String,
-    pub tokens: i32,
-    pub lifetime_points_earned: i64,
     pub member_since: DateTime<Utc>,
 }
 
@@ -24,7 +22,7 @@ async fn public_card_handler(
     let code = code.into_inner();
     let row = sqlx::query!(
         r#"SELECT first_name, last_name, membership_tier, membership_code,
-                  tokens, lifetime_points_earned, joined_at
+                  joined_at
            FROM users WHERE membership_code = $1"#,
         code
     )
@@ -39,8 +37,6 @@ async fn public_card_handler(
                 .trim()
                 .to_string(),
             membership_tier: r.membership_tier,
-            tokens: r.tokens,
-            lifetime_points_earned: r.lifetime_points_earned,
             member_since: r.joined_at,
         })),
         None => Err(ApiError::new("Card not found", 404)),

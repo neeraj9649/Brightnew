@@ -10,7 +10,8 @@ fn tier_code(tier: &str) -> &'static str {
     }
 }
 
-fn age_from(date_of_birth: NaiveDate) -> i64 {
+fn age_from(date_of_birth: Option<NaiveDate>) -> i64 {
+    let Some(date_of_birth) = date_of_birth else { return 0; };
     let today = Utc::now().date_naive();
     let mut age = today.year() as i64 - date_of_birth.year() as i64;
     if (today.month(), today.day()) < (date_of_birth.month(), date_of_birth.day()) {
@@ -26,7 +27,7 @@ fn age_from(date_of_birth: NaiveDate) -> i64 {
 /// memorize.
 pub fn generate_membership_code(
     first_name: &str,
-    date_of_birth: NaiveDate,
+    date_of_birth: Option<NaiveDate>,
     tier: &str,
 ) -> String {
     let mut initials: String = first_name

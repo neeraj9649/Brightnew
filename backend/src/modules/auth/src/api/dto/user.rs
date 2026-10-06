@@ -76,7 +76,8 @@ pub struct AdminCreateUserDTO {
     /// someone else's referral.
     #[serde(default)]
     pub referred_by_code: Option<String>,
-    pub date_of_birth: NaiveDate,
+    #[serde(default)]
+    pub date_of_birth: Option<NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]

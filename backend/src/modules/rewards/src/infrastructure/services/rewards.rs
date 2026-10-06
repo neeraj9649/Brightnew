@@ -61,53 +61,72 @@ impl RewardsService for RewardsServiceImpl {
             .map_err(RewardError::InternalServerError)
     }
 
+    async fn award_referral_once(
+        &self,
+        user_id: Uuid,
+        source_id: Uuid,
+        points: i32,
+        description: Option<String>,
+    ) -> Result<Option<RewardTransaction>, RewardError> {
+        if points <= 0 {
+            return Err(RewardError::InvalidPoints);
+        }
+        self.repository
+            .create_referral_once(&CreateRewardTransaction {
+                user_id,
+                points,
+                reason: RewardReason::Referral,
+                source_type: Some("first_booking_referral".to_string()),
+                source_id: Some(source_id),
+                description,
+                created_by: None,
+            })
+            .await
+            .map_err(RewardError::InternalServerError)
+    }
+
     async fn award_for_completed_booking(
         &self,
         user_id: Uuid,
         booking_id: Uuid,
         booking_type: &str,
     ) -> Result<Vec<RewardTransaction>, RewardError> {
-        let already_has_booking_reward = self
-            .repository
-            .has_booking_reward(user_id)
-            .await
-            .map_err(RewardError::InternalServerError)?;
-
-        let mut awarded = Vec::with_capacity(2);
-
-        let booking_tx = self
-            .award(
-                user_id,
-                points_for_booking_type(&self.pool, booking_type).await,
-                RewardReason::Booking,
-                Some(booking_type.to_string()),
-                Some(booking_id),
-                None,
-                None,
-            )
-            .await?;
-        awarded.push(booking_tx);
-
-        if !already_has_booking_reward {
-            let bonus_tx = self
-                .award(
-                    user_id,
-                    first_booking_bonus_points(&self.pool).await,
-                    RewardReason::FirstBooking,
-                    Some(booking_type.to_string()),
-                    Some(booking_id),
-                    None,
-                    None,
-                )
-                .await?;
-            awarded.push(bonus_tx);
+        let booking_points = points_for_booking_type(&self.pool, booking_type).await;
+        let first_booking_points = first_booking_bonus_points(&self.pool).await;
+        if booking_points <= 0 || first_booking_points <= 0 {
+            return Err(RewardError::InvalidPoints);
         }
-
-        Ok(awarded)
+        self.repository
+            .create_booking_rewards_once(
+                &CreateRewardTransaction {
+                    user_id,
+                    points: booking_points,
+                    reason: RewardReason::Booking,
+                    source_type: Some(booking_type.to_string()),
+                    source_id: Some(booking_id),
+                    description: None,
+                    created_by: None,
+                },
+                &CreateRewardTransaction {
+                    user_id,
+                    points: first_booking_points,
+                    reason: RewardReason::FirstBooking,
+                    source_type: Some(booking_type.to_string()),
+                    source_id: Some(booking_id),
+                    description: None,
+                    created_by: None,
+                },
+            )
+            .await
+            .map_err(RewardError::InternalServerError)
     }
 
     async fn welcome_bonus(&self) -> i32 {
         welcome_bonus_points(&self.pool).await
+    }
+
+    async fn referral_bonus(&self) -> i32 {
+        points_for_booking_type(&self.pool, "referral_booking").await
     }
 
     async fn history(

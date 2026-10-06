@@ -54,6 +54,33 @@ impl ReferralService for ReferralServiceImpl {
             .map_err(ReferralError::InternalServerError)
     }
 
+    async fn award_for_completed_booking(
+        &self,
+        referred_user_id: Uuid,
+        _booking_id: Uuid,
+    ) -> Result<(), ReferralError> {
+        let Some(referrer_id) = self
+            .repository
+            .referrer_of(referred_user_id)
+            .await
+            .map_err(ReferralError::InternalServerError)?
+        else {
+            return Ok(());
+        };
+
+        let points = self.rewards_service.referral_bonus().await;
+        self.rewards_service
+            .award_referral_once(
+                referrer_id,
+                referred_user_id,
+                points,
+                Some("Referral bonus for a friend's first completed booking".to_string()),
+            )
+            .await
+            .map_err(|err| ReferralError::InternalServerError(RepositoryError::new(err.to_string())))?;
+        Ok(())
+    }
+
     async fn run_monthly_payout(
         &self,
         period_start: DateTime<Utc>,

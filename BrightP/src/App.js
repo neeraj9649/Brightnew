@@ -79,13 +79,13 @@ const AppRoutes = () => {
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
       <Route path="/card/:code" element={<PublicCardPage />} />
-      <Route
-        path="/auth"
+      <Route 
+        path="/auth" 
         element={
           <PublicRoute>
             <AuthPage />
           </PublicRoute>
-        }
+        } 
       />
 
       {/* Protected Routes */}
@@ -97,13 +97,13 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/bookings"
+      <Route 
+        path="/bookings" 
         element={
           <ProtectedRoute>
             <BookingsPage />
           </ProtectedRoute>
-        }
+        } 
       />
       <Route
         path="/profile"
@@ -162,58 +162,58 @@ function App() {
       <BookingProvider>
         <AdminBookingProvider>
           <CrmProvider>
-            <AnalyticsProvider>
-              <Router>
-                <div className="App">
-                  <AppRoutes />
+          <AnalyticsProvider>
+          <Router>
+            <div className="App">
+              <AppRoutes />
 
-                  {/* Toast Notifications */}
-                  <Toaster
-                    position="top-right"
-                    toastOptions={{
-                      duration: 4000,
-                      style: {
-                        background: '#ffffff',
-                        color: '#374151',
-                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '0.75rem',
-                        padding: '1rem',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                      },
-                      success: {
-                        iconTheme: {
-                          primary: '#10b981',
-                          secondary: '#ffffff',
-                        },
-                        style: {
-                          borderLeft: '4px solid #10b981',
-                        }
-                      },
-                      error: {
-                        iconTheme: {
-                          primary: '#ef4444',
-                          secondary: '#ffffff',
-                        },
-                        style: {
-                          borderLeft: '4px solid #ef4444',
-                        }
-                      },
-                      loading: {
-                        iconTheme: {
-                          primary: '#3b82f6',
-                          secondary: '#ffffff',
-                        },
-                        style: {
-                          borderLeft: '4px solid #3b82f6',
-                        }
-                      }
-                    }}
-                  />
-                </div>
-              </Router>
-            </AnalyticsProvider>
+              {/* Toast Notifications */}
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#ffffff',
+                    color: '#374151',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '0.75rem',
+                    padding: '1rem',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                  },
+                  success: {
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#ffffff',
+                    },
+                    style: {
+                      borderLeft: '4px solid #10b981',
+                    }
+                  },
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#ffffff',
+                    },
+                    style: {
+                      borderLeft: '4px solid #ef4444',
+                    }
+                  },
+                  loading: {
+                    iconTheme: {
+                      primary: '#3b82f6',
+                      secondary: '#ffffff',
+                    },
+                    style: {
+                      borderLeft: '4px solid #3b82f6',
+                    }
+                  }
+                }}
+              />
+            </div>
+          </Router>
+          </AnalyticsProvider>
           </CrmProvider>
         </AdminBookingProvider>
       </BookingProvider>

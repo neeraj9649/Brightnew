@@ -27,7 +27,7 @@ const mNavLink = (active, logout) =>
 const ddDivider = 'my-[8px] h-px bg-[var(--color-border)]';
 
 const Navbar = () => {
-  const { userData, logout, isAdmin, isStaff } = useAuth();
+  const { currentUser, userData, logout, isAdmin, isStaff } = useAuth();
   // A pure employee (staff, not admin) has no customer dashboard -- their
   // "Dashboard" is the staff view at /admin.
   const isEmployee = isStaff && !isAdmin;

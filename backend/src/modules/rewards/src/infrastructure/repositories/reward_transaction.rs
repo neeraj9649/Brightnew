@@ -19,6 +19,126 @@ impl RewardTransactionSqlxRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+
+    async fn insert_and_apply(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        new_transaction: &CreateRewardTransaction,
+    ) -> RepositoryResult<RewardTransaction> {
+        let lifetime_delta = if new_transaction.reason == RewardReason::Redemption {
+            0
+        } else {
+            new_transaction.points.max(0) as i64
+        };
+        let updated = sqlx::query!(
+            r#"UPDATE users
+               SET tokens = tokens + $1,
+                   lifetime_points_earned = lifetime_points_earned + $2
+               WHERE id = $3
+               RETURNING lifetime_points_earned, membership_tier"#,
+            new_transaction.points,
+            lifetime_delta,
+            new_transaction.user_id
+        )
+        .fetch_one(&mut **tx)
+        .await?;
+
+        let target_tier = tier_for_lifetime_points(updated.lifetime_points_earned);
+        if tier_rank(target_tier) > tier_rank(&updated.membership_tier) {
+            sqlx::query!(
+                "UPDATE users SET membership_tier = $1 WHERE id = $2",
+                target_tier,
+                new_transaction.user_id
+            )
+            .execute(&mut **tx)
+            .await?;
+        }
+
+        Ok(sqlx::query_as::<_, RewardTransaction>(
+            r#"INSERT INTO reward_transactions
+                (id, user_id, points, reason, source_type, source_id,
+                 description, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, user_id, points, reason, source_type, source_id,
+                description, created_by, created_at"#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(new_transaction.user_id)
+        .bind(new_transaction.points)
+        .bind(new_transaction.reason.as_str())
+        .bind(&new_transaction.source_type)
+        .bind(new_transaction.source_id)
+        .bind(&new_transaction.description)
+        .bind(new_transaction.created_by)
+        .fetch_one(&mut **tx)
+        .await?)
+    }
+
+    async fn create_referral_once_inner(
+        &self,
+        new_transaction: &CreateRewardTransaction,
+    ) -> RepositoryResult<Option<RewardTransaction>> {
+        let mut tx = self.pool.begin().await?;
+        let transaction = sqlx::query_as::<_, RewardTransaction>(
+            r#"
+            INSERT INTO reward_transactions
+                (id, user_id, points, reason, source_type, source_id,
+                 description, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (source_type, source_id)
+                WHERE reason = 'referral' AND source_id IS NOT NULL
+            DO NOTHING
+            RETURNING id, user_id, points, reason, source_type, source_id,
+                description, created_by, created_at
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(new_transaction.user_id)
+        .bind(new_transaction.points)
+        .bind(new_transaction.reason.as_str())
+        .bind(&new_transaction.source_type)
+        .bind(new_transaction.source_id)
+        .bind(&new_transaction.description)
+        .bind(new_transaction.created_by)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let Some(transaction) = transaction else {
+            tx.commit().await?;
+            return Ok(None);
+        };
+
+        let lifetime_delta = if new_transaction.reason == RewardReason::Redemption {
+            0
+        } else {
+            new_transaction.points.max(0) as i64
+        };
+        let updated = sqlx::query!(
+            r#"UPDATE users
+               SET tokens = tokens + $1,
+                   lifetime_points_earned = lifetime_points_earned + $2
+               WHERE id = $3
+               RETURNING lifetime_points_earned, membership_tier"#,
+            new_transaction.points,
+            lifetime_delta,
+            new_transaction.user_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let target_tier = tier_for_lifetime_points(updated.lifetime_points_earned);
+        if tier_rank(target_tier) > tier_rank(&updated.membership_tier) {
+            sqlx::query!(
+                "UPDATE users SET membership_tier = $1 WHERE id = $2",
+                target_tier,
+                new_transaction.user_id
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(Some(transaction))
+    }
 }
 
 #[async_trait]
@@ -88,6 +208,52 @@ impl RewardTransactionRepository for RewardTransactionSqlxRepository {
 
         tx.commit().await?;
         Ok(transaction)
+    }
+
+    async fn create_referral_once(
+        &self,
+        new_transaction: &CreateRewardTransaction,
+    ) -> RepositoryResult<Option<RewardTransaction>> {
+        self.create_referral_once_inner(new_transaction).await
+    }
+
+    async fn create_booking_rewards_once(
+        &self,
+        booking_transaction: &CreateRewardTransaction,
+        first_booking_transaction: &CreateRewardTransaction,
+    ) -> RepositoryResult<Vec<RewardTransaction>> {
+        let mut tx = self.pool.begin().await?;
+
+        // Serializing on the member row closes the race between two bookings
+        // completing at the same time and deciding that both are "first".
+        sqlx::query("SELECT id FROM users WHERE id = $1 FOR UPDATE")
+            .bind(booking_transaction.user_id)
+            .fetch_one(&mut *tx)
+            .await?;
+
+        let already_awarded = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM reward_transactions WHERE user_id = $1 AND reason = 'booking' AND source_id = $2)",
+        )
+        .bind(booking_transaction.user_id)
+        .bind(booking_transaction.source_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let mut awarded = Vec::with_capacity(2);
+        if !already_awarded {
+            awarded.push(Self::insert_and_apply(&mut tx, booking_transaction).await?);
+        }
+        let has_first_booking = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM reward_transactions WHERE user_id = $1 AND reason = 'first_booking')",
+        )
+        .bind(booking_transaction.user_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if !has_first_booking {
+            awarded.push(Self::insert_and_apply(&mut tx, first_booking_transaction).await?);
+        }
+
+        tx.commit().await?;
+        Ok(awarded)
     }
 
     async fn list_for_user(

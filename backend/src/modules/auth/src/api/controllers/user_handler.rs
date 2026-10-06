@@ -60,6 +60,14 @@ pub async fn admin_update_user_handler(
     body: web::Json<AdminUpdateUserDTO>,
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let body = body.into_inner();
+    let membership_tier = body.membership_tier.map(|tier| match tier.as_str() {
+        // Bronze was used by the legacy portal; Silver is the v2 entry tier.
+        "Bronze" | "bronze" => "Silver".to_string(),
+        "gold" => "Gold".to_string(),
+        "platinum" => "Platinum".to_string(),
+        "titanium" => "Titanium".to_string(),
+        _ => tier,
+    });
     let user = user_service
         .update(UpdateUser {
             id: body.id,
@@ -68,7 +76,7 @@ pub async fn admin_update_user_handler(
             phone: body.phone,
             role: body.role,
             is_active: body.is_active,
-            membership_tier: body.membership_tier,
+            membership_tier,
             tokens: body.tokens,
             ..Default::default()
         })

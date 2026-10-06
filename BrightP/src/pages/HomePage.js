@@ -185,19 +185,19 @@ const HomePage = () => {
             </div>
           </div>
           <div className="max-[768px]:hidden min-[769px]:flex items-center gap-[32px]">
-            <a href="#home" className={navLinkCls(activeTab === "#home")}>
+            <a href="#home" className={navLinkCls(activeTab == "#home")}>
               Home
             </a>
-            <a href="#destinations" className={navLinkCls(activeTab === "#destinations")}>
+            <a href="#destinations" className={navLinkCls(activeTab == "#destinations")}>
               Destinations
             </a>
-            <a href="#services" className={navLinkCls(activeTab === "#services")}>
+            <a href="#services" className={navLinkCls(activeTab == "#services")}>
               Services
             </a>
-            <a href="#testimonials" className={navLinkCls(activeTab === "#reviews")}>
+            <a href="#testimonials" className={navLinkCls(activeTab == "#reviews")}>
               Reviews
             </a>
-            <a href="#contact" className={navLinkCls(activeTab === "#contact")}>
+            <a href="#contact" className={navLinkCls(activeTab == "#contact")}>
               Contact
             </a>
           </div>
@@ -224,35 +224,35 @@ const HomePage = () => {
           <div className="flex flex-col gap-3 mt-12 p-5 bg-white">
             <a
               href="#home"
-              className={navLinkCls(activeTab === "#home")}
+              className={navLinkCls(activeTab == "#home")}
               onClick={() => setToggle(false)}
             >
               Home
             </a>
             <a
               href="#destinations"
-              className={navLinkCls(activeTab === "#destinations")}
+              className={navLinkCls(activeTab == "#destinations")}
               onClick={() => setToggle(false)}
             >
               Destinations
             </a>
             <a
               href="#services"
-              className={navLinkCls(activeTab === "#services")}
+              className={navLinkCls(activeTab == "#services")}
               onClick={() => setToggle(false)}
             >
               Services
             </a>
             <a
               href="#testimonials"
-              className={navLinkCls(activeTab === "#reviews")}
+              className={navLinkCls(activeTab == "#reviews")}
               onClick={() => setToggle(false)}
             >
               Reviews
             </a>
             <a
               href="#contact"
-              className={navLinkCls(activeTab === "#contact")}
+              className={navLinkCls(activeTab == "#contact")}
               onClick={() => setToggle(false)}
             >
               Contact
@@ -542,21 +542,21 @@ const HomePage = () => {
                 create moments that become memories to last a lifetime.
               </p>
               <div className="flex gap-[12px]">
-                <span className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
+                <a href="#" className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
                   <i className="fab fa-facebook-f"></i>
-                </span>
-                <span className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
+                </a>
+                <a href="#" className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
                   <i className="fab fa-twitter"></i>
-                </span>
-                <span className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
+                </a>
+                <a href="#" className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
                   <i className="fab fa-instagram"></i>
-                </span>
-                <span className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
+                </a>
+                <a href="#" className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
                   <i className="fab fa-linkedin-in"></i>
-                </span>
-                <span className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
+                </a>
+                <a href="#" className="w-[48px] h-[48px] max-[480px]:w-[40px] max-[480px]:h-[40px] bg-[var(--color-charcoal-800)] rounded-full flex items-center justify-center text-white no-underline text-[16px] max-[480px]:text-[14px] transition-all duration-[250ms] hover:bg-primary hover:-translate-y-[2px]">
                   <i className="fab fa-youtube"></i>
-                </span>
+                </a>
               </div>
             </div>
 
@@ -565,27 +565,27 @@ const HomePage = () => {
                 <h4 className="text-[16px] font-[600] text-white mb-[24px] relative after:content-[''] after:absolute after:-bottom-[8px] after:left-0 after:w-[30px] after:h-[2px] after:bg-[var(--color-warning)]">Services</h4>
                 <ul className="list-none">
                   <li className="mb-[12px]">
-                    <a href="#services" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Flight Bookings
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#services" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Hotel Reservations
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#services" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Tour Packages
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#services" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Visa Services
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#services" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Travel Insurance
                     </a>
                   </li>
@@ -596,27 +596,27 @@ const HomePage = () => {
                 <h4 className="text-[16px] font-[600] text-white mb-[24px] relative after:content-[''] after:absolute after:-bottom-[8px] after:left-0 after:w-[30px] after:h-[2px] after:bg-[var(--color-warning)]">Destinations</h4>
                 <ul className="list-none">
                   <li className="mb-[12px]">
-                    <a href="#destinations" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Europe Tours
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#destinations" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Asia Adventures
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#destinations" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       America Explorations
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#destinations" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Africa Safaris
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#destinations" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Ocean Cruises
                     </a>
                   </li>
@@ -627,27 +627,27 @@ const HomePage = () => {
                 <h4 className="text-[16px] font-[600] text-white mb-[24px] relative after:content-[''] after:absolute after:-bottom-[8px] after:left-0 after:w-[30px] after:h-[2px] after:bg-[var(--color-warning)]">Support</h4>
                 <ul className="list-none">
                   <li className="mb-[12px]">
-                    <a href="#contact" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Help Center
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#contact" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Contact Us
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#contact" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Booking Support
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#destinations" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       Travel Guides
                     </a>
                   </li>
                   <li className="mb-[12px]">
-                    <a href="#contact" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
+                    <a href="#" className="text-[var(--color-gray-300)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white hover:pl-[8px]">
                       FAQ
                     </a>
                   </li>
@@ -684,15 +684,15 @@ const HomePage = () => {
                 &copy; 2025 Bright Wings Travel & Tourism. All rights reserved.
               </p>
               <div className="flex gap-[24px]">
-                <span className="text-[var(--color-gray-400)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white">
+                <a href="#" className="text-[var(--color-gray-400)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white">
                   Privacy Policy
-                </span>
-                <span className="text-[var(--color-gray-400)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white">
+                </a>
+                <a href="#" className="text-[var(--color-gray-400)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white">
                   Terms of Service
-                </span>
-                <span className="text-[var(--color-gray-400)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white">
+                </a>
+                <a href="#" className="text-[var(--color-gray-400)] no-underline text-[12px] transition-all duration-[150ms] hover:text-white">
                   Cookie Policy
-                </span>
+                </a>
               </div>
             </div>
           </div>

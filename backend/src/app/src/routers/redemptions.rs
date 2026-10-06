@@ -11,8 +11,6 @@ use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::role::{ADMIN_ONLY, STAFF};
-use rewards::domain::models::reward_transaction::RewardReason;
-use rewards::domain::services::rewards::RewardsService;
 
 // ---- DTOs -----------------------------------------------------------------
 
@@ -135,16 +133,11 @@ async fn catalog_handler(
     ))
 }
 
-/// Request a redemption. Wings are reserved (debited) immediately so the same
-/// balance can't be spent across several pending requests; a reject/cancel
-/// refunds them. ponytail: the debit and the row insert aren't one DB tx (the
-/// rewards service owns its own) -- debit goes first so a redemption row always
-/// implies the Wings were taken. ponytail: balance check-then-debit can race
-/// under concurrent requests; fine for this traffic, add a `tokens >= cost`
-/// guarded UPDATE if it ever matters.
+/// Request a redemption. The guarded balance update and both ledger/request
+/// inserts share one transaction, so concurrent requests cannot overspend and
+/// a request can never exist without its matching Wings debit.
 async fn create_redemption_handler(
     pool: web::Data<PgPool>,
-    rewards_service: web::Data<dyn RewardsService>,
     claims: JwtClaims,
     body: web::Json<CreateRedemptionDTO>,
 ) -> Result<ApiResponse<RedemptionDTO>, ApiError> {
@@ -161,28 +154,35 @@ async fn create_redemption_handler(
         return Err(ApiError::new("Reward is not available", 400));
     }
 
-    let balance = sqlx::query!("SELECT tokens FROM users WHERE id = $1", claims.sub)
-        .fetch_one(pool.get_ref())
-        .await
-        .map_err(db_err)?
-        .tokens;
-
-    if balance < item.wings_cost {
+    let rid = Uuid::new_v4();
+    let mut tx = pool.begin().await.map_err(db_err)?;
+    let wallet = sqlx::query!(
+        r#"UPDATE users
+           SET tokens = tokens - $1
+           WHERE id = $2 AND tokens >= $1
+           RETURNING id"#,
+        item.wings_cost,
+        claims.sub
+    )
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db_err)?;
+    if wallet.is_none() {
         return Err(ApiError::new("Not enough Wings to redeem this reward", 400));
     }
 
-    let rid = Uuid::new_v4();
-    rewards_service
-        .award(
-            claims.sub,
-            -item.wings_cost,
-            RewardReason::Redemption,
-            Some("redemption".to_string()),
-            Some(rid),
-            Some(format!("Redeemed: {}", item.name)),
-            Some(claims.sub),
-        )
-        .await?;
+    sqlx::query!(
+        r#"INSERT INTO reward_transactions
+           (id, user_id, points, reason, source_type, source_id, description, created_by)
+           VALUES ($1, $2, $3, 'redemption', 'redemption', $1, $4, $2)"#,
+        rid,
+        claims.sub,
+        -item.wings_cost,
+        format!("Redeemed: {}", item.name),
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(db_err)?;
 
     let row = sqlx::query!(
         r#"INSERT INTO redemptions (id, user_id, reward_item_id, item_name, wings_cost)
@@ -195,9 +195,10 @@ async fn create_redemption_handler(
         item.name,
         item.wings_cost,
     )
-    .fetch_one(pool.get_ref())
+    .fetch_one(&mut *tx)
     .await
     .map_err(db_err)?;
+    tx.commit().await.map_err(db_err)?;
 
     Ok(ApiResponse(RedemptionDTO {
         id: row.id,
@@ -247,17 +248,17 @@ async fn my_redemptions_handler(
 /// Customer cancels their own still-pending request and gets the Wings back.
 async fn cancel_redemption_handler(
     pool: web::Data<PgPool>,
-    rewards_service: web::Data<dyn RewardsService>,
     claims: JwtClaims,
     path: web::Path<Uuid>,
 ) -> Result<ApiResponse<RedemptionDTO>, ApiError> {
     let id = path.into_inner();
+    let mut tx = pool.begin().await.map_err(db_err)?;
     let row = sqlx::query!(
-        "SELECT wings_cost, status, item_name FROM redemptions WHERE id = $1 AND user_id = $2",
+        "SELECT wings_cost, status, item_name FROM redemptions WHERE id = $1 AND user_id = $2 FOR UPDATE",
         id,
         claims.sub
     )
-    .fetch_optional(pool.get_ref())
+    .fetch_optional(&mut *tx)
     .await
     .map_err(db_err)?
     .ok_or_else(|| ApiError::new("Redemption not found", 404))?;
@@ -266,8 +267,9 @@ async fn cancel_redemption_handler(
         return Err(ApiError::new("Only pending requests can be cancelled", 400));
     }
 
-    refund(&rewards_service, claims.sub, id, row.wings_cost, "Redemption cancelled").await?;
-    let updated = set_status(pool.get_ref(), id, "cancelled", None, None).await?;
+    refund_in_transaction(&mut tx, claims.sub, id, row.wings_cost, "Redemption cancelled").await?;
+    let updated = set_status_in_transaction(&mut tx, id, "cancelled", None, None).await?;
+    tx.commit().await.map_err(db_err)?;
     Ok(ApiResponse(updated))
 }
 
@@ -317,7 +319,6 @@ async fn list_redemptions_handler(
 /// admin didn't supply one.
 async fn update_status_handler(
     pool: web::Data<PgPool>,
-    rewards_service: web::Data<dyn RewardsService>,
     path: web::Path<Uuid>,
     body: web::Json<UpdateStatusDTO>,
 ) -> Result<ApiResponse<RedemptionDTO>, ApiError> {
@@ -328,17 +329,18 @@ async fn update_status_handler(
         return Err(ApiError::new("Invalid status", 400));
     }
 
+    let mut tx = pool.begin().await.map_err(db_err)?;
     let cur = sqlx::query!(
-        "SELECT user_id, wings_cost, status FROM redemptions WHERE id = $1",
+        "SELECT user_id, wings_cost, status FROM redemptions WHERE id = $1 FOR UPDATE",
         id
     )
-    .fetch_optional(pool.get_ref())
+    .fetch_optional(&mut *tx)
     .await
     .map_err(db_err)?
     .ok_or_else(|| ApiError::new("Redemption not found", 404))?;
 
     if body.status == "rejected" && ACTIVE.contains(&cur.status.as_str()) {
-        refund(&rewards_service, cur.user_id, id, cur.wings_cost, "Redemption rejected").await?;
+        refund_in_transaction(&mut tx, cur.user_id, id, cur.wings_cost, "Redemption rejected").await?;
     }
 
     let voucher = match (body.status.as_str(), &body.voucher_code) {
@@ -346,7 +348,8 @@ async fn update_status_handler(
         _ => body.voucher_code.clone(),
     };
 
-    let updated = set_status(pool.get_ref(), id, &body.status, voucher, body.admin_note).await?;
+    let updated = set_status_in_transaction(&mut tx, id, &body.status, voucher, body.admin_note).await?;
+    tx.commit().await.map_err(db_err)?;
     Ok(ApiResponse(updated))
 }
 
@@ -455,29 +458,35 @@ async fn update_item_handler(
 
 // ---- helpers --------------------------------------------------------------
 
-async fn refund(
-    rewards_service: &web::Data<dyn RewardsService>,
+async fn refund_in_transaction(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     user_id: Uuid,
     redemption_id: Uuid,
     wings: i32,
     why: &str,
 ) -> Result<(), ApiError> {
-    rewards_service
-        .award(
-            user_id,
-            wings,
-            RewardReason::Redemption,
-            Some("redemption_refund".to_string()),
-            Some(redemption_id),
-            Some(format!("{} (refund)", why)),
-            None,
-        )
-        .await?;
+    sqlx::query!("UPDATE users SET tokens = tokens + $1 WHERE id = $2", wings, user_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(db_err)?;
+    sqlx::query!(
+        r#"INSERT INTO reward_transactions
+           (id, user_id, points, reason, source_type, source_id, description)
+           VALUES ($1, $2, $3, 'redemption', 'redemption_refund', $4, $5)"#,
+        Uuid::new_v4(),
+        user_id,
+        wings,
+        redemption_id,
+        format!("{} (refund)", why),
+    )
+    .execute(&mut **tx)
+    .await
+    .map_err(db_err)?;
     Ok(())
 }
 
-async fn set_status(
-    pool: &PgPool,
+async fn set_status_in_transaction(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     id: Uuid,
     status: &str,
     voucher_code: Option<String>,
@@ -497,7 +506,7 @@ async fn set_status(
         voucher_code,
         admin_note,
     )
-    .fetch_one(pool)
+    .fetch_one(&mut **tx)
     .await
     .map_err(db_err)?;
 

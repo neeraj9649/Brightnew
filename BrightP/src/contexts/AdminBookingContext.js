@@ -28,6 +28,7 @@ const mapUserDTO = (dto) => ({
   role: dto.role,
   isAdmin: dto.role === "admin",
   isStaff: dto.role === "admin" || dto.role === "employee",
+  isActive: dto.is_active !== false,
   membershipTier: dto.membership_tier,
   membershipCode: dto.membership_code,
   referralCode: dto.referral_code,
@@ -200,7 +201,7 @@ export const AdminBookingProvider = ({ children }) => {
           last_name: lastName || null,
           phone,
           pin: phone.replace(/\D/g, "").slice(-4).padEnd(4, "0"),
-          date_of_birth: dateOfBirth,
+          date_of_birth: dateOfBirth || undefined,
         });
         const created = mapUserDTO(dto);
         setAllUsers((prev) => [created, ...prev]);

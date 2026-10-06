@@ -10,6 +10,7 @@ use actix_web::{
 
 use crate::domain::errors::middleware_errors::MiddlewareError;
 use crate::domain::services::refresh_token::RefreshTokenService;
+use crate::domain::services::user::UserService;
 use base::error::ApiError;
 
 /// An empty `allowed_roles` only checks that a valid access token is
@@ -25,6 +26,12 @@ pub async fn check_permission_middleware(
 
     let token = token_service.extract_token(&req).map_err(ApiError::from)?;
     let claims = token_service.verify_jwt(&token).map_err(ApiError::from)?;
+
+    let user_service = get_service::<dyn UserService>(&req)?;
+    let user = user_service.get(claims.sub).await.map_err(ApiError::from)?;
+    if !user.is_active {
+        return Err(ApiError::new("Account is inactive", 403).into());
+    }
 
     if !allowed_roles.is_empty() && !allowed_roles.contains(&claims.role.as_str())
     {

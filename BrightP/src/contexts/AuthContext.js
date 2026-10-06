@@ -24,6 +24,7 @@ const mapUserDTO = (dto) => ({
   role: dto.role,
   isAdmin: dto.role === "admin",
   isStaff: dto.role === "admin" || dto.role === "employee",
+  isActive: dto.is_active !== false,
   membershipTier: dto.membership_tier,
   membershipCode: dto.membership_code,
   referralCode: dto.referral_code,

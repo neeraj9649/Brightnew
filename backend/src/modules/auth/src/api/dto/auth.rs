@@ -16,7 +16,10 @@ pub struct RegisterRequestDTO {
     /// The referrer's `referral_code`, if this signup came from a referral.
     #[serde(default)]
     pub referred_by_code: Option<String>,
-    pub date_of_birth: NaiveDate,
+    /// Optional: enrollment is phone + 4-digit PIN in the customer portal.
+    /// Staff may still provide a date when it is useful for the itinerary.
+    #[serde(default)]
+    pub date_of_birth: Option<NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]
