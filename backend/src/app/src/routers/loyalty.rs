@@ -2,7 +2,7 @@ use actix_web::{
     middleware::from_fn,
     web::{self, ServiceConfig},
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -40,6 +40,7 @@ pub struct LoyaltyCardDTO {
     pub name: String,
     pub membership_tier: String,
     pub member_since: DateTime<Utc>,
+    pub valid_until: NaiveDate,
     pub verification_path: String,
 }
 
@@ -142,6 +143,7 @@ fn card_from(member: &MemberRow) -> LoyaltyCardDTO {
         name: member.name.clone(),
         membership_tier: member.membership_tier.clone(),
         member_since: member.joined_at,
+        valid_until: super::cards::card_valid_until(),
         verification_path: format!("/cards/{}", member.membership_code),
     }
 }
@@ -252,7 +254,7 @@ async fn summary_handler(
         code: member.referral_code.clone(),
         direct_referrals: referral_count,
         monthly_rate_percent: referral_rate_percent(),
-        milestone: "Referral Wings are calculated in the monthly bottom-up payout".to_string(),
+        milestone: "Joined → first booking completed → Wings credited once per friend".to_string(),
     };
 
     Ok(ApiResponse(LoyaltySummaryDTO {

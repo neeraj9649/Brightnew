@@ -17,12 +17,16 @@ pub const BOOKING_TYPES: [&str; 10] = [
 
 const WELCOME_BONUS_KEY: &str = "welcome_bonus";
 const FIRST_BOOKING_KEY: &str = "first_booking";
+const REFERRAL_KEY: &str = "referral_booking";
+const DEFAULT_REFERRAL_POINTS: i32 = 50;
 const DEFAULT_POINTS: i32 = 100;
 
 /// Snapshot of every configured amount, in a UI-friendly shape.
 pub struct PointsConfig {
     pub welcome_bonus: i32,
     pub first_booking: i32,
+    /// One-time Wings for the referrer when a referred friend completes their first booking.
+    pub referral_booking: i32,
     /// `(booking_type, points)` for all `BOOKING_TYPES`, in declared order.
     pub services: Vec<(String, i32)>,
 }
@@ -60,6 +64,7 @@ pub async fn read_config(pool: &PgPool) -> PointsConfig {
     PointsConfig {
         welcome_bonus: get(WELCOME_BONUS_KEY),
         first_booking: get(FIRST_BOOKING_KEY),
+        referral_booking: map.get(REFERRAL_KEY).copied().unwrap_or(DEFAULT_REFERRAL_POINTS),
         services: BOOKING_TYPES.iter().map(|t| (t.to_string(), get(t))).collect(),
     }
 }
@@ -70,12 +75,14 @@ pub async fn write_config(
     pool: &PgPool,
     welcome_bonus: i32,
     first_booking: i32,
+    referral_booking: i32,
     services: &[(String, i32)],
 ) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
     for (key, points) in
         std::iter::once((WELCOME_BONUS_KEY.to_string(), welcome_bonus))
             .chain(std::iter::once((FIRST_BOOKING_KEY.to_string(), first_booking)))
+            .chain(std::iter::once((REFERRAL_KEY.to_string(), referral_booking)))
             .chain(
                 services
                     .iter()

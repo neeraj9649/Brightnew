@@ -1,4 +1,5 @@
 use actix_web::web;
+use rand::Rng;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::result_paging::ResultPaging;
@@ -123,15 +124,24 @@ pub async fn admin_create_user_handler(
     if !is_valid_phone(&body.phone) {
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
     }
-    if !is_valid_pin_format(&body.pin) {
-        return Err(ApiError::from(UserError::InvalidPinFormat));
+    let explicit_pin = body.pin.as_deref().map(str::trim).filter(|p| !p.is_empty());
+    if let Some(pin) = explicit_pin {
+        if !is_valid_pin_format(pin) {
+            return Err(ApiError::from(UserError::InvalidPinFormat));
+        }
     }
+    // No PIN supplied: nobody (not even staff) knows it; the member sets
+    // their own via the PIN-reset flow.
+    let invite = explicit_pin.is_none();
+    let pin = explicit_pin
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("{:04}", rand::thread_rng().gen_range(0..10_000)));
 
     let user = user_service
         .register(
             CreateUser {
                 email: body.email.map(|e| e.trim().to_lowercase()),
-                pin_hash: hash_pin(&body.pin),
+                pin_hash: hash_pin(&pin),
                 first_name: body.first_name,
                 last_name: body.last_name,
                 phone: normalize_phone(&body.phone),
@@ -147,13 +157,34 @@ pub async fn admin_create_user_handler(
         )
         .await?;
 
+    if invite {
+        let portal = std::env::var("PORTAL_URL").unwrap_or_default();
+        let link = if portal.is_empty() { String::new() } else { format!(" Set your PIN at {}/auth?mode=forgot", portal.trim_end_matches('/')) };
+        let text = format!(
+            "Welcome to Bright Wings, {}! Your membership {} is ready.{} using this phone number.",
+            user.first_name, user.membership_code, link
+        );
+        if shared::sms::sms_configured() {
+            if let Err(err) = shared::sms::send_sms(&user.phone, &text).await {
+                log::warn!("PIN setup invitation SMS failed for {}: {err}", user.phone);
+            }
+        }
+    }
+
     if let Some(email) = user.email.clone() {
         let subject = "Your Bright Wings account is ready".to_string();
-        let message = format!(
-            "Hi {},\n\nAn account has been created for you at Bright Wings. \
-             Log in with your phone number and the PIN your travel consultant gave you.",
-            user.first_name
-        );
+        let message = if invite {
+            format!(
+                "Hi {},\n\nYour Bright Wings membership {} is ready. Choose 'Forgot PIN' on the sign-in page with your phone number to set your own PIN.",
+                user.first_name, user.membership_code
+            )
+        } else {
+            format!(
+                "Hi {},\n\nAn account has been created for you at Bright Wings. \
+                 Log in with your phone number and the PIN your travel consultant gave you.",
+                user.first_name
+            )
+        };
         let _ = web::block(move || {
             shared::mail::send_plain_email(&email, &subject, &message)
         })

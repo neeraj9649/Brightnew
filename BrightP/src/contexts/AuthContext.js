@@ -3,6 +3,7 @@ import { api, setAccessToken } from "../services/api";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
+let restorePromise = null;
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -52,7 +53,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signUp = async (phone, pin, additionalData = {}) => {
-    setLoading(true);
     try {
       const [first_name, ...rest] = (additionalData.name || "Customer").split(
         " ",
@@ -67,15 +67,9 @@ export const AuthProvider = ({ children }) => {
       });
       setAccessToken(data.access_token);
       applyUserDTO(data.user);
-      toast.success(
-        `Account created successfully! Your membership code: ${data.user.membership_code}`,
-      );
       return data.user;
     } catch (error) {
-      toast.error(error.message || "Failed to create account");
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -84,10 +78,8 @@ export const AuthProvider = ({ children }) => {
       const data = await api.post("/auth/login", { phone, pin });
       setAccessToken(data.access_token);
       applyUserDTO(data.user);
-      toast.success("Welcome back!");
       return data.user;
     } catch (error) {
-      toast.error(error.message || "Invalid phone number or PIN");
       throw error;
     }
   };
@@ -173,7 +165,10 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     (async () => {
       try {
-        const data = await api.post("/auth/refresh");
+        // Refresh tokens are single-use. React 18 StrictMode (dev) runs this
+        // effect twice, so share one in-flight request instead of racing two.
+        restorePromise = restorePromise || api.post("/auth/refresh").finally(() => { setTimeout(() => { restorePromise = null; }, 0); });
+        const data = await restorePromise;
         setAccessToken(data.access_token);
         applyUserDTO(data.user);
       } catch {

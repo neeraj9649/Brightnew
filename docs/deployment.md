@@ -10,6 +10,12 @@ portal changes pushed to `main`, or manually from GitHub Actions:
 
 The workflow checks out this repository and only builds and deploys the portal.
 The backend is never built, tested, or deployed by this workflow.
+
+> **Order matters.** The portal depends on backend routes and database
+> migrations that ship with the backend (see `backend/README.md`). Deploy and
+> start the new backend first (migrations run automatically on start-up), then
+> push the portal so the live site never calls an endpoint that does not exist
+> yet.
 BrightP receives an Apache `.htaccess` fallback for client routes if its build
 does not already provide one.
 
@@ -48,8 +54,10 @@ Keep the destination path under your SSH account's
 `~/domains/` directory; resolved paths outside it are rejected.
 
 Optional secrets: `REACT_APP_RESOURCE_URL` (default
-`https://resource.brightwingstravel.in`), and `REACT_APP_PORTAL_URL` (default
-`https://portal.brightwingstravel.com`).
+`https://resource.brightwingstravel.in`), `REACT_APP_PORTAL_URL` (default
+`https://portal.brightwingstravel.com`), and `REACT_APP_CONTACT_EMAIL` /
+`REACT_APP_CONTACT_PHONE` (shown on the Forgot PIN and inactive-account
+screens; hidden when unset).
 
 ## Frontend source
 

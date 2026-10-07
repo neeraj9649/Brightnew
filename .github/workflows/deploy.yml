@@ -54,6 +54,8 @@ jobs:
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_RESOURCE_URL: ${{ secrets.REACT_APP_RESOURCE_URL || 'https://resource.brightwingstravel.in' }}
           REACT_APP_PORTAL_URL: ${{ secrets.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.com' }}
+          REACT_APP_CONTACT_EMAIL: ${{ secrets.REACT_APP_CONTACT_EMAIL }}
+          REACT_APP_CONTACT_PHONE: ${{ secrets.REACT_APP_CONTACT_PHONE }}
         run: |
           set -euo pipefail
           test -n "$REACT_APP_API_URL" || { echo '::error::Set REACT_APP_API_URL'; exit 1; }

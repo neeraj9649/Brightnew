@@ -17,7 +17,7 @@ export const useBooking = () => {
 // BookingsPage/AdminDashboard already expect: type-specific fields
 // (from/to/destination/checkIn/...) spread at the top level, `id` holding
 // the human-readable display code, and `docId` holding the real row id.
-const mapBookingDTO = (dto) => ({
+export const mapBookingDTO = (dto) => ({
   docId: dto.id,
   id: dto.display_code,
   userId: dto.user_id,
@@ -38,6 +38,7 @@ export const BookingProvider = ({ children }) => {
   const { currentUser, userData } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const submitBooking = async (bookingData) => {
     try {
@@ -55,14 +56,9 @@ export const BookingProvider = ({ children }) => {
       const createdBooking = mapBookingDTO(dto);
       setBookings((prev) => [createdBooking, ...prev]);
 
-      toast.success(
-        "Booking submitted! Wings are credited when the booking is completed.",
-      );
-
       return createdBooking;
     } catch (error) {
       console.error("Error submitting booking:", error);
-      toast.error("Failed to submit booking. Please try again.");
       throw error;
     } finally {
       setLoading(false);
@@ -72,13 +68,14 @@ export const BookingProvider = ({ children }) => {
   const loadUserBookings = async () => {
     try {
       setLoading(true);
+      setError(null);
       const dtos = await api.get("/bookings");
       const userBookings = dtos.map(mapBookingDTO);
       setBookings(userBookings);
       return userBookings;
     } catch (error) {
       console.error("Error loading bookings:", error);
-      toast.error("Failed to load bookings");
+      setError(error);
       return [];
     } finally {
       setLoading(false);
@@ -114,6 +111,7 @@ export const BookingProvider = ({ children }) => {
   const contextValue = {
     bookings,
     loading,
+    error,
     submitBooking,
     loadUserBookings,
     cancelBooking,

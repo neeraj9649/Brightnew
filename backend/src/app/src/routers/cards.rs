@@ -1,5 +1,5 @@
 use actix_web::web::{self, ServiceConfig};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 
@@ -11,6 +11,12 @@ pub struct PublicCardDTO {
     pub name: String,
     pub membership_tier: String,
     pub member_since: DateTime<Utc>,
+    pub valid_until: NaiveDate,
+}
+
+/// Cards stay valid through the end of the next calendar year.
+pub fn card_valid_until() -> NaiveDate {
+    NaiveDate::from_ymd_opt(Utc::now().year() + 1, 12, 31).expect("valid calendar date")
 }
 
 /// Public (NO auth) membership-card lookup by code. This is what the card QR
@@ -38,6 +44,7 @@ async fn public_card_handler(
                 .to_string(),
             membership_tier: r.membership_tier,
             member_since: r.joined_at,
+            valid_until: card_valid_until(),
         })),
         None => Err(ApiError::new("Card not found", 404)),
     }

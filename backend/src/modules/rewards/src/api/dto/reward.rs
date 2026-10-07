@@ -34,5 +34,11 @@ pub struct ServicePointsDTO {
 pub struct PointsConfigDTO {
     pub welcome_bonus: i32,
     pub first_booking: i32,
+    #[serde(default = "default_referral_points")]
+    pub referral_booking: i32,
     pub services: Vec<ServicePointsDTO>,
+}
+
+fn default_referral_points() -> i32 {
+    50
 }

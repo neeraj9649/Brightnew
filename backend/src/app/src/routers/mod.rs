@@ -1,3 +1,4 @@
+pub mod admin_portal;
 pub mod analytics;
 pub mod auth;
 pub mod bookings;
@@ -6,6 +7,7 @@ pub mod crm;
 pub mod financials;
 pub mod health;
 pub mod notifications;
+pub mod portal;
 pub mod loyalty;
 pub mod redemptions;
 pub mod referral;

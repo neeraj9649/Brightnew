@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { BookingProvider } from './contexts/BookingContext';
@@ -9,17 +9,21 @@ import { AnalyticsProvider } from './contexts/AnalyticsContext';
 
 // Pages
 import HomePage from './pages/HomePage';
-import AuthPage from './pages/AuthPage';
-import DashboardPage from './components/Dashboard/UserDashboard';
-import BookingsPage from './pages/BookingsPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
-import AdminUserDetailPage from './pages/AdminUserDetailPage';
-import AdminBookingDetailPage from './pages/AdminBookingDetailPage';
-import PublicCardPage from './pages/PublicCardPage';
-import RewardsPage from './pages/RewardsPage';
-import { ReferralPage, NotificationsPage, TierBenefitsPage, MembershipPage, SecurityPage, SupportPage } from './pages/MemberPages';
-import BookingDetailPage from './pages/BookingDetailPage';
+import AuthPage, { WelcomePage, InactivePage } from './portal/customer/AuthScreens';
+import DashboardPage from './portal/customer/Home';
+import BookingsPage from './portal/customer/Bookings';
+import { ServiceSelect, BookingWizard, BookingReceived } from './portal/customer/BookingNew';
+import BookingDetailPage, { QuoteReview } from './portal/customer/BookingDetail';
+import StaffOverview from './portal/staff/Overview';
+import StaffBookings from './portal/staff/Bookings';
+import BookingWorkspace from './portal/staff/BookingWorkspace';
+import Customers, { CustomerDetail } from './portal/staff/Customers';
+import Employees from './portal/staff/Employees';
+import { RewardCatalogAdmin, Redemptions } from './portal/staff/Rewards';
+import Crm from './portal/staff/Crm';
+import { LoyaltySettings, Analytics } from './portal/staff/Loyalty';
+import { Wallet, Catalog, RewardDetail, ConfirmRedemption, RedemptionStatus, RedemptionHistory } from './portal/customer/Rewards';
+import { Notifications, TierBenefits, Referrals, ReferralActivity, MembershipCardPage, PublicCard, Account, EditProfile, Support, Security, NotificationPreferences } from './portal/customer/Member';
 
 // Components
 import LoadingSpinner from './components/Common/LoadingSpinner';
@@ -48,6 +52,12 @@ const ProtectedRoute = ({ children, adminOnly = false, staffOnly = false }) => {
   return children;
 };
 
+// Old links to /admin/users/:id keep working.
+const LegacyUserRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/admin/customers/${id}`} replace />;
+};
+
 // Employees have no customer dashboard -- any attempt to reach /dashboard
 // (typed URL, stale link, post-login redirect) bounces them to the staff view.
 const CustomerDashboardRoute = () => {
@@ -66,6 +76,8 @@ const PublicRoute = ({ children }) => {
   }
 
   if (currentUser) {
+    // A brand-new member lands on the welcome screen first.
+    if (sessionStorage.getItem('bw_welcome')) return <Navigate to="/welcome" replace />;
     // Redirect to originally intended page or dashboard
     const from = location.state?.from?.pathname || '/dashboard';
     return <Navigate to={from} replace />;
@@ -80,7 +92,7 @@ const AppRoutes = () => {
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
-      <Route path="/card/:code" element={<PublicCardPage />} />
+      <Route path="/card/:code" element={<PublicCard />} />
       <Route 
         path="/auth" 
         element={
@@ -89,6 +101,9 @@ const AppRoutes = () => {
           </PublicRoute>
         } 
       />
+
+      <Route path="/inactive" element={<InactivePage />} />
+      <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
 
       {/* Protected Routes */}
       <Route
@@ -107,56 +122,41 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      <Route path="/bookings/new" element={<ProtectedRoute><ServiceSelect /></ProtectedRoute>} />
+      <Route path="/bookings/new/:service" element={<ProtectedRoute><BookingWizard /></ProtectedRoute>} />
       <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetailPage /></ProtectedRoute>} />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rewards"
-        element={
-          <ProtectedRoute>
-            <RewardsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
-      <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-      <Route path="/tier-benefits" element={<ProtectedRoute><TierBenefitsPage /></ProtectedRoute>} />
-      <Route path="/membership" element={<ProtectedRoute><MembershipPage /></ProtectedRoute>} />
-      <Route path="/security" element={<ProtectedRoute><SecurityPage /></ProtectedRoute>} />
-      <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
+      <Route path="/bookings/:id/received" element={<ProtectedRoute><BookingReceived /></ProtectedRoute>} />
+      <Route path="/bookings/:id/quote" element={<ProtectedRoute><QuoteReview /></ProtectedRoute>} />
+      <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
+      <Route path="/rewards" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+      <Route path="/rewards/catalog" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
+      <Route path="/rewards/catalog/:id" element={<ProtectedRoute><RewardDetail /></ProtectedRoute>} />
+      <Route path="/rewards/catalog/:id/confirm" element={<ProtectedRoute><ConfirmRedemption /></ProtectedRoute>} />
+      <Route path="/rewards/redemptions" element={<ProtectedRoute><RedemptionHistory /></ProtectedRoute>} />
+      <Route path="/rewards/redemptions/:id" element={<ProtectedRoute><RedemptionStatus /></ProtectedRoute>} />
+      <Route path="/referrals" element={<ProtectedRoute><Referrals /></ProtectedRoute>} />
+      <Route path="/referrals/activity" element={<ProtectedRoute><ReferralActivity /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+      <Route path="/notification-preferences" element={<ProtectedRoute><NotificationPreferences /></ProtectedRoute>} />
+      <Route path="/tier-benefits" element={<ProtectedRoute><TierBenefits /></ProtectedRoute>} />
+      <Route path="/membership" element={<ProtectedRoute><MembershipCardPage /></ProtectedRoute>} />
+      <Route path="/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
+      <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
 
-      {/* Staff Routes (employee or admin) -- AdminDashboard itself renders a
-          reduced view for employees vs the full dashboard for admins. */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute staffOnly={true}>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/users/:id"
-        element={
-          <ProtectedRoute staffOnly={true}>
-            <AdminUserDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/bookings/:id"
-        element={
-          <ProtectedRoute staffOnly={true}>
-            <AdminBookingDetailPage />
-          </ProtectedRoute>
-        }
-      />
+      {/* Staff routes (employee or admin). Admin-only screens redirect employees. */}
+      <Route path="/admin" element={<ProtectedRoute staffOnly><StaffOverview /></ProtectedRoute>} />
+      <Route path="/admin/bookings" element={<ProtectedRoute staffOnly><StaffBookings /></ProtectedRoute>} />
+      <Route path="/admin/bookings/:id" element={<ProtectedRoute staffOnly><BookingWorkspace /></ProtectedRoute>} />
+      <Route path="/admin/customers" element={<ProtectedRoute staffOnly><Customers /></ProtectedRoute>} />
+      <Route path="/admin/customers/:id" element={<ProtectedRoute staffOnly><CustomerDetail /></ProtectedRoute>} />
+      <Route path="/admin/users/:id" element={<ProtectedRoute staffOnly><LegacyUserRedirect /></ProtectedRoute>} />
+      <Route path="/admin/crm" element={<ProtectedRoute staffOnly><Crm /></ProtectedRoute>} />
+      <Route path="/admin/redemptions" element={<ProtectedRoute staffOnly><Redemptions /></ProtectedRoute>} />
+      <Route path="/admin/rewards" element={<ProtectedRoute adminOnly><RewardCatalogAdmin /></ProtectedRoute>} />
+      <Route path="/admin/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
+      <Route path="/admin/analytics" element={<ProtectedRoute adminOnly><Analytics /></ProtectedRoute>} />
+      <Route path="/admin/loyalty" element={<ProtectedRoute adminOnly><LoyaltySettings /></ProtectedRoute>} />
 
       {/* Catch All Route - Redirect to Home */}
       <Route path="*" element={<Navigate to="/" replace />} />

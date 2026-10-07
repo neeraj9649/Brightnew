@@ -20,6 +20,60 @@ impl RewardTransactionSqlxRepository {
         Self { pool }
     }
 
+    /// Credits the referrer of `referred_id` (if any) with the configured
+    /// `referral_booking` amount. Idempotent per referred member: the unique
+    /// index on (source_type, source_id) for reason = 'referral' is the final
+    /// guard, the EXISTS check keeps the transaction from aborting.
+    async fn award_referrer_once(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        referred_id: Uuid,
+    ) -> RepositoryResult<()> {
+        let referrer: Option<(Uuid, String)> = sqlx::query_as(
+            r#"SELECT r.referrer_id, TRIM(u.first_name || ' ' || COALESCE(u.last_name, ''))
+               FROM referrals r JOIN users u ON u.id = r.referred_id
+               WHERE r.referred_id = $1"#,
+        )
+        .bind(referred_id)
+        .fetch_optional(&mut **tx)
+        .await?;
+        let Some((referrer_id, referred_name)) = referrer else { return Ok(()); };
+
+        sqlx::query("SELECT id FROM users WHERE id = $1 FOR UPDATE")
+            .bind(referrer_id)
+            .fetch_one(&mut **tx)
+            .await?;
+        let already: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM reward_transactions WHERE reason = 'referral' AND source_type = 'referral_first_booking' AND source_id = $1)",
+        )
+        .bind(referred_id)
+        .fetch_one(&mut **tx)
+        .await?;
+        if already {
+            return Ok(());
+        }
+        let points: i32 = sqlx::query_scalar("SELECT points FROM points_config WHERE key = 'referral_booking'")
+            .fetch_optional(&mut **tx)
+            .await?
+            .unwrap_or(50);
+        if points <= 0 {
+            return Ok(());
+        }
+        Self::insert_and_apply(
+            tx,
+            &CreateRewardTransaction {
+                user_id: referrer_id,
+                points,
+                reason: RewardReason::Referral,
+                source_type: Some("referral_first_booking".to_string()),
+                source_id: Some(referred_id),
+                description: Some(format!("Referral bonus: {referred_name} completed their first booking")),
+                created_by: None,
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
     async fn insert_and_apply(
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         new_transaction: &CreateRewardTransaction,
@@ -168,8 +222,19 @@ impl RewardTransactionRepository for RewardTransactionSqlxRepository {
         .fetch_one(&mut *tx)
         .await?;
         let mut awarded = Vec::with_capacity(2);
+        // The first completed booking of a referred member pays their
+        // referrer once, regardless of how many bookings follow.
+        let is_first_completed = !sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM reward_transactions WHERE user_id = $1 AND reason IN ('booking', 'first_booking'))",
+        )
+        .bind(booking_transaction.user_id)
+        .fetch_one(&mut *tx)
+        .await?;
         if !already_awarded && booking_transaction.points > 0 {
             awarded.push(Self::insert_and_apply(&mut tx, booking_transaction).await?);
+        }
+        if is_first_completed && !already_awarded {
+            Self::award_referrer_once(&mut tx, booking_transaction.user_id).await?;
         }
         let has_first_booking = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM reward_transactions WHERE user_id = $1 AND reason = 'first_booking')",

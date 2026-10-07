@@ -14,6 +14,10 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }
 bigdecimal = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+log = { workspace = true }
 base = { path = "../base" }
 shared = { path = "../shared" }
 auth = { path = "../modules/auth" }

@@ -17,6 +17,7 @@ sha2 = { workspace = true }
 jsonwebtoken = { workspace = true }
 futures-util = { workspace = true }
 hex = { workspace = true }
+log = { workspace = true }
 
 base = { path = "../../base" }
 shared = { path = "../../shared" }

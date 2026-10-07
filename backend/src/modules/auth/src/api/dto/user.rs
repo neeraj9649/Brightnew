@@ -60,7 +60,10 @@ pub struct AdminUpdateUserDTO {
 #[derive(Debug, Deserialize)]
 pub struct AdminCreateUserDTO {
     pub phone: String,
-    pub pin: String,
+    /// Optional. When omitted the account gets a random PIN nobody sees, and
+    /// the member sets their own through "Forgot PIN" (an invitation is sent).
+    #[serde(default)]
+    pub pin: Option<String>,
     pub first_name: String,
     #[serde(default)]
     pub last_name: Option<String>,

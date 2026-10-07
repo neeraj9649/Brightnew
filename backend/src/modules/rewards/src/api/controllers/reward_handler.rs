@@ -16,6 +16,7 @@ impl From<PointsConfig> for PointsConfigDTO {
         PointsConfigDTO {
             welcome_bonus: cfg.welcome_bonus,
             first_booking: cfg.first_booking,
+            referral_booking: cfg.referral_booking,
             services: cfg
                 .services
                 .into_iter()
@@ -44,6 +45,7 @@ pub async fn update_points_config_handler(
     let body = body.into_inner();
     if body.welcome_bonus < 0
         || body.first_booking < 0
+        || body.referral_booking < 0
         || body.services.iter().any(|s| s.points < 0)
     {
         return Err(ApiError::new("Point amounts cannot be negative", 400));
@@ -57,6 +59,7 @@ pub async fn update_points_config_handler(
         pool.get_ref(),
         body.welcome_bonus,
         body.first_booking,
+        body.referral_booking,
         &services,
     )
     .await?;
