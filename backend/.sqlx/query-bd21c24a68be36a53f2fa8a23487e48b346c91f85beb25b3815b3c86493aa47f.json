@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users\n               SET tokens = tokens + $1,\n                   lifetime_points_earned = lifetime_points_earned + $2\n               WHERE id = $3 AND tokens + $1 >= 0\n               RETURNING lifetime_points_earned, membership_tier",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lifetime_points_earned",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "membership_tier",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "bd21c24a68be36a53f2fa8a23487e48b346c91f85beb25b3815b3c86493aa47f"
+}

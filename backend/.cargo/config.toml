@@ -1,0 +1,4 @@
+[env]
+# Compile SQLx query macros from the checked-in schema metadata (.sqlx/).
+# Runtime database connections still use DATABASE_URL.
+SQLX_OFFLINE = "true"

@@ -556,6 +556,58 @@ const VisaForm = ({ formData, onInputChange, onSubmit, submitting, calculateCost
   </form>
 );
 
+// Static initial states - these never change
+const INITIAL_STATES = {
+  flights: {
+    type: 'flight',
+    from: '',
+    to: '',
+    departureDate: '',
+    returnDate: '',
+    passengers: 1,
+    class: 'economy',
+    tripType: 'roundtrip',
+    specialRequests: ''
+  },
+  hotels: {
+    type: 'hotel',
+    destination: '',
+    checkIn: '',
+    checkOut: '',
+    guests: 1,
+    rooms: 1,
+    roomType: 'standard',
+    specialRequests: ''
+  },
+  tours: {
+    type: 'tour',
+    destination: '',
+    tourType: 'cultural',
+    startDate: '',
+    endDate: '',
+    participants: 1,
+    accommodation: 'standard',
+    activities: [],
+    specialRequests: ''
+  },
+  visa: {
+    type: 'visa',
+    country: '',
+    visaType: 'tourist',
+    purpose: 'tourism',
+    duration: '',
+    travelDate: '',
+    urgency: 'regular',
+    specialRequests: ''
+  },
+  car_rental: { type: 'car_rental', pickupCity: '', dropoffCity: '', pickupAt: '', dropoffAt: '', rentalType: 'Self-drive', vehicleType: 'SUV', passengers: '2', specialRequests: '' },
+  cruise: { type: 'cruise', region: '', departurePort: '', preferredDates: '', nights: '7', travelers: '2', cabinPreference: 'Balcony cabin', budget: '', specialRequests: '' },
+  custom: { type: 'custom', destinations: '', travelDates: '', travelers: '2', budget: '', travelStyle: '', specialRequests: '' },
+  airport_transfer: { type: 'airport_transfer', airport: '', flightReference: '', pickupLocation: '', dropoffLocation: '', pickupAt: '', passengers: '2', luggage: '3', vehiclePreference: 'Premium SUV' },
+  insurance: { type: 'insurance', destination: '', departureDate: '', returnDate: '', travelerAges: '', coverage: 'Standard', specialRequests: '' },
+  activity: { type: 'activity', destination: '', activity: '', visitDate: '', adults: '2', children: '0', preferences: '', specialRequests: '' },
+};
+
 const BookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -567,58 +619,6 @@ const BookingPage = () => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
-
-  // Static initial states - these never change
-  const INITIAL_STATES = {
-    flights: {
-      type: 'flight',
-      from: '',
-      to: '',
-      departureDate: '',
-      returnDate: '',
-      passengers: 1,
-      class: 'economy',
-      tripType: 'roundtrip',
-      specialRequests: ''
-    },
-    hotels: {
-      type: 'hotel',
-      destination: '',
-      checkIn: '',
-      checkOut: '',
-      guests: 1,
-      rooms: 1,
-      roomType: 'standard',
-      specialRequests: ''
-    },
-    tours: {
-      type: 'tour',
-      destination: '',
-      tourType: 'cultural',
-      startDate: '',
-      endDate: '',
-      participants: 1,
-      accommodation: 'standard',
-      activities: [],
-      specialRequests: ''
-    },
-    visa: {
-      type: 'visa',
-      country: '',
-      visaType: 'tourist',
-      purpose: 'tourism',
-      duration: '',
-      travelDate: '',
-      urgency: 'regular',
-      specialRequests: ''
-    },
-    car_rental: { type: 'car_rental', pickupCity: '', dropoffCity: '', pickupAt: '', dropoffAt: '', rentalType: 'Self-drive', vehicleType: 'SUV', passengers: '2', specialRequests: '' },
-    cruise: { type: 'cruise', region: '', departurePort: '', preferredDates: '', nights: '7', travelers: '2', cabinPreference: 'Balcony cabin', budget: '', specialRequests: '' },
-    custom: { type: 'custom', destinations: '', travelDates: '', travelers: '2', budget: '', travelStyle: '', specialRequests: '' },
-    airport_transfer: { type: 'airport_transfer', airport: '', flightReference: '', pickupLocation: '', dropoffLocation: '', pickupAt: '', passengers: '2', luggage: '3', vehiclePreference: 'Premium SUV' },
-    insurance: { type: 'insurance', destination: '', departureDate: '', returnDate: '', travelerAges: '', coverage: 'Standard', specialRequests: '' },
-    activity: { type: 'activity', destination: '', activity: '', visitDate: '', adults: '2', children: '0', preferences: '', specialRequests: '' },
-  };
 
   // Initialize form data only once when component mounts or tab changes
   useEffect(() => {

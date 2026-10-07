@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT b.id AS \"id!\", b.display_code AS \"display_code!\",\n            b.type AS \"booking_type!\", b.status AS \"status!\",\n            b.final_cost AS \"revenue!\",\n            COALESCE(e.expense, 0) AS \"expense!\"\n        FROM bookings b\n        LEFT JOIN (\n            SELECT booking_id, SUM(amount) AS expense\n            FROM booking_expenses GROUP BY booking_id\n        ) e ON e.booking_id = b.id\n        WHERE ($1::timestamptz IS NULL OR b.created_at >= $1)\n            AND ($2::timestamptz IS NULL OR b.created_at <= $2)\n        ORDER BY b.created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "display_code!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "booking_type!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "status!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "revenue!",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "expense!",
+        "type_info": "Numeric"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "a96acb645d5e7fe2fa61cf630184c5777a3f25619c87bbb78b7ab37d533a5170"
+}

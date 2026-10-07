@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE users\n           SET tokens = tokens - $1\n           WHERE id = $2 AND tokens >= $1\n           RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "29b1b18d9d8fff71c4f7ac65fc81f93029b1f54eda249cdfa0f9f0391b2f4d32"
+}

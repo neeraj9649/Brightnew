@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE referral_payout_runs\n            SET users_paid = $3, total_points_paid = $4\n            WHERE period_start = $1 AND period_end = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f51122b3f26315bf90ebc0268cec6d8730f85154cbc64d2d609d8bf7d2a48abe"
+}

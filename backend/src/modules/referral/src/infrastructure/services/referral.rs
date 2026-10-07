@@ -12,6 +12,7 @@ use crate::domain::repositories::referral::ReferralRepository;
 use crate::domain::services::referral::ReferralService;
 use crate::infrastructure::repositories::referral::ReferralSqlxRepository;
 use base::error::RepositoryError;
+use rewards::domain::models::reward_transaction::RewardReason;
 use rewards::domain::services::rewards::RewardsService;
 
 #[derive(Clone)]

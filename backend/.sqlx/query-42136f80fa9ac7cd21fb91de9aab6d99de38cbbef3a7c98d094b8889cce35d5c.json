@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO points_config (key, points) VALUES ($1, $2)\n             ON CONFLICT (key) DO UPDATE SET points = EXCLUDED.points",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "42136f80fa9ac7cd21fb91de9aab6d99de38cbbef3a7c98d094b8889cce35d5c"
+}
