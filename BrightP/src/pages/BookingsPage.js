@@ -67,6 +67,63 @@ const formatStatus = (status = "") =>
 const statusBaseCls =
   "inline-block py-[2px] px-[8px] rounded-full text-[11px] font-[550] uppercase border";
 
+const SERVICE_TABS = [
+  { id: 'flights', type: 'flight', label: 'Flight', icon: 'fas fa-plane' },
+  { id: 'hotels', type: 'hotel', label: 'Hotel', icon: 'fas fa-bed' },
+  { id: 'car_rental', type: 'car_rental', label: 'Car rental', icon: 'fas fa-car' },
+  { id: 'visa', type: 'visa', label: 'Visa', icon: 'fas fa-passport' },
+  { id: 'tours', type: 'tour', label: 'Tour package', icon: 'fas fa-map-marked-alt' },
+  { id: 'cruise', type: 'cruise', label: 'Cruise', icon: 'fas fa-ship' },
+  { id: 'custom', type: 'custom', label: 'Customized travel', icon: 'fas fa-route' },
+  { id: 'airport_transfer', type: 'airport_transfer', label: 'Airport transfer', icon: 'fas fa-shuttle-van' },
+  { id: 'insurance', type: 'insurance', label: 'Insurance', icon: 'fas fa-shield-halved' },
+  { id: 'activity', type: 'activity', label: 'Activity tickets', icon: 'fas fa-ticket' },
+];
+
+const GENERIC_FIELDS = {
+  car_rental: [
+    ['pickupCity', 'Pickup city', 'Delhi'], ['dropoffCity', 'Drop-off city', 'Goa'],
+    ['pickupAt', 'Pickup date & time', ''], ['dropoffAt', 'Drop-off date & time', ''],
+    ['rentalType', 'Rental type', 'Self-drive'], ['vehicleType', 'Vehicle type', 'SUV'],
+    ['passengers', 'Passengers', '2'], ['specialRequests', 'Special requests or notes', 'Child seat, luggage, preferred model'],
+  ],
+  cruise: [
+    ['region', 'Region', 'Mediterranean (Europe)'], ['departurePort', 'Departure port', 'Barcelona, Spain'],
+    ['preferredDates', 'Preferred departure dates', ''], ['nights', 'Nights', '7'],
+    ['travelers', 'Travelers', '2'], ['cabinPreference', 'Cabin preference', 'Balcony cabin'],
+    ['budget', 'Estimated budget (INR)', '₹2,00,000 – 3,00,000'], ['specialRequests', 'Special requests', ''],
+  ],
+  custom: [
+    ['destinations', 'Destinations', 'Jaipur, Udaipur, Jodhpur'], ['travelDates', 'Travel dates', ''],
+    ['travelers', 'Travelers', '2'], ['budget', 'Estimated budget (INR)', '₹1,50,000 – 2,50,000'],
+    ['travelStyle', 'Travel style', 'Culture, nature, relaxation'], ['specialRequests', 'Custom requirements', 'Heritage stays, private guide, unique experiences'],
+  ],
+  airport_transfer: [
+    ['airport', 'Airport', 'Indira Gandhi International Airport (DEL)'], ['flightReference', 'Flight arrival reference', 'AI 308, 15 Nov 2026, 14:20'],
+    ['pickupLocation', 'Pickup location', 'Terminal 3 – Arrivals'], ['dropoffLocation', 'Drop-off location', 'The Leela Palace New Delhi'],
+    ['pickupAt', 'Pickup date & time', ''], ['passengers', 'Passengers', '2'], ['luggage', 'Luggage pieces', '3'], ['vehiclePreference', 'Vehicle preference', 'Premium SUV'],
+  ],
+  insurance: [
+    ['destination', 'Destination', 'Kashmir, India'], ['departureDate', 'Departure date', ''], ['returnDate', 'Return date', ''],
+    ['travelerAges', 'Traveler ages', '32, 28'], ['coverage', 'Coverage preference', 'Standard'], ['specialRequests', 'Coverage preferences', 'Medical, trip delay and baggage'],
+  ],
+  activity: [
+    ['destination', 'Destination', 'Jaipur, Rajasthan'], ['activity', 'Search activities', 'Amber Fort, city tour, cultural show'],
+    ['visitDate', 'Visit date', ''], ['adults', 'Adults', '2'], ['children', 'Children', '0'],
+    ['preferences', 'Preferences', 'Cultural, family friendly'], ['specialRequests', 'Additional preferences', ''],
+  ],
+};
+
+const GenericServiceForm = ({ service, formData, onInputChange, onSubmit, submitting }) => {
+  const fields = GENERIC_FIELDS[service] || [];
+  const meta = SERVICE_TABS.find((tab) => tab.type === service);
+  return <form onSubmit={onSubmit} className={formCls}>
+    <div className={formHeaderCls}><i className={`${meta?.icon || 'fas fa-suitcase'} ${formHeaderIconCls}`}></i><h2 className={formHeaderTitleCls}>{meta?.label || 'Travel'} request</h2><p className={formHeaderSubCls}>Request a quote. Your travel advisor will confirm availability and price.</p></div>
+    <div className={gridCls}>{fields.map(([name, label, placeholder]) => <div key={name} className={name === 'specialRequests' ? fullWidthCls : groupCls}><label className={labelCls}>{label}{name === 'specialRequests' ? ' (optional)' : ''}</label>{name === 'specialRequests' ? <textarea className={textareaCls} name={name} value={formData[name] || ''} onChange={onInputChange} placeholder={placeholder} rows="4" /> : <input className={fieldCls} name={name} value={formData[name] || ''} onChange={onInputChange} placeholder={placeholder} type={name.toLowerCase().includes('date') || name.toLowerCase().endsWith('at') ? 'date' : 'text'} required={!['flightReference', 'specialRequests', 'preferences'].includes(name)} />}</div>)}</div>
+    <div className={summaryCls}><span><i className="fas fa-feather-pointed" style={{ color: 'var(--color-warning)' }} /> You will earn Wings after this service is completed.</span><button type="submit" disabled={submitting} className={submitBtnCls}>{submitting ? 'Submitting…' : 'Continue'} <i className="fas fa-arrow-right" /></button></div>
+  </form>;
+};
+
 // Move form components OUTSIDE the main component to prevent recreation
 const FlightForm = ({ formData, onInputChange, onSubmit, submitting, calculateCost }) => (
   <form onSubmit={onSubmit} className={formCls}>
@@ -505,7 +562,9 @@ const BookingPage = () => {
   const { isAdmin } = useAuth();
   const { submitBooking, bookings, loading } = useBooking();
 
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'flights');
+  const initialService = searchParams.get('service');
+  const initialTab = SERVICE_TABS.find((item) => item.type === initialService)?.id || searchParams.get('tab') || 'flights';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -552,7 +611,13 @@ const BookingPage = () => {
       travelDate: '',
       urgency: 'regular',
       specialRequests: ''
-    }
+    },
+    car_rental: { type: 'car_rental', pickupCity: '', dropoffCity: '', pickupAt: '', dropoffAt: '', rentalType: 'Self-drive', vehicleType: 'SUV', passengers: '2', specialRequests: '' },
+    cruise: { type: 'cruise', region: '', departurePort: '', preferredDates: '', nights: '7', travelers: '2', cabinPreference: 'Balcony cabin', budget: '', specialRequests: '' },
+    custom: { type: 'custom', destinations: '', travelDates: '', travelers: '2', budget: '', travelStyle: '', specialRequests: '' },
+    airport_transfer: { type: 'airport_transfer', airport: '', flightReference: '', pickupLocation: '', dropoffLocation: '', pickupAt: '', passengers: '2', luggage: '3', vehiclePreference: 'Premium SUV' },
+    insurance: { type: 'insurance', destination: '', departureDate: '', returnDate: '', travelerAges: '', coverage: 'Standard', specialRequests: '' },
+    activity: { type: 'activity', destination: '', activity: '', visitDate: '', adults: '2', children: '0', preferences: '', specialRequests: '' },
   };
 
   // Initialize form data only once when component mounts or tab changes
@@ -604,6 +669,18 @@ const BookingPage = () => {
         break;
       case 'visa':
         baseCost = data.urgency === 'express' ? 200 : data.urgency === 'urgent' ? 150 : 100;
+        break;
+      case 'cruise':
+      case 'custom':
+        baseCost = 2000;
+        break;
+      case 'car_rental':
+        baseCost = 100;
+        break;
+      case 'airport_transfer':
+      case 'insurance':
+      case 'activity':
+        baseCost = 50;
         break;
       default:
         baseCost = 0;
@@ -667,12 +744,7 @@ const BookingPage = () => {
       {/* Booking Tabs */}
       <div className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-[12px] min-[481px]:px-[16px] min-[769px]:px-[32px] mt-5">
         <div className="max-w-[1280px] mx-auto flex gap-[8px] max-[768px]:overflow-x-auto max-[768px]:pb-[8px]">
-          {[
-            { id: 'flights', label: 'Flights', icon: 'fas fa-plane' },
-            { id: 'hotels', label: 'Hotels', icon: 'fas fa-bed' },
-            { id: 'tours', label: 'Tours', icon: 'fas fa-map-marked-alt' },
-            { id: 'visa', label: 'Visa', icon: 'fas fa-passport' }
-          ].map(tab => (
+          {SERVICE_TABS.map(tab => (
             <button
               key={tab.id}
               className={`flex items-center gap-[12px] py-[12px] px-[16px] min-[481px]:py-[16px] min-[481px]:px-[24px] border-none font-medium cursor-pointer transition-all duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)] border-b-[3px] relative outline-none whitespace-nowrap shrink-0 ${
@@ -726,6 +798,15 @@ const BookingPage = () => {
               onSubmit={handleSubmit}
               submitting={submitting}
               calculateCost={calculateEstimatedCost}
+            />
+          )}
+          {['car_rental', 'cruise', 'custom', 'airport_transfer', 'insurance', 'activity'].includes(activeTab) && (
+            <GenericServiceForm
+              service={SERVICE_TABS.find((tab) => tab.id === activeTab)?.type || activeTab}
+              formData={formData}
+              onInputChange={handleInputChange}
+              onSubmit={handleSubmit}
+              submitting={submitting}
             />
           )}
         </div>

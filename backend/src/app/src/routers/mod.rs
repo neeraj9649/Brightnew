@@ -11,3 +11,4 @@ pub mod redemptions;
 pub mod referral;
 pub mod rewards;
 pub mod uploads;
+pub mod support;

@@ -18,6 +18,8 @@ import AdminUserDetailPage from './pages/AdminUserDetailPage';
 import AdminBookingDetailPage from './pages/AdminBookingDetailPage';
 import PublicCardPage from './pages/PublicCardPage';
 import RewardsPage from './pages/RewardsPage';
+import { ReferralPage, NotificationsPage, TierBenefitsPage, MembershipPage, SecurityPage, SupportPage } from './pages/MemberPages';
+import BookingDetailPage from './pages/BookingDetailPage';
 
 // Components
 import LoadingSpinner from './components/Common/LoadingSpinner';
@@ -105,6 +107,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      <Route path="/bookings/:id" element={<ProtectedRoute><BookingDetailPage /></ProtectedRoute>} />
       <Route
         path="/profile"
         element={
@@ -121,6 +124,12 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+      <Route path="/tier-benefits" element={<ProtectedRoute><TierBenefitsPage /></ProtectedRoute>} />
+      <Route path="/membership" element={<ProtectedRoute><MembershipPage /></ProtectedRoute>} />
+      <Route path="/security" element={<ProtectedRoute><SecurityPage /></ProtectedRoute>} />
+      <Route path="/support" element={<ProtectedRoute><SupportPage /></ProtectedRoute>} />
 
       {/* Staff Routes (employee or admin) -- AdminDashboard itself renders a
           reduced view for employees vs the full dashboard for admins. */}

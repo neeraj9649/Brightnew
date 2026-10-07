@@ -4,6 +4,16 @@
 
 
 :root {
+  /* Bright Wings premium travel system */
+  --bw-navy: #10283f;
+  --bw-navy-2: #173b59;
+  --bw-gold: #c9963e;
+  --bw-gold-dark: #9b6b21;
+  --bw-paper: #f7f5ef;
+  --bw-surface: #ffffff;
+  --bw-slate: #607083;
+  --bw-teal: #168b80;
+
   /* Primitive Color Tokens */
   --color-white: rgba(255, 255, 255, 1);
   --color-black: rgba(0, 0, 0, 1);
@@ -49,25 +59,25 @@
   --color-bg-8: rgba(6, 182, 212, 0.08); /* Light cyan */
 
   /* Semantic Color Tokens (Light Mode) */
-  --color-background: var(--color-cream-50);
-  --color-surface: var(--color-cream-100);
-  --color-text: var(--color-slate-900);
-  --color-text-secondary: var(--color-slate-500);
-  --color-primary: #f59e0b;
-  --color-primary-hover: #d97706;
-  --color-primary-active: #b45309;
+  --color-background: var(--bw-paper);
+  --color-surface: var(--bw-surface);
+  --color-text: var(--bw-navy);
+  --color-text-secondary: var(--bw-slate);
+  --color-primary: var(--bw-navy);
+  --color-primary-hover: var(--bw-navy-2);
+  --color-primary-active: #0b1e30;
   --color-secondary: rgba(var(--color-brown-600-rgb), 0.12);
   --color-secondary-hover: rgba(var(--color-brown-600-rgb), 0.2);
   --color-secondary-active: rgba(var(--color-brown-600-rgb), 0.25);
   --color-border: rgba(var(--color-brown-600-rgb), 0.2);
-  --color-btn-primary-text: var(--color-cream-50);
+  --color-btn-primary-text: var(--color-white);
   --color-card-border: rgba(var(--color-brown-600-rgb), 0.12);
   --color-card-border-inner: rgba(var(--color-brown-600-rgb), 0.12);
   --color-error: var(--color-red-500);
   --color-success: var(--color-teal-500);
-  --color-warning: var(--color-orange-500);
-  --color-info: var(--color-slate-500);
-  --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
+  --color-warning: var(--bw-gold);
+  --color-info: #2b6f9f;
+  --color-focus-ring: rgba(201, 150, 62, 0.35);
   --color-select-caret: rgba(var(--color-slate-900-rgb), 0.8);
 
   /* Common style patterns */
@@ -85,8 +95,8 @@
   --color-info-rgb: 98, 108, 113;
 
   /* Typography */
-  --font-family-base: "FKGroteskNeue", "Geist", "Inter", -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-base: "Manrope", "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
   --font-family-mono: "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, monospace;
   --font-size-xs: 11px;
@@ -119,12 +129,15 @@
   --space-20: 20px;
   --space-24: 24px;
   --space-32: 32px;
+  --space-48: 48px;
+  --space-64: 64px;
 
   /* Border Radius */
   --radius-sm: 6px;
   --radius-base: 8px;
   --radius-md: 10px;
-  --radius-lg: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
   /* Shadows */
@@ -160,25 +173,25 @@
   --color-slate-900-rgb: 19, 52, 59;
 
   /* Semantic Color Tokens (Light Mode) */
-  --color-background: var(--color-cream-50);
-  --color-surface: var(--color-cream-100);
-  --color-text: var(--color-slate-900);
-  --color-text-secondary: var(--color-slate-500);
-  --color-primary: #f59e0b;
-  --color-primary-hover: #d97706;
-  --color-primary-active: #b45309;
+  --color-background: var(--bw-paper);
+  --color-surface: var(--bw-surface);
+  --color-text: var(--bw-navy);
+  --color-text-secondary: var(--bw-slate);
+  --color-primary: var(--bw-navy);
+  --color-primary-hover: var(--bw-navy-2);
+  --color-primary-active: #0b1e30;
   --color-secondary: rgba(var(--color-brown-600-rgb), 0.12);
   --color-secondary-hover: rgba(var(--color-brown-600-rgb), 0.2);
   --color-secondary-active: rgba(var(--color-brown-600-rgb), 0.25);
   --color-border: rgba(var(--color-brown-600-rgb), 0.2);
-  --color-btn-primary-text: var(--color-cream-50);
+  --color-btn-primary-text: var(--color-white);
   --color-card-border: rgba(var(--color-brown-600-rgb), 0.12);
   --color-card-border-inner: rgba(var(--color-brown-600-rgb), 0.12);
   --color-error: var(--color-red-500);
   --color-success: var(--color-teal-500);
-  --color-warning: var(--color-orange-500);
-  --color-info: var(--color-slate-500);
-  --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
+  --color-warning: var(--bw-gold);
+  --color-info: #2b6f9f;
+  --color-focus-ring: rgba(201, 150, 62, 0.35);
 
   /* RGB versions for light mode */
   --color-success-rgb: var(--color-teal-500-rgb);

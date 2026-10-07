@@ -53,9 +53,7 @@ const MembershipCard = ({ userData, compact = false }) => {
   // The QR encodes the PUBLIC card page URL -> scanning opens live member/card
   // info. Generated locally as a data URL (renders offline, no canvas taint).
   const code = user?.membershipCode || '';
-  const cardUrl = code
-    ? `${PORTAL_BASE}${PORTAL_BASE.endsWith('/card') ? '?' : '/card?'}code=${encodeURIComponent(code)}`
-    : '';
+  const cardUrl = code ? `${PORTAL_BASE}/card/${encodeURIComponent(code)}` : '';
   useEffect(() => {
     if (!cardUrl) { setQrDataUrl(''); return; }
     QRCode.toDataURL(cardUrl, { width: 240, margin: 1 })
@@ -182,19 +180,6 @@ const MembershipCard = ({ userData, compact = false }) => {
       case 'Gold': return '#f5b942';
       case 'Silver': return '#b8c0cc';
       default: return '#cd7f32';
-    }
-  };
-
-  const getMembershipBenefits = (tier) => {
-    switch (tier) {
-      case 'Platinum':
-        return ['Priority Support', 'Exclusive Deals', 'Free Upgrades', 'Lounge Access'];
-      case 'Gold':
-        return ['Priority Support', 'Exclusive Deals', 'Free Upgrades'];
-      case 'Silver':
-        return ['Priority Support', 'Member Discounts'];
-      default:
-        return ['Member Discounts'];
     }
   };
 

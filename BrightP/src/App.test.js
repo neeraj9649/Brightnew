@@ -3,5 +3,5 @@ import App from './App';
 
 test('renders the public Bright Wings home page', () => {
   render(<App />);
-  expect(screen.getByText("Travel & Tourism")).toBeInTheDocument();
+  expect(screen.getAllByText("Travel & Tourism").length).toBeGreaterThan(0);
 });

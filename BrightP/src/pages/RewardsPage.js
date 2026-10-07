@@ -1,300 +1,155 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Gift, Info, Search, X } from "lucide-react";
 import Navbar from "../components/Layout/Navbar";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { fileUrl } from "../services/storage";
-
-// Customer Reward Redemption page: browse the catalog, redeem Wings, and track
-// the status of every redemption (request -> approval -> voucher -> delivery).
+import hotelReward from "../assets/travel/destination-beach.jpg";
+import loungeReward from "../assets/travel/hero-coast.jpg";
+import upgradeReward from "../assets/travel/cta.jpg";
+import "../components/Layout/CustomerPortal.css";
 
 const STATUS_META = {
-  requested: { label: "Requested", color: "#b45309", bg: "#fef3c7" },
-  approved: { label: "Approved", color: "#1d4ed8", bg: "#dbeafe" },
-  voucher_issued: { label: "Voucher Issued", color: "#7c3aed", bg: "#ede9fe" },
-  delivered: { label: "Delivered", color: "#047857", bg: "#d1fae5" },
-  rejected: { label: "Rejected", color: "#b91c1c", bg: "#fee2e2" },
-  cancelled: { label: "Cancelled", color: "#6b7280", bg: "#f3f4f6" },
+  requested: { label: "Awaiting approval", tone: "warning" },
+  approved: { label: "Approved", tone: "info" },
+  voucher_issued: { label: "Voucher issued", tone: "info" },
+  delivered: { label: "Delivered", tone: "success" },
+  rejected: { label: "Rejected · Wings refunded", tone: "error" },
+  cancelled: { label: "Cancelled · Wings refunded", tone: "neutral" },
 };
 
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : "");
+const FALLBACK_REWARDS = [
+  { id: "hotel", name: "Hotel booking credit", category: "Stay", description: "₹500 credit on eligible hotel bookings.", wings_cost: 500, image: hotelReward },
+  { id: "lounge", name: "Airport lounge voucher", category: "Travel", description: "Global lounge access for one visit.", wings_cost: 1000, image: loungeReward },
+  { id: "upgrade", name: "Travel upgrade", category: "Travel", description: "Upgrade to the next cabin class, subject to availability.", wings_cost: 2000, image: upgradeReward },
+];
+
+const formatDate = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
 const StatusBadge = ({ status }) => {
-  const m = STATUS_META[status] || STATUS_META.requested;
-  return (
-    <span
-      style={{
-        padding: "2px 10px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
-        color: m.color,
-        background: m.bg,
-      }}
-    >
-      {m.label}
-    </span>
-  );
+  const meta = STATUS_META[status] || { label: status || "Requested", tone: "neutral" };
+  return <span className={`bw-status ${meta.tone}`}>{meta.label}</span>;
 };
+
+function RewardImage({ item, className = "" }) {
+  const image = item.image_file_id ? fileUrl(item.image_file_id) : item.image;
+  return <div className={`bw-reward-image ${className}`} style={image ? { backgroundImage: `url(${image})` } : undefined} aria-label={item.name} role="img" />;
+}
 
 const RewardsPage = () => {
   const { userData, refreshUser } = useAuth();
   const [catalog, setCatalog] = useState([]);
   const [mine, setMine] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(null); // id being acted on
-  const balance = userData?.tokens ?? 0;
+  const [busy, setBusy] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [agreed, setAgreed] = useState(false);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
+  const balance = Number(userData?.tokens ?? 0);
 
   const load = useCallback(async () => {
     try {
-      const [items, redemptions] = await Promise.all([
-        api.get("/redemptions/catalog"),
-        api.get("/redemptions/me"),
-      ]);
-      setCatalog(items || []);
+      const [items, redemptions] = await Promise.all([api.get("/redemptions/catalog"), api.get("/redemptions/me")]);
+      setCatalog((items || []).map((item, index) => ({ ...item, image: FALLBACK_REWARDS[index % FALLBACK_REWARDS.length].image })));
       setMine(redemptions || []);
-    } catch (e) {
-      toast.error(e.message || "Failed to load rewards");
+    } catch (error) {
+      toast.error(error.message || "Unable to load rewards");
+      setCatalog([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  const redeem = async (item) => {
-    if (balance < item.wings_cost) {
-      toast.error("Not enough Wings for this reward");
+  const rewards = catalog.length ? catalog : FALLBACK_REWARDS;
+  const categories = useMemo(() => ["All", ...new Set(rewards.map((item) => item.category).filter(Boolean))], [rewards]);
+  const filtered = rewards.filter((item) => {
+    const matchesCategory = category === "All" || item.category === category;
+    const haystack = `${item.name} ${item.description || ""} ${item.category || ""}`.toLowerCase();
+    return matchesCategory && haystack.includes(query.toLowerCase());
+  });
+
+  const redeem = async () => {
+    if (!selected || selected.id === "hotel" || selected.id === "lounge" || selected.id === "upgrade") {
+      toast.error("This reward is illustrative until the catalog is configured by an administrator.");
       return;
     }
-    setBusy(item.id);
+    if (balance < Number(selected.wings_cost)) {
+      toast.error("You do not have enough available Wings for this reward.");
+      return;
+    }
+    if (!agreed) {
+      toast.error("Please accept the reward terms before continuing.");
+      return;
+    }
+    setBusy(selected.id);
     try {
-      await api.post("/redemptions", { reward_item_id: item.id });
-      toast.success(`Requested: ${item.name}`);
+      await api.post("/redemptions", { reward_item_id: selected.id });
+      toast.success("Redemption request submitted");
+      setSelected(null);
+      setAgreed(false);
       await Promise.all([load(), refreshUser()]);
-    } catch (e) {
-      toast.error(e.message || "Redemption failed");
+    } catch (error) {
+      toast.error(error.message || "Redemption failed");
     } finally {
       setBusy(null);
     }
   };
 
-  const cancel = async (r) => {
-    if (!window.confirm(`Cancel your request for ${r.item_name}? Wings refunded.`))
-      return;
-    setBusy(r.id);
+  const cancel = async (redemption) => {
+    if (!window.confirm(`Cancel your request for ${redemption.item_name}? Your Wings will be refunded.`)) return;
+    setBusy(redemption.id);
     try {
-      await api.post(`/redemptions/${r.id}/cancel`);
-      toast.success("Redemption cancelled, Wings refunded");
+      await api.post(`/redemptions/${redemption.id}/cancel`);
+      toast.success("Request cancelled and Wings refunded");
       await Promise.all([load(), refreshUser()]);
-    } catch (e) {
-      toast.error(e.message || "Cancel failed");
+    } catch (error) {
+      toast.error(error.message || "Could not cancel the request");
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
+    <div className="bw-app-shell">
       <Navbar />
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1rem 3rem" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 12,
-            marginBottom: 20,
-          }}
-        >
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a" }}>
-              Redeem Your Wings
-            </h1>
-            <p style={{ color: "#64748b" }}>
-              Turn your Wings into travel experiences.
-            </p>
-          </div>
-          <div
-            style={{
-              background: "linear-gradient(135deg,#f59e0b,#d97706)",
-              color: "#fff",
-              padding: "10px 18px",
-              borderRadius: 12,
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <i className="fas fa-feather-pointed" />
-            {balance.toLocaleString()} Wings
-          </div>
+      <main className="bw-page">
+        <div className="bw-page-heading">
+          <div><div className="bw-eyebrow">Wings marketplace</div><h1>Rewards catalog</h1><p>Turn your Wings into meaningful travel moments.</p></div>
+          <div className="bw-balance-pill"><Gift size={18} /> <strong>{balance.toLocaleString("en-IN")}</strong> available Wings</div>
         </div>
 
-        {loading ? (
-          <p style={{ color: "#64748b" }}>Loading rewards…</p>
-        ) : (
-          <>
-            {/* Catalog */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))",
-                gap: 16,
-                marginBottom: 36,
-              }}
-            >
-              {catalog.map((item) => {
-                const afford = balance >= item.wings_cost;
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      background: "#fff",
-                      borderRadius: 14,
-                      border: "1px solid #e2e8f0",
-                      overflow: "hidden",
-                      display: "flex",
-                      flexDirection: "column",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: 130,
-                        background: item.image_file_id
-                          ? `url(${fileUrl(item.image_file_id)}) center/cover`
-                          : "linear-gradient(135deg,#1f2937,#374151)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#94a3b8",
-                      }}
-                    >
-                      {!item.image_file_id && (
-                        <i className="fas fa-gift" style={{ fontSize: 34 }} />
-                      )}
-                    </div>
-                    <div style={{ padding: 14, display: "flex", flexDirection: "column", flex: 1 }}>
-                      {item.category && (
-                        <span style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, textTransform: "uppercase" }}>
-                          {item.category}
-                        </span>
-                      )}
-                      <h3 style={{ fontWeight: 700, color: "#0f172a", margin: "2px 0 6px" }}>
-                        {item.name}
-                      </h3>
-                      {item.description && (
-                        <p style={{ fontSize: 13, color: "#64748b", flex: 1 }}>
-                          {item.description}
-                        </p>
-                      )}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginTop: 12,
-                        }}
-                      >
-                        <span style={{ fontWeight: 800, color: "#d97706" }}>
-                          {item.wings_cost.toLocaleString()} Wings
-                        </span>
-                        <button
-                          disabled={!afford || busy === item.id}
-                          onClick={() => redeem(item)}
-                          style={{
-                            border: "none",
-                            borderRadius: 8,
-                            padding: "8px 14px",
-                            fontWeight: 700,
-                            cursor: afford ? "pointer" : "not-allowed",
-                            color: "#fff",
-                            background: afford ? "#f59e0b" : "#cbd5e1",
-                          }}
-                        >
-                          {busy === item.id ? "…" : afford ? "Redeem" : "Need more"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        <section className="bw-card bw-info-banner"><Info size={20} /><span>Rewards are subject to availability and approval. Wings are reserved when you submit a request and refunded once if it is rejected.</span></section>
 
-            {/* Tracking */}
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>
-              My Redemptions
-            </h2>
-            {mine.length === 0 ? (
-              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 28, textAlign: "center", color: "#94a3b8" }}>
-                <i className="fas fa-receipt" style={{ fontSize: 28 }} />
-                <p style={{ marginTop: 8 }}>No redemptions yet. Pick a reward above!</p>
-              </div>
-            ) : (
-              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
-                {mine.map((r) => (
-                  <div
-                    key={r.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      padding: "14px 16px",
-                      borderBottom: "1px solid #f1f5f9",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700, color: "#0f172a" }}>{r.item_name}</div>
-                      <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                        {r.wings_cost.toLocaleString()} Wings · {fmtDate(r.created_at)}
-                        {r.voucher_code && (
-                          <>
-                            {" "}· Voucher:{" "}
-                            <span style={{ fontFamily: "monospace", color: "#7c3aed", fontWeight: 700 }}>
-                              {r.voucher_code}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      {r.admin_note && (
-                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                          Note: {r.admin_note}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <StatusBadge status={r.status} />
-                      {r.status === "requested" && (
-                        <button
-                          disabled={busy === r.id}
-                          onClick={() => cancel(r)}
-                          style={{
-                            border: "1px solid #e2e8f0",
-                            background: "#fff",
-                            color: "#b91c1c",
-                            borderRadius: 8,
-                            padding: "6px 12px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+        <section className="bw-card bw-toolbar">
+          <label className="bw-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search rewards" aria-label="Search rewards" /></label>
+          <div className="bw-chip-row" role="tablist" aria-label="Reward categories">
+            {categories.map((item) => <button type="button" key={item} className={`bw-chip ${category === item ? "active" : ""}`} onClick={() => setCategory(item)}>{item}</button>)}
+          </div>
+        </section>
+
+        {loading ? <div className="bw-card bw-empty">Loading rewards…</div> : (
+          <section className="bw-reward-grid" aria-label="Available rewards">
+            {filtered.map((item) => {
+              const affordable = balance >= Number(item.wings_cost);
+              return <article className="bw-card bw-reward-card" key={item.id}>
+                <RewardImage item={item} />
+                <div className="bw-reward-card-body"><span className="bw-category-label">{item.category || "Travel"}</span><h3>{item.name}</h3><p>{item.description || "A Bright Wings reward for your next journey."}</p><div className="bw-reward-card-footer"><strong>{Number(item.wings_cost || 0).toLocaleString("en-IN")} Wings</strong><button type="button" className="bw-button secondary small" onClick={() => { setSelected(item); setAgreed(false); }}>{affordable ? "View reward" : "Not enough Wings"}</button></div></div>
+              </article>;
+            })}
+            {!filtered.length && <div className="bw-card bw-empty">No rewards match those filters.</div>}
+          </section>
         )}
-      </div>
+
+        <section className="bw-card bw-redemption-panel"><div className="bw-section-heading"><div><div className="bw-eyebrow">Your requests</div><h2>Redemption history</h2></div><span className="bw-muted">{mine.length} total</span></div>
+          {!mine.length ? <div className="bw-empty"><Gift size={28} /><p>No redemptions yet. Choose a reward above when you’re ready.</p></div> : <div className="bw-redemption-list">{mine.map((redemption) => <div className="bw-redemption-row" key={redemption.id}><div><strong>{redemption.item_name}</strong><span>{Number(redemption.wings_cost || 0).toLocaleString("en-IN")} Wings · {formatDate(redemption.created_at)}</span>{redemption.voucher_code && <span className="bw-voucher">Voucher: {redemption.voucher_code}</span>}</div><div className="bw-redemption-actions"><StatusBadge status={redemption.status} />{redemption.status === "requested" && <button type="button" className="bw-button ghost small" disabled={busy === redemption.id} onClick={() => cancel(redemption)}>{busy === redemption.id ? "Cancelling…" : "Cancel"}</button>}</div></div>)}</div>}
+        </section>
+      </main>
+
+      {selected && <div className="bw-modal-backdrop" role="presentation" onClick={() => setSelected(null)}><section className="bw-modal bw-card" role="dialog" aria-modal="true" aria-labelledby="reward-dialog-title" onClick={(event) => event.stopPropagation()}><button type="button" className="bw-icon-button bw-modal-close" onClick={() => setSelected(null)} aria-label="Close"><X size={20} /></button><RewardImage item={selected} className="large" /><div className="bw-modal-content"><span className="bw-category-label">{selected.category || "Travel"}</span><h2 id="reward-dialog-title">{selected.name}</h2><p>{selected.description || "A Bright Wings reward for your next journey."}</p><div className="bw-modal-summary"><span>Reward cost</span><strong>{Number(selected.wings_cost || 0).toLocaleString("en-IN")} Wings</strong><span>Balance after request</span><strong>{Math.max(0, balance - Number(selected.wings_cost || 0)).toLocaleString("en-IN")} Wings</strong></div><label className="bw-check-row"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} /> I agree to the eligibility, availability and usage terms for this reward.</label><button type="button" className="bw-button primary full" disabled={busy === selected.id || balance < Number(selected.wings_cost || 0)} onClick={redeem}>{busy === selected.id ? "Submitting…" : `Redeem for ${Number(selected.wings_cost || 0).toLocaleString("en-IN")} Wings`}</button><p className="bw-muted small-copy">Your available balance is debited at request submission. Approval does not debit again; rejection refunds once.</p></div></section></div>}
     </div>
   );
 };
