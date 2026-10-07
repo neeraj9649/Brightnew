@@ -75,4 +75,43 @@ const lakeSvg = `
   <path d="M590 372 q40-34 100-16 q60-24 110 6 v158 H590z" fill="#58704f" opacity=".92"/>
 </svg>`;
 
-export const SCENE = { palace: encode(palaceSvg), lake: encode(lakeSvg) };
+
+const mountainsSvg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid slice">
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f6592"/><stop offset=".6" stop-color="#a9c6e3"/><stop offset="1" stop-color="#f1e6d3"/></linearGradient></defs>
+  <rect width="800" height="520" fill="url(#sky)"/>
+  <circle cx="610" cy="130" r="38" fill="#fff8e4" opacity=".9"/>
+  <path d="M0 340 L130 190 L210 270 L330 120 L450 270 L560 170 L690 290 L800 220 V520 H0z" fill="#dfe9f4"/>
+  <path d="M330 120 L290 175 L322 168 L345 196 L372 170 L402 190 Z" fill="#fff"/>
+  <path d="M130 190 L100 232 L128 226 L150 246 L172 224 Z" fill="#fff"/>
+  <path d="M560 170 L528 214 L556 208 L578 228 L600 206 Z" fill="#fff"/>
+  <path d="M0 400 L120 330 L240 390 L380 320 L520 395 L660 335 L800 390 V520 H0z" fill="#6f8aa6"/>
+  <path d="M0 450 L150 400 L300 445 L470 410 L640 450 L800 420 V520 H0z" fill="#3f5b3f"/>
+  <g fill="#2c4a33"><path d="M60 470 l16-48 16 48z M96 478 l14-40 14 40z M700 468 l16-50 16 50z M736 476 l12-36 12 36z"/></g>
+</svg>`;
+
+const backwatersSvg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid slice">
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb7c9"/><stop offset=".55" stop-color="#f2dca6"/><stop offset="1" stop-color="#f6e9c4"/></linearGradient>
+  <linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fc9b6"/><stop offset="1" stop-color="#2e6f62"/></linearGradient></defs>
+  <rect width="800" height="520" fill="url(#sky)"/>
+  <circle cx="540" cy="250" r="46" fill="#fff4cf" opacity=".95"/>
+  <path d="M0 300 q100-40 200-6 t200-4 t200 6 t200-8 V350 H0z" fill="#4f8f5f" opacity=".8"/>
+  <rect y="340" width="800" height="180" fill="url(#w)"/>
+  <g stroke="#fff" stroke-opacity=".25" stroke-width="2"><path d="M0 380h800M0 415h800M0 452h800M0 490h800"/></g>
+  <path d="M250 372 q70 28 190 0 l-16 24 q-80 18 -158 0z" fill="#7a4b2a"/>
+  <path d="M290 372 q70-70 130 0z" fill="#d9b66b"/>
+  <g stroke="#2d5a36" stroke-width="5" fill="none" stroke-linecap="round"><path d="M60 345 q4-90 -6-150"/><path d="M60 195 q-50 4 -64 36 M60 195 q40-14 70 10 M60 195 q-20-36 -60-40 M60 195 q30-34 66-26"/><path d="M730 350 q-4-100 6-160"/><path d="M736 190 q50 4 64 36 M736 190 q-40-14 -70 10 M736 190 q20-36 60-40 M736 190 q-30-34 -66-26"/></g>
+</svg>`;
+
+const skylineSvg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid slice">
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26406a"/><stop offset=".55" stop-color="#d98c6a"/><stop offset="1" stop-color="#f6c98a"/></linearGradient></defs>
+  <rect width="800" height="520" fill="url(#sky)"/>
+  <circle cx="160" cy="300" r="60" fill="#ffe3a8" opacity=".9"/>
+  <g fill="#1a2f52"><rect x="60" y="330" width="46" height="190"/><rect x="118" y="290" width="40" height="230"/><rect x="170" y="350" width="56" height="170"/><rect x="250" y="250" width="34" height="270"/><path d="M262 190 l8 60 h-16z"/><rect x="300" y="330" width="60" height="190"/><rect x="380" y="270" width="48" height="250"/><path d="M404 160 l10 112 h-20z"/><rect x="450" y="320" width="54" height="200"/><rect x="526" y="240" width="40" height="280"/><rect x="584" y="340" width="58" height="180"/><rect x="660" y="300" width="42" height="220"/><rect x="716" y="350" width="64" height="170"/></g>
+  <g fill="#f9d58a" opacity=".85"><rect x="130" y="320" width="5" height="7"/><rect x="142" y="348" width="5" height="7"/><rect x="262" y="290" width="5" height="7"/><rect x="396" y="310" width="5" height="7"/><rect x="408" y="350" width="5" height="7"/><rect x="536" y="290" width="5" height="7"/><rect x="672" y="340" width="5" height="7"/></g>
+  <rect y="470" width="800" height="50" fill="#0f1d36"/>
+</svg>`;
+
+export const SCENE = { palace: encode(palaceSvg), lake: encode(lakeSvg), mountains: encode(mountainsSvg), backwaters: encode(backwatersSvg), skyline: encode(skylineSvg) };

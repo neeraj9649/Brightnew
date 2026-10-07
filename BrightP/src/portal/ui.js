@@ -16,7 +16,7 @@ import './portal.css';
 
 // Hero imagery. `palace`/`lake` are illustrated scenes until real destination
 // photography is supplied; point them at a photo here and every screen follows.
-export const IMG = { palace: SCENE.palace, lake: SCENE.lake, coast, beach: coast, chairs, village };
+export const IMG = { palace: SCENE.palace, lake: SCENE.lake, mountains: SCENE.mountains, backwaters: SCENE.backwaters, skyline: SCENE.skyline, coast, beach: coast, chairs, village };
 export const bg = (image) => (String(image).startsWith('url(') ? image : `url(${image})`);
 export { BrightLogo };
 

@@ -1054,8 +1054,34 @@ async fn staff_customers_handler(
     Ok(ApiResponse(rows))
 }
 
+// ---------------------------------------------------------------------------
+// Public program facts (landing page)
+// ---------------------------------------------------------------------------
+
+/// Unauthenticated, read-only summary of the Wings program so the public
+/// landing page can show the real, admin-configured rates instead of copy
+/// that drifts out of date.
+async fn public_program_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<Value>, ApiError> {
+    let rows: Vec<(String, i32)> = sqlx::query_as("SELECT key, points FROM points_config")
+        .fetch_all(pool.get_ref())
+        .await
+        .map_err(db_err)?;
+    let get = |key: &str| rows.iter().find(|(k, _)| k == key).map(|(_, v)| *v);
+    let services: Vec<Value> = rows
+        .iter()
+        .filter(|(k, _)| !matches!(k.as_str(), "welcome_bonus" | "first_booking" | "referral_booking"))
+        .map(|(k, v)| json!({ "type": k, "points": v }))
+        .collect();
+    Ok(ApiResponse(json!({
+        "welcome_bonus": get("welcome_bonus"),
+        "first_booking": get("first_booking"),
+        "referral_booking": get("referral_booking"),
+        "services": services,
+    })))
+}
+
 pub fn portal_routes(cfg: &mut ServiceConfig) {
-    cfg.service(
+    cfg.route("/public/program", web::get().to(public_program_handler)).service(
         web::scope("/pin-reset")
             .route("/request", web::post().to(pin_reset_request_handler))
             .route("/verify", web::post().to(pin_reset_verify_handler))

@@ -8,7 +8,7 @@ import { CrmProvider } from './contexts/CrmContext';
 import { AnalyticsProvider } from './contexts/AnalyticsContext';
 
 // Pages
-import HomePage from './pages/HomePage';
+import Landing from './portal/Landing';
 import AuthPage, { WelcomePage, InactivePage } from './portal/customer/AuthScreens';
 import DashboardPage from './portal/customer/Home';
 import BookingsPage from './portal/customer/Bookings';
@@ -91,7 +91,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<Landing />} />
       <Route path="/card/:code" element={<PublicCard />} />
       <Route 
         path="/auth" 
