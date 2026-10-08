@@ -1,0 +1,167 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE users\n            SET\n                first_name = COALESCE($2, first_name),\n                last_name = COALESCE($3, last_name),\n                phone = COALESCE($4, phone),\n                role = COALESCE($5, role),\n                membership_tier = COALESCE($6, membership_tier),\n                tokens = COALESCE($7, tokens),\n                total_bookings = COALESCE($8, total_bookings),\n                total_spent = COALESCE($9, total_spent),\n                profile_image_file_id = COALESCE($10, profile_image_file_id),\n                pin_hash = COALESCE($11, pin_hash),\n                last_active = COALESCE($12, last_active),\n                is_active = COALESCE($13, is_active),\n                notifications_seen_at = COALESCE($14, notifications_seen_at)\n            WHERE id = $1\n            RETURNING id, email, pin_hash, first_name, last_name, phone, role, is_active,\n                membership_tier, membership_code, referral_code, hr_code, tokens,\n                lifetime_points_earned, total_bookings, total_spent,\n                profile_image_file_id, date_of_birth, notifications_seen_at,\n                joined_at, last_active, created_at, updated_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "pin_hash",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "first_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "last_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "phone",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "role",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "membership_tier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "membership_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "referral_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "hr_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "tokens",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "lifetime_points_earned",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 14,
+        "name": "total_bookings",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "total_spent",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 16,
+        "name": "profile_image_file_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 17,
+        "name": "date_of_birth",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 18,
+        "name": "notifications_seen_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 19,
+        "name": "joined_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 20,
+        "name": "last_active",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 21,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 22,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Int4",
+        "Numeric",
+        "Text",
+        "Varchar",
+        "Timestamptz",
+        "Bool",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8ed2a784711af6da79bc6bedf1cf467f043784e08b8f6e0481843a5fe98d77a7"
+}

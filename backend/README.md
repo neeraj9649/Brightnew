@@ -32,6 +32,15 @@ dropdb bp_scratch
 Then verify the cache is complete with `cargo build --locked` and no
 `DATABASE_URL`.
 
+User queries select columns explicitly because databases upgraded from older
+releases can have a different physical column order. Run the regression check
+against a disposable Postgres database (it uses temporary tables):
+
+```sh
+TEST_DATABASE_URL=postgresql:///bp_scratch \
+  cargo test -p auth --test user_column_order -- --ignored
+```
+
 ## Environment
 
 | Variable | Required | Purpose |

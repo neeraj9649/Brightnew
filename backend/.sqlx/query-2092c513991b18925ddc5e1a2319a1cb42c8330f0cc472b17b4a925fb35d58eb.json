@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM users WHERE referral_code = $1",
+  "query": "SELECT id, email, pin_hash, first_name, last_name, phone, role, is_active,\n                membership_tier, membership_code, referral_code, hr_code, tokens,\n                lifetime_points_earned, total_bookings, total_spent,\n                profile_image_file_id, date_of_birth, notifications_seen_at,\n                joined_at, last_active, created_at, updated_at\n            FROM users WHERE phone = $1",
   "describe": {
     "columns": [
       {
@@ -35,87 +35,87 @@
       },
       {
         "ordinal": 6,
-        "name": "membership_tier",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 7,
-        "name": "membership_code",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 8,
-        "name": "tokens",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 9,
-        "name": "total_bookings",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 10,
-        "name": "total_spent",
-        "type_info": "Numeric"
-      },
-      {
-        "ordinal": 11,
-        "name": "profile_image_file_id",
-        "type_info": "Text"
-      },
-      {
-        "ordinal": 12,
-        "name": "joined_at",
-        "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 13,
-        "name": "last_active",
-        "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 14,
-        "name": "created_at",
-        "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 15,
-        "name": "updated_at",
-        "type_info": "Timestamptz"
-      },
-      {
-        "ordinal": 16,
-        "name": "date_of_birth",
-        "type_info": "Date"
-      },
-      {
-        "ordinal": 17,
-        "name": "referral_code",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 18,
-        "name": "lifetime_points_earned",
-        "type_info": "Int8"
-      },
-      {
-        "ordinal": 19,
         "name": "role",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 20,
+        "ordinal": 7,
         "name": "is_active",
         "type_info": "Bool"
       },
       {
-        "ordinal": 21,
+        "ordinal": 8,
+        "name": "membership_tier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "membership_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "referral_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
         "name": "hr_code",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 22,
+        "ordinal": 12,
+        "name": "tokens",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "lifetime_points_earned",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 14,
+        "name": "total_bookings",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "total_spent",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 16,
+        "name": "profile_image_file_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 17,
+        "name": "date_of_birth",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 18,
         "name": "notifications_seen_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 19,
+        "name": "joined_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 20,
+        "name": "last_active",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 21,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 22,
+        "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
@@ -135,20 +135,20 @@
       false,
       false,
       false,
-      false,
-      true,
-      false,
-      false,
-      false,
-      false,
       true,
       true,
       false,
       false,
       false,
+      false,
       true,
-      true
+      true,
+      true,
+      false,
+      false,
+      false,
+      false
     ]
   },
-  "hash": "580d483f479a174ce37600526dbc8aa276a6e802ecba58f554a2016ffe782dc6"
+  "hash": "2092c513991b18925ddc5e1a2319a1cb42c8330f0cc472b17b4a925fb35d58eb"
 }
