@@ -46,3 +46,20 @@ headers for `https://portal.brightwingstravel.com`.
 
 > The workflow and unit files were written without access to the server and have
 > not been run against it. Check them on a staging box first.
+
+## Alternative: managed host (no server administration)
+
+`backend/Dockerfile` builds the API for any container host, and `render.yaml`
+is a ready Render blueprint (managed Postgres + web service, secrets generated
+for you). After the first deploy:
+
+1. Note the service URL (e.g. `https://brightwings-api.onrender.com`) and open
+   `/health` — it must return 200.
+2. Set the portal's `REACT_APP_API_URL` GitHub secret to that URL (or point
+   `bp.guildarts.online` at it with a CNAME) and re-run the portal workflow;
+   the URL is compiled into the portal build.
+3. The API sets a `SameSite=None; Secure` refresh cookie, so it must be served
+   over HTTPS (Render does this automatically).
+
+The Docker build has not been run in this environment; if it fails on your host,
+the log will name the missing system package.
