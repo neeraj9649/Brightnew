@@ -1,0 +1,22 @@
+# /etc/systemd/system/bp.service
+[Unit]
+Description=Bright Wings API (bp)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=brightwings
+Group=brightwings
+WorkingDirectory=/opt/bright-wings
+EnvironmentFile=/etc/bright-wings/bp.env
+ExecStart=/opt/bright-wings/bp
+Restart=on-failure
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

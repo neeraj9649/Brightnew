@@ -1,0 +1,104 @@
+name: Build and Deploy Backend
+
+# Manual on purpose: this applies database migrations to production. Run it
+# BEFORE publishing the matching portal build (see docs/backend-deployment.md).
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to build, migrate and restart the production API'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build backend
+    if: github.event.inputs.confirm == 'deploy'
+    # 22.04 keeps the binary compatible with common Ubuntu/Debian servers (OpenSSL 3).
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Test
+        working-directory: backend
+        run: cargo test --locked --workspace
+      - name: Build (offline SQLx metadata, no database needed)
+        working-directory: backend
+        run: cargo build --release --locked
+      - name: Save binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bp-binary
+          path: backend/target/release/bp
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy API
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      SSH_HOST: ${{ secrets.BACKEND_SSH_HOST }}
+      SSH_USER: ${{ secrets.BACKEND_SSH_USER }}
+      SSH_PORT: ${{ secrets.BACKEND_SSH_PORT }}
+      DEPLOY_DIR: ${{ secrets.BACKEND_DEPLOY_DIR }}   # e.g. /opt/bright-wings
+      HEALTH_URL: ${{ secrets.BACKEND_HEALTH_URL }}   # e.g. http://127.0.0.1:9010/health (checked on the server)
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bp-binary
+          path: out
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.BACKEND_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.BACKEND_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${SSH_HOST:?Set BACKEND_SSH_HOST}" "${SSH_USER:?Set BACKEND_SSH_USER}" "${SSH_PORT:?Set BACKEND_SSH_PORT}" "${DEPLOY_DIR:?Set BACKEND_DEPLOY_DIR}"
+          [[ "$SSH_PORT" =~ ^[0-9]{1,5}$ ]]
+          [[ "$DEPLOY_DIR" = /* ]]
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          if [ -n "${SSH_KNOWN_HOSTS:-}" ]; then printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts; else ssh-keyscan -T 10 -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts; fi
+          chmod 600 ~/.ssh/known_hosts
+      - name: Upload binary
+        run: |
+          set -euo pipefail
+          OPTS=(-i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          scp "${OPTS[@]}" -P "$SSH_PORT" out/bp "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/bp.new"
+      - name: Swap binary, restart and verify (rolls back on failure)
+        run: |
+          set -euo pipefail
+          OPTS=(-i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          ssh "${OPTS[@]}" -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" bash -s -- "$DEPLOY_DIR" "${HEALTH_URL:-http://127.0.0.1:9010/health}" <<'REMOTE'
+          set -euo pipefail
+          DIR="$1"; HEALTH="$2"
+          cd "$DIR"
+          chmod 755 bp.new
+          [ -f bp ] && cp -p bp bp.prev
+          mv -f bp.new bp
+          sudo systemctl restart bp
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null "$HEALTH"; then echo "API healthy after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "API did not become healthy; rolling back" >&2
+          if [ -f bp.prev ]; then mv -f bp.prev bp; sudo systemctl restart bp; fi
+          sudo journalctl -u bp -n 40 --no-pager >&2 || true
+          exit 1
+          REMOTE
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

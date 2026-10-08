@@ -1,0 +1,49 @@
+# Backend deployment (Rust API)
+
+The portal at `https://portal.brightwingstravel.com` calls the API configured in
+the `REACT_APP_API_URL` GitHub secret (currently `https://bp.guildarts.online`).
+**The portal cannot sign anyone in until that URL serves this backend.**
+
+## One-time server setup (Ubuntu/Debian VPS)
+
+```sh
+sudo apt install -y nginx postgresql certbot python3-certbot-nginx libssl3
+sudo useradd --system --home /opt/bright-wings --shell /usr/sbin/nologin brightwings
+sudo mkdir -p /opt/bright-wings /etc/bright-wings && sudo chown brightwings: /opt/bright-wings
+
+# database
+sudo -u postgres psql -c "CREATE USER brightwings WITH PASSWORD '...'" \
+                      -c "CREATE DATABASE brightwings OWNER brightwings"
+
+# config (copy backend/deploy/bp.env.example, fill every CHANGE_ME)
+sudo install -m 600 bp.env /etc/bright-wings/bp.env
+
+# service, reverse proxy, TLS
+sudo cp backend/deploy/bp.service /etc/systemd/system/bp.service && sudo systemctl enable bp
+sudo cp backend/deploy/nginx-bp.conf /etc/nginx/sites-available/bp
+sudo ln -s /etc/nginx/sites-available/bp /etc/nginx/sites-enabled/bp
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d bp.guildarts.online
+```
+
+The DNS record for `bp.guildarts.online` must point at this server (today it
+resolves to a Hostinger host that serves an HTML page, not the API).
+
+The deploy user needs passwordless sudo for exactly:
+`brightwings-deploy ALL=(root) NOPASSWD: /bin/systemctl restart bp, /bin/journalctl -u bp *`
+
+## Releasing
+
+1. GitHub → Settings → Secrets: `BACKEND_SSH_HOST`, `BACKEND_SSH_USER`,
+   `BACKEND_SSH_PORT`, `BACKEND_SSH_KEY`, `BACKEND_DEPLOY_DIR` (`/opt/bright-wings`),
+   optional `BACKEND_SSH_KNOWN_HOSTS`, `BACKEND_HEALTH_URL`.
+2. Actions → **Build and Deploy Backend** → Run workflow → type `deploy`.
+   It runs the tests, builds offline, swaps the binary, restarts the service and
+   rolls back if `/health` does not answer. Database migrations run on start-up.
+3. Only then push the portal (the Hostinger workflow publishes it).
+
+Smoke test: `curl https://bp.guildarts.online/health` returns 200 with CORS
+headers for `https://portal.brightwingstravel.com`.
+
+> The workflow and unit files were written without access to the server and have
+> not been run against it. Check them on a staging box first.

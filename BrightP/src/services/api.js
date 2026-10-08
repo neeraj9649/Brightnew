@@ -20,15 +20,29 @@ async function rawRequest(path, options = {}) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-    credentials: 'include', // send/receive the httpOnly refresh-token cookie
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include', // send/receive the httpOnly refresh-token cookie
+    });
+  } catch {
+    // DNS, TLS, CORS or offline failures all surface as a bare TypeError.
+    const error = new Error('We can’t reach Bright Wings right now. Please check your connection and try again.');
+    error.status = 0;
+    error.network = true;
+    throw error;
+  }
 
   const body = await response.json().catch(() => null);
   return { response, body };
 }
+
+// Every backend response is an envelope with a boolean `success`. Anything
+// else (an HTML error page from a proxy or host, an empty body) means we are
+// not talking to the Bright Wings API.
+const isEnvelope = (body) => body && typeof body === 'object' && typeof body.success === 'boolean';
 
 async function tryRefresh() {
   // Several requests can fail together when a short-lived access token
@@ -64,13 +78,22 @@ export async function apiRequest(path, options = {}) {
     }
   }
 
-  if (!response.ok) {
-    const error = new Error(body?.msg || `Request failed: ${response.status}`);
+  if (response.status === 204) return undefined; // e.g. logout
+
+  if (!isEnvelope(body)) {
+    const error = new Error('The Bright Wings service is temporarily unavailable. Please try again in a moment.');
+    error.status = response.ok ? 502 : response.status;
+    error.network = true;
+    throw error;
+  }
+
+  if (!response.ok || body.success === false) {
+    const error = new Error(body.msg || `Request failed: ${response.status}`);
     error.status = response.status;
     throw error;
   }
 
-  return body?.data;
+  return body.data;
 }
 
 export const api = {
