@@ -51,7 +51,7 @@ jobs:
       - name: Build frontend
         working-directory: ${{ matrix.directory }}
         env:
-          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+          REACT_APP_API_URL: https://bp.nsiif.in
           REACT_APP_RESOURCE_URL: ${{ secrets.REACT_APP_RESOURCE_URL || 'https://resource.brightwingstravel.in' }}
           REACT_APP_PORTAL_URL: ${{ secrets.REACT_APP_PORTAL_URL || 'https://portal.brightwingstravel.com' }}
           REACT_APP_CONTACT_EMAIL: ${{ secrets.REACT_APP_CONTACT_EMAIL }}

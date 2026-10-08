@@ -1,7 +1,7 @@
 # Backend deployment (Rust API)
 
 The portal at `https://portal.brightwingstravel.com` calls the API configured in
-the `REACT_APP_API_URL` GitHub secret (currently `https://bp.guildarts.online`).
+`REACT_APP_API_URL` in the deployment workflow (`https://bp.nsiif.in`).
 **The portal cannot sign anyone in until that URL serves this backend.**
 
 ## One-time server setup (Ubuntu/Debian VPS)
@@ -23,11 +23,10 @@ sudo cp backend/deploy/bp.service /etc/systemd/system/bp.service && sudo systemc
 sudo cp backend/deploy/nginx-bp.conf /etc/nginx/sites-available/bp
 sudo ln -s /etc/nginx/sites-available/bp /etc/nginx/sites-enabled/bp
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d bp.guildarts.online
+sudo certbot --nginx -d bp.nsiif.in
 ```
 
-The DNS record for `bp.guildarts.online` must point at this server (today it
-resolves to a Hostinger host that serves an HTML page, not the API).
+The DNS record for `bp.nsiif.in` must point at the server running this API.
 
 The deploy user needs passwordless sudo for exactly:
 `brightwings-deploy ALL=(root) NOPASSWD: /bin/systemctl restart bp, /bin/journalctl -u bp *`
@@ -42,7 +41,7 @@ The deploy user needs passwordless sudo for exactly:
    rolls back if `/health` does not answer. Database migrations run on start-up.
 3. Only then push the portal (the Hostinger workflow publishes it).
 
-Smoke test: `curl https://bp.guildarts.online/health` returns 200 with CORS
+Smoke test: `curl https://bp.nsiif.in/health` returns 200 with CORS
 headers for `https://portal.brightwingstravel.com`.
 
 > The workflow and unit files were written without access to the server and have
