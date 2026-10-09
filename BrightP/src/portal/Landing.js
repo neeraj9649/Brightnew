@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, BadgeCheck, CalendarCheck, ChevronDown, ClipboardCheck, Gift, HeartHandshake, Menu, MessageSquareText, ShieldCheck, Sparkles, UserRoundCheck, X,
 } from 'lucide-react';
@@ -62,6 +62,7 @@ function useScrolled(offset = 24) {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const { currentUser, isStaff } = useAuth();
   const scrolled = useScrolled();
   const [menu, setMenu] = useState(false);
@@ -76,6 +77,11 @@ export default function Landing() {
   useEffect(() => {
     document.title = 'Bright Wings — Travel, Rewards & Journeys';
   }, []);
+  useEffect(() => {
+    if (!hash) return undefined;
+    const id = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' }), 120);
+    return () => clearTimeout(id);
+  }, [hash]);
   useEffect(() => {
     document.body.style.overflow = menu ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };

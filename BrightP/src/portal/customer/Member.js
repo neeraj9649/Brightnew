@@ -41,7 +41,7 @@ export function Notifications() {
   return (
     <Shell active="home" topbar={wide}>
       <Page>
-        <h1 className="pt-h1" style={{ margin: wide ? '6px 0 14px' : '22px 0 14px' }}>Notifications</h1>
+        <h1 className="pt-h1" style={{ margin: wide ? '0 0 18px' : '22px 0 14px' }}>Notifications</h1>
         <div className="pt-stack lg">
           <div className="pt-seg">{[['all', `All (${counts.all})`], ['bookings', `Bookings (${counts.bookings})`], ['wings', `Wings (${counts.wings})`]].map(([v, l]) => <button type="button" key={v} className={tab === v ? 'active' : ''} onClick={() => setTab(v)}>{l}</button>)}</div>
           {loading && !data ? <div className="pt-stack">{[0, 1, 2, 3].map((i) => <Skeleton key={i} h={92} r={16} />)}</div> : error ? <ErrorState onRetry={reload} /> : shown.length === 0 ? <Card><Empty icon={Bell} title="You’re all caught up">Booking updates, Wings activity and reward news will appear here.</Empty></Card> : (
@@ -267,7 +267,9 @@ export function MembershipCardPage() {
 
 export function PublicCard() {
   const { code } = useParams();
+  const wide = useWide();
   const { data, loading, error } = useAsync(() => api.get(`/cards/${encodeURIComponent(code)}`), [code]);
+  if (wide) return <DeskPublicCard data={data} loading={loading} failed={!!error || (!loading && !data)} />;
   return (
     <div className="pt-app" style={{ background: 'var(--pt-paper)' }}>
       <div style={{ minHeight: '100vh', position: 'relative', backgroundImage: IMG.palace, backgroundSize: 'cover', backgroundPosition: 'center top' }}>
@@ -294,6 +296,43 @@ export function PublicCard() {
           <p className="pt-small" style={{ textAlign: 'center', marginTop: 40, letterSpacing: '0.2em', fontSize: 10, fontWeight: 700 }}>TRAVEL FURTHER TOGETHER</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DeskPublicCard({ data, loading, failed }) {
+  return (
+    <div className="pt-app dpc">
+      <div className="dpc-bg" style={{ backgroundImage: IMG.palace }} />
+      <header><img src={BrightLogo} alt="" /><span><b>Bright Wings</b><small>A BRIGHTER WAY TO TRAVEL</small></span></header>
+      <main className="pt-card">
+        {loading ? <Skeleton h={260} r={14} /> : failed ? (
+          <div className="dpc-fail">
+            <div className="pt-success-mark" style={{ background: 'var(--pt-red-soft)', color: 'var(--pt-red)', boxShadow: 'none', width: 84, height: 84 }}><ShieldAlert size={38} /></div>
+            <h1 className="pt-title" style={{ fontSize: 34 }}>We couldn’t verify this card</h1>
+            <p className="pt-lede">This membership code isn’t recognised. Please check the card and scan again, or ask the member for their latest card.</p>
+          </div>
+        ) : (
+          <>
+            <div className="dpc-ok">
+              <div className="pt-success-mark" style={{ width: 84, height: 84, boxShadow: 'none' }}><Check size={40} strokeWidth={2.4} /></div>
+              <h1 className="pt-title" style={{ fontSize: 38, marginTop: 18 }}>Membership verified</h1>
+              <p className="pt-lede" style={{ marginTop: 8 }}>This is a valid Bright Wings member.</p>
+              <div className="pt-notice gold" style={{ textAlign: 'left', alignItems: 'center', marginTop: 24 }}><ShieldCheck size={24} /><div>This membership card is valid and recognised by Bright Wings partner locations.</div></div>
+            </div>
+            <div className="dpc-card">
+              <div className="pt-row between"><span className="pt-row" style={{ gap: 8 }}><img src={BrightLogo} alt="" width={28} /><b>Bright Wings</b></span><span className="pt-row" style={{ gap: 6, color: '#e4b45c' }}><TierIcon tier={data.membership_tier} size={18} /> {data.membership_tier}</span></div>
+              <dl>
+                <div><dt>Member</dt><dd>{data.name}</dd></div>
+                <div><dt>Member No.</dt><dd style={{ letterSpacing: '0.08em' }}>{data.membership_code}</dd></div>
+                <div><dt>Valid until</dt><dd>{fmtDate(data.valid_until)}</dd></div>
+                <div><dt>Status</dt><dd style={{ color: '#7fe0b0' }}>Active member</dd></div>
+              </dl>
+            </div>
+          </>
+        )}
+      </main>
+      <p className="dpc-foot"><Lock size={14} /> Only name, member number, tier and validity are shown publicly.</p>
     </div>
   );
 }

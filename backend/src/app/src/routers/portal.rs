@@ -278,6 +278,7 @@ pub struct PreferencesDTO {
     pub wings_activity: bool,
     pub reward_status: bool,
     pub travel_offers: bool,
+    pub partner_offers: bool,
     pub channel_sms: bool,
     pub channel_in_app: bool,
 }
@@ -297,6 +298,8 @@ pub struct UpdatePreferencesDTO {
     #[serde(default)]
     pub travel_offers: Option<bool>,
     #[serde(default)]
+    pub partner_offers: Option<bool>,
+    #[serde(default)]
     pub trip_updates: Option<bool>,
     #[serde(default)]
     pub channel_sms: Option<bool>,
@@ -305,7 +308,7 @@ pub struct UpdatePreferencesDTO {
 }
 
 const PREF_COLUMNS: &str = "departure_city, travel_style, travelling_with, trip_updates, \
-     wings_activity, reward_status, travel_offers, channel_sms, channel_in_app";
+     wings_activity, reward_status, travel_offers, partner_offers, channel_sms, channel_in_app";
 
 async fn get_preferences_handler(
     pool: web::Data<PgPool>,
@@ -326,6 +329,7 @@ async fn get_preferences_handler(
         wings_activity: true,
         reward_status: true,
         travel_offers: false,
+        partner_offers: false,
         channel_sms: true,
         channel_in_app: true,
     })))
@@ -341,9 +345,9 @@ async fn update_preferences_handler(
     let row = sqlx::query_as::<_, PreferencesDTO>(&format!(
         r#"INSERT INTO user_preferences
                (user_id, departure_city, travel_style, travelling_with, trip_updates,
-                wings_activity, reward_status, travel_offers, channel_sms, channel_in_app)
+                wings_activity, reward_status, travel_offers, channel_sms, channel_in_app, partner_offers)
            VALUES ($1, $2, $3, $4, COALESCE($5, TRUE), COALESCE($6, TRUE), COALESCE($7, TRUE),
-                   COALESCE($8, FALSE), COALESCE($9, TRUE), COALESCE($10, TRUE))
+                   COALESCE($8, FALSE), COALESCE($9, TRUE), COALESCE($10, TRUE), COALESCE($11, FALSE))
            ON CONFLICT (user_id) DO UPDATE SET
                departure_city = COALESCE($2, user_preferences.departure_city),
                travel_style = COALESCE($3, user_preferences.travel_style),
@@ -354,6 +358,7 @@ async fn update_preferences_handler(
                travel_offers = COALESCE($8, user_preferences.travel_offers),
                channel_sms = COALESCE($9, user_preferences.channel_sms),
                channel_in_app = COALESCE($10, user_preferences.channel_in_app),
+               partner_offers = COALESCE($11, user_preferences.partner_offers),
                updated_at = NOW()
            RETURNING {PREF_COLUMNS}"#
     ))
@@ -367,6 +372,7 @@ async fn update_preferences_handler(
     .bind(b.travel_offers)
     .bind(b.channel_sms)
     .bind(b.channel_in_app)
+    .bind(b.partner_offers)
     .fetch_one(pool.get_ref())
     .await
     .map_err(db_err)?;
@@ -412,6 +418,8 @@ pub struct AdvisorDTO {
     pub id: Uuid,
     pub name: String,
     pub title: String,
+    pub phone: Option<String>,
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -459,7 +467,7 @@ async fn portal_booking_handler(
     let advisor = match assigned {
         Some(employee_id) => sqlx::query_as::<_, AdvisorDTO>(
             r#"SELECT id, TRIM(first_name || ' ' || COALESCE(last_name, '')) AS name,
-                      'Travel advisor' AS title
+                      'Travel advisor' AS title, phone, email
                FROM users WHERE id = $1"#,
         )
         .bind(employee_id)
@@ -1107,7 +1115,10 @@ pub fn portal_routes(cfg: &mut ServiceConfig) {
             .wrap(from_fn(|req, next| async move {
                 check_permission_middleware(req, next, &[]).await
             }))
+            .route("", web::get().to(super::member::bookings_summary_handler))
             .route("/{id}", web::get().to(portal_booking_handler))
+            .route("/{id}/messages", web::get().to(super::member::customer_messages_handler))
+            .route("/{id}/messages", web::post().to(super::member::customer_send_message_handler))
             .route("/{id}/quote/accept", web::post().to(accept_quote_handler))
             .route("/{id}/quote/change", web::post().to(request_quote_change_handler)),
     )
@@ -1118,7 +1129,9 @@ pub fn portal_routes(cfg: &mut ServiceConfig) {
             }))
             .route("/{id}/quotes", web::get().to(staff_list_quotes_handler))
             .route("/{id}/quotes", web::post().to(staff_create_quote_handler))
-            .route("/{id}/events", web::get().to(staff_events_handler)),
+            .route("/{id}/events", web::get().to(staff_events_handler))
+            .route("/{id}/messages", web::get().to(super::member::staff_messages_handler))
+            .route("/{id}/messages", web::post().to(super::member::staff_send_message_handler)),
     )
     .service(
         web::scope("/portal/staff")

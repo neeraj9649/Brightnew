@@ -186,12 +186,16 @@ function QuoteTab({ booking, quotes, onSent }) {
   useEffect(() => {
     if (form || quotes.loading) return;
     const sum = latest?.summary || {};
+    const code = (v = '') => (String(v).match(/\(([A-Z]{3})\)/) || [])[1] || '';
+    const city = (v = '') => String(v).replace(/\s*\(.*\)/, '');
+    const blankLeg = (label, date, from, to) => ({ label, date: date || '', airline: '', flight: '', from_code: code(from), from_city: city(from), from_terminal: '', depart: '', to_code: code(to), to_city: city(to), to_terminal: '', arrive: '', duration: '', stops: 'Non-stop' });
+    const legs = sum.legs?.length ? sum.legs : [blankLeg('OUTBOUND', booking.departureDate, booking.from, booking.to), ...(booking.tripType === 'oneway' ? [] : [blankLeg('RETURN', booking.returnDate, booking.to, booking.from)])];
     setForm({
       base_fare: latest?.base_fare ?? (booking.finalCost || ''), taxes: latest?.taxes ?? '', valid_until: latest?.valid_until ? latest.valid_until.slice(0, 10) : '',
       inclusions: latest?.inclusions || [], exclusions: latest?.exclusions || [], private_note: latest?.private_note || '',
-      airline: sum.airline || '', departTime: sum.departTime || '', arriveTime: sum.arriveTime || '', duration: sum.duration || '', stops: sum.stops || '', notes: sum.notes || '',
+      legs, baggage: sum.baggage || '', fare_type: sum.fare_type || '', fare_inclusions: sum.fare_inclusions || '', changes: sum.changes || '', notes: sum.notes || '',
     });
-  }, [latest, quotes.loading, form, booking.finalCost]);
+  }, [latest, quotes.loading, form, booking]);
   if (!form) return <Spinner label="Loading quotation…" />;
   const set = (k, v) => setForm({ ...form, [k]: v });
   const total = (Number(form.base_fare) || 0) + (Number(form.taxes) || 0);
@@ -205,7 +209,7 @@ function QuoteTab({ booking, quotes, onSent }) {
         base_fare: Number(form.base_fare), taxes: Number(form.taxes) || 0,
         valid_until: form.valid_until ? `${form.valid_until}T23:59:00+05:30` : null,
         inclusions: form.inclusions, exclusions: form.exclusions, private_note: form.private_note || null,
-        summary: { airline: form.airline, departTime: form.departTime, arriveTime: form.arriveTime, duration: form.duration, stops: form.stops, notes: form.notes },
+        summary: { legs: isFlight ? form.legs : undefined, baggage: form.baggage, fare_type: form.fare_type, fare_inclusions: form.fare_inclusions, changes: form.changes, notes: form.notes },
       });
       toast.success('Quotation sent to the customer');
       onSent();
@@ -219,7 +223,20 @@ function QuoteTab({ booking, quotes, onSent }) {
         <div className="pt-stack lg">
           <div className="pt-grid3"><Field label="Base fare (INR)"><Input type="number" min="0" value={form.base_fare} onChange={(e) => set('base_fare', e.target.value)} /></Field><Field label="Taxes & fees"><Input type="number" min="0" value={form.taxes} onChange={(e) => set('taxes', e.target.value)} /></Field><Field label="Total"><Input value={fmtMoney(total)} disabled /></Field></div>
           <Field label="Valid until" hint="Customers can accept until 11:59 PM IST on this date."><Input type="date" value={form.valid_until} onChange={(e) => set('valid_until', e.target.value)} /></Field>
-          {isFlight && <><div className="pt-grid2"><Field label="Airline" optional><Input value={form.airline} onChange={(e) => set('airline', e.target.value)} placeholder="IndiGo" /></Field><Field label="Duration" optional><Input value={form.duration} onChange={(e) => set('duration', e.target.value)} placeholder="2h 15m" /></Field></div><div className="pt-grid3"><Field label="Departs" optional><Input value={form.departTime} onChange={(e) => set('departTime', e.target.value)} placeholder="08:15" /></Field><Field label="Arrives" optional><Input value={form.arriveTime} onChange={(e) => set('arriveTime', e.target.value)} placeholder="10:30" /></Field><Field label="Stops" optional><Input value={form.stops} onChange={(e) => set('stops', e.target.value)} placeholder="Non-stop" /></Field></div></>}
+          {isFlight && form.legs.map((leg, i) => {
+            const setLeg = (patch) => set('legs', form.legs.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+            return (
+              <div key={leg.label} className="pt-card flat pad" style={{ background: '#faf8f3' }}>
+                <div className="pt-row between" style={{ marginBottom: 10 }}><strong style={{ color: 'var(--pt-navy)', letterSpacing: '0.08em', fontSize: 12 }}>{leg.label} FLIGHT</strong><Input type="date" value={leg.date} onChange={(e) => setLeg({ date: e.target.value })} style={{ maxWidth: 170, minHeight: 38 }} /></div>
+                <div className="pt-grid2"><Field label="Airline"><Input value={leg.airline} onChange={(e) => setLeg({ airline: e.target.value })} placeholder="IndiGo" /></Field><Field label="Flight number" optional><Input value={leg.flight} onChange={(e) => setLeg({ flight: e.target.value })} placeholder="6E 1234" /></Field></div>
+                <div className="pt-grid3" style={{ marginTop: 10 }}><Field label="From (code)"><Input value={leg.from_code} maxLength={3} onChange={(e) => setLeg({ from_code: e.target.value.toUpperCase() })} placeholder="JAI" /></Field><Field label="Departs"><Input value={leg.depart} onChange={(e) => setLeg({ depart: e.target.value })} placeholder="12:20" /></Field><Field label="Terminal" optional><Input value={leg.from_terminal} onChange={(e) => setLeg({ from_terminal: e.target.value })} placeholder="Terminal 2" /></Field></div>
+                <div className="pt-grid3" style={{ marginTop: 10 }}><Field label="To (code)"><Input value={leg.to_code} maxLength={3} onChange={(e) => setLeg({ to_code: e.target.value.toUpperCase() })} placeholder="SIN" /></Field><Field label="Arrives"><Input value={leg.arrive} onChange={(e) => setLeg({ arrive: e.target.value })} placeholder="21:40" /></Field><Field label="Terminal" optional><Input value={leg.to_terminal} onChange={(e) => setLeg({ to_terminal: e.target.value })} placeholder="Changi T1" /></Field></div>
+                <div className="pt-grid2" style={{ marginTop: 10 }}><Field label="Duration"><Input value={leg.duration} onChange={(e) => setLeg({ duration: e.target.value })} placeholder="6h 50m" /></Field><Field label="Stops"><Input value={leg.stops} onChange={(e) => setLeg({ stops: e.target.value })} placeholder="Non-stop" /></Field></div>
+              </div>
+            );
+          })}
+          <div className="pt-grid2"><Field label="Baggage" optional><Input value={form.baggage} onChange={(e) => set('baggage', e.target.value)} placeholder="23 kg check-in + 7 kg cabin (per traveller)" /></Field><Field label="Fare type" optional><Input value={form.fare_type} onChange={(e) => set('fare_type', e.target.value)} placeholder="Economy (with flexibility)" /></Field></div>
+          <div className="pt-grid2"><Field label="Included with the fare" optional><Input value={form.fare_inclusions} onChange={(e) => set('fare_inclusions', e.target.value)} placeholder="Standard seat, meals, complimentary snacks" /></Field><Field label="Changes policy" optional><Input value={form.changes} onChange={(e) => set('changes', e.target.value)} placeholder="Date changes allowed (fare difference may apply)" /></Field></div>
           <Field label="Notes shown to the customer" optional><TextArea value={form.notes} onChange={(e) => set('notes', e.target.value)} max={400} placeholder="e.g. Room: Deluxe sea view, 1 king bed." /></Field>
           <ListEditor label="Inclusions" items={form.inclusions} setItems={(v) => set('inclusions', v)} suggestions={INCLUDE_SUGGEST} />
           <ListEditor label="Exclusions" items={form.exclusions} setItems={(v) => set('exclusions', v)} suggestions={EXCLUDE_SUGGEST} />

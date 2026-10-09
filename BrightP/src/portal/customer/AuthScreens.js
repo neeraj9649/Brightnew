@@ -6,8 +6,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import {
   Check2, Field, Hero, IMG, Input, isValidIndianMobile, Modal, ModalHead, Notice, PhoneField, PinBoxes, PinField,
-  fmtNum, formatPhone, memberName, nationalNumber,
+  fmtNum, formatPhone, memberName, nationalNumber, useWide,
 } from '../ui';
+import { DeskJoin, DeskLogin } from '../desktop/Auth';
 
 // Support contact details are configured per deployment (REACT_APP_CONTACT_EMAIL / _PHONE).
 const CONTACT_EMAIL = (process.env.REACT_APP_CONTACT_EMAIL || '').trim();
@@ -39,6 +40,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { signIn, signUp } = useAuth();
+  const wide = useWide();
   const initialRef = params.get('ref') || '';
   const [mode, setMode] = useState(params.get('mode') === 'forgot' ? 'forgot' : initialRef || params.get('mode') === 'register' ? 'register' : 'login');
 
@@ -117,6 +119,17 @@ export default function AuthPage() {
     }
   };
 
+  if (mode === 'register' && wide) {
+    return (
+      <>
+        <DeskJoin name={name} setName={setName} phone={phone} setPhone={setPhone} pin={pin} setPin={setPin} pin2={pin2} setPin2={setPin2}
+          referral={referral} setReferral={setReferral} agree={agree} setAgree={setAgree} showPin={showPin} setShowPin={setShowPin}
+          errors={errors} busy={busy} onSubmit={submitRegister} onSignIn={() => go('login')} onTerms={() => setTerms(true)} />
+        <TermsModal open={terms} onClose={() => setTerms(false)} />
+      </>
+    );
+  }
+
   if (mode === 'register') {
     return (
       <div className="pt-app">
@@ -152,6 +165,13 @@ export default function AuthPage() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (wide) {
+    return (
+      <DeskLogin phone={phone} setPhone={setPhone} pin={pin} setPin={setPin} showPin={showPin} setShowPin={setShowPin} errors={errors} busy={busy}
+        onSubmit={submitLogin} onForgot={() => go('forgot')} onJoin={() => go('register')} />
     );
   }
 

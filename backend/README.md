@@ -53,6 +53,7 @@ TEST_DATABASE_URL=postgresql:///bp_scratch \
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` | optional | E-mail fallback for PIN codes and welcome mails |
 | `PORTAL_URL` | optional | Used in the "set your PIN" invitation sent to staff-created accounts |
 | `SUPPORT_PHONE` | optional | Company line shown behind the **Call** button on booking details |
+| `ENABLE_APP_CORS=true` | optional | Turns on the API's own CORS layer (off by default; leave off when your reverse proxy already sends CORS headers, otherwise browsers see duplicate headers) |
 | `OTP_DEV_ECHO=true` | **never in production** | Returns the PIN-reset code in the API response for local testing |
 
 PIN-reset codes are delivered by the SMS gateway, falling back to e-mail, and
@@ -64,4 +65,6 @@ cannot recover a PIN by themselves — configure at least one before go-live.
 The set of migrations is append-only. `0021_portal_v3.sql` and
 `0022_staff_workspace.sql` add PIN recovery, preferences, structured
 quotations, the booking activity feed, richer rewards/redemptions and task
-priorities. Deploy the backend **before** publishing the matching portal build.
+priorities. `0024_desktop_portal.sql` adds reward tier gating and
+destinations, the partner-offers preference, advisor/customer booking
+messages and e-mail referral invites for the desktop portal. Deploy the backend **before** publishing the matching portal build.

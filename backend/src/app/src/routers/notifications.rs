@@ -134,6 +134,33 @@ async fn my_notifications_handler(
         });
     }
 
+    // Replies from the member's advisor (most recent per booking, last 30 days).
+    let replies: Vec<(Uuid, String, String, String, DateTime<Utc>)> = sqlx::query_as(
+        r#"SELECT DISTINCT ON (m.booking_id) m.booking_id, b.display_code, TRIM(u.first_name), m.body, m.created_at
+           FROM booking_messages m
+           JOIN bookings b ON b.id = m.booking_id
+           JOIN users u ON u.id = m.sender_id
+           WHERE b.user_id = $1 AND m.sender_role = 'staff' AND m.created_at > NOW() - INTERVAL '30 days'
+           ORDER BY m.booking_id, m.created_at DESC"#,
+    )
+    .bind(claims.sub)
+    .fetch_all(pool.get_ref())
+    .await?;
+    for (booking_id, code, advisor, body, at) in replies {
+        items.push(NotificationDTO {
+            id: format!("message-{booking_id}-{}", at.timestamp()),
+            kind: "info".to_string(),
+            category: "bookings".to_string(),
+            title: format!("{advisor} replied on {code}"),
+            message: body.chars().take(140).collect(),
+            icon: "fa-comments".to_string(),
+            amount: None,
+            link: Some(format!("/bookings/{booking_id}")),
+            created_at: at,
+            read: is_read(at),
+        });
+    }
+
     if wings_on {
         for r in &rewards {
             if r.points == 0 {

@@ -1,6 +1,6 @@
 use crate::container::Container;
 use crate::routers::{
-    admin_portal, analytics, auth, bookings, cards, crm, financials, health, loyalty,
+    admin_portal, analytics, auth, bookings, cards, crm, financials, health, loyalty, member,
     notifications, portal, redemptions, referral, rewards, support, uploads,
 };
 use actix_cors::Cors;
@@ -10,6 +10,10 @@ use actix_web::{web, App, Error};
 use base::constants;
 use base::log_config::log_format_config;
 use std::sync::Arc;
+
+fn app_cors_enabled() -> bool {
+    std::env::var("ENABLE_APP_CORS").map(|v| v.eq_ignore_ascii_case("true")).unwrap_or(false)
+}
 
 pub fn create_app(
     container: Arc<Container>,
@@ -66,7 +70,9 @@ pub fn create_app(
         .app_data(web::Data::from(analytics_service))
         .app_data(web::Data::new(sqlx_pool))
         .wrap(logger)
-        // .wrap(cors)
+        // CORS is off by default (the reverse proxy is expected to answer it). Set
+        // ENABLE_APP_CORS=true when the API is called cross-origin without one.
+        .wrap(actix_web::middleware::Condition::new(app_cors_enabled(), cors))
         .configure(auth::auth_routes)
         .configure(bookings::bookings_routes)
         .configure(rewards::rewards_routes)
@@ -81,5 +87,6 @@ pub fn create_app(
         .configure(uploads::uploads_routes)
         .configure(support::support_routes)
         .configure(portal::portal_routes)
+        .configure(member::member_routes)
         .configure(admin_portal::admin_portal_routes)
 }

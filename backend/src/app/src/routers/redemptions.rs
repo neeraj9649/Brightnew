@@ -11,6 +11,7 @@ use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::role::{ADMIN_ONLY, STAFF};
+use rewards::domain::tier_config::tier_rank;
 
 // ---- DTOs -----------------------------------------------------------------
 
@@ -28,6 +29,8 @@ pub struct RewardItemDTO {
     /// NULL means unlimited.
     pub stock: Option<i32>,
     pub reward_value: Option<String>,
+    pub min_tier: String,
+    pub destination: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -104,6 +107,10 @@ pub struct CreateRewardItemDTO {
     pub stock: Option<i32>,
     #[serde(default)]
     pub reward_value: Option<String>,
+    #[serde(default)]
+    pub min_tier: Option<String>,
+    #[serde(default)]
+    pub destination: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -129,6 +136,10 @@ pub struct UpdateRewardItemDTO {
     pub stock: Option<i32>,
     #[serde(default)]
     pub reward_value: Option<String>,
+    #[serde(default)]
+    pub min_tier: Option<String>,
+    #[serde(default)]
+    pub destination: Option<String>,
 }
 
 const ACTIVE: &[&str] = &["requested", "approved", "voucher_issued"];
@@ -136,7 +147,7 @@ const ALL_STATUSES: &[&str] =
     &["requested", "approved", "voucher_issued", "delivered", "rejected", "cancelled"];
 
 const ITEM_COLUMNS: &str = "id, name, description, category, wings_cost, image_file_id, is_active, \
-     validity_days, terms, stock, reward_value, updated_at";
+     validity_days, terms, stock, reward_value, min_tier, destination, updated_at";
 
 const REDEMPTION_SELECT: &str = r#"
     SELECT r.id, r.display_code, r.reward_item_id, r.item_name, r.wings_cost, r.status,
@@ -192,15 +203,23 @@ async fn create_redemption_handler(
 ) -> Result<ApiResponse<RedemptionDTO>, ApiError> {
     let rid = Uuid::new_v4();
     let mut tx = pool.begin().await.map_err(db_err)?;
-    let item: (String, i32, bool, Option<i32>) = sqlx::query_as(
-        "SELECT name, wings_cost, is_active, stock FROM reward_items WHERE id = $1 FOR UPDATE",
+    let item: (String, i32, bool, Option<i32>, String) = sqlx::query_as(
+        "SELECT name, wings_cost, is_active, stock, min_tier FROM reward_items WHERE id = $1 FOR UPDATE",
     )
     .bind(body.reward_item_id)
     .fetch_optional(&mut *tx)
     .await
     .map_err(db_err)?
     .ok_or_else(|| ApiError::new("Reward not found", 404))?;
-    let (name, wings_cost, is_active, stock) = item;
+    let (name, wings_cost, is_active, stock, min_tier) = item;
+    let member_tier: String = sqlx::query_scalar("SELECT membership_tier FROM users WHERE id = $1")
+        .bind(claims.sub)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db_err)?;
+    if tier_rank(&member_tier) < tier_rank(&min_tier) {
+        return Err(ApiError::new(format!("This reward is for {min_tier} members and above"), 403));
+    }
 
     if !is_active {
         return Err(ApiError::new("Reward is not available", 400));
@@ -453,14 +472,17 @@ async fn create_item_handler(
     if b.name.trim().is_empty() || b.wings_cost <= 0 {
         return Err(ApiError::new("Reward name and positive Wings cost are required", 400));
     }
+    if b.min_tier.as_deref().is_some_and(|t| !matches!(t, "Silver" | "Gold" | "Platinum" | "Titanium")) {
+        return Err(ApiError::new("Minimum tier must be Silver, Gold, Platinum or Titanium", 400));
+    }
     if b.validity_days.is_some_and(|days| days <= 0) || b.stock.is_some_and(|stock| stock < 0) {
         return Err(ApiError::new("Validity and stock must be positive numbers", 400));
     }
     let r = sqlx::query_as::<_, RewardItemDTO>(&format!(
         r#"INSERT INTO reward_items
                (name, description, category, wings_cost, image_file_id, is_active,
-                validity_days, terms, stock, reward_value)
-           VALUES ($1, $2, $3, $4, $5, COALESCE($6, TRUE), COALESCE($7, 90), $8, $9, $10)
+                validity_days, terms, stock, reward_value, min_tier, destination)
+           VALUES ($1, $2, $3, $4, $5, COALESCE($6, TRUE), COALESCE($7, 90), $8, $9, $10, COALESCE($11, 'Silver'), $12)
            RETURNING {ITEM_COLUMNS}"#
     ))
     .bind(b.name.trim())
@@ -473,6 +495,8 @@ async fn create_item_handler(
     .bind(b.terms)
     .bind(b.stock)
     .bind(b.reward_value)
+    .bind(b.min_tier)
+    .bind(b.destination)
     .fetch_one(pool.get_ref())
     .await
     .map_err(db_err)?;
@@ -491,6 +515,9 @@ async fn update_item_handler(
     {
         return Err(ApiError::new("Reward name and positive Wings cost are required", 400));
     }
+    if b.min_tier.as_deref().is_some_and(|t| !matches!(t, "Silver" | "Gold" | "Platinum" | "Titanium")) {
+        return Err(ApiError::new("Minimum tier must be Silver, Gold, Platinum or Titanium", 400));
+    }
     if b.validity_days.is_some_and(|days| days <= 0) || b.stock.is_some_and(|stock| stock < -1) {
         return Err(ApiError::new("Validity and stock must be positive numbers", 400));
     }
@@ -507,6 +534,8 @@ async fn update_item_handler(
                terms = COALESCE($9, terms),
                stock = CASE WHEN $11 THEN NULL ELSE COALESCE($10, stock) END,
                reward_value = COALESCE($12, reward_value),
+               min_tier = COALESCE($13, min_tier),
+               destination = COALESCE($14, destination),
                updated_at = NOW()
            WHERE id = $1
            RETURNING {ITEM_COLUMNS}"#
@@ -523,6 +552,8 @@ async fn update_item_handler(
     .bind(if clear_stock { None } else { b.stock })
     .bind(clear_stock)
     .bind(b.reward_value)
+    .bind(b.min_tier)
+    .bind(b.destination)
     .fetch_optional(pool.get_ref())
     .await
     .map_err(db_err)?

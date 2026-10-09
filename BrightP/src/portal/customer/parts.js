@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { ChevronRight, Crown, Gem, Medal, Star } from 'lucide-react';
 import { fileUrl } from '../../services/storage';
-import { Badge, bg, fmtNum, IMG, WingsIcon } from '../ui';
+import { Badge, fmtNum, IMG, WingsIcon } from '../ui';
+import { PHOTO, SERVICE_PHOTO, photoFor } from '../photos';
 import { bookingSubtitle, bookingTitle, serviceOf, statusMeta, TIERS } from '../booking';
 
 export const TIER_ICON = { Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
@@ -11,16 +12,16 @@ export const TierIcon = ({ tier, size = 18 }) => {
   return <Ico size={size} />;
 };
 
-/** Gradient + icon thumbnail for a travel service. */
-export function ServiceArt({ type, size = 86, radius = 13, style, iconSize }) {
+/** Photo thumbnail for a travel service, with its icon overlaid. */
+export function ServiceArt({ type, size = 86, radius = 13, style, iconSize, photo }) {
   const s = serviceOf(type);
-  const photo = type === 'flight' ? IMG.coast : type === 'hotel' ? IMG.chairs : null;
+  const src = photo || SERVICE_PHOTO[type];
   return (
     <div
       aria-hidden="true"
       style={{
         width: size, height: size, borderRadius: radius, flex: 'none', display: 'grid', placeItems: 'center', color: '#fff',
-        background: photo ? `linear-gradient(rgba(8,24,40,.12), rgba(8,24,40,.3)), ${bg(photo)} center/cover` : `linear-gradient(135deg, ${s.tone[0]}, ${s.tone[1]})`, ...style,
+        background: src ? `linear-gradient(rgba(8,24,40,.14), rgba(8,24,40,.34)), url(${src}) center/cover` : `linear-gradient(135deg, ${s.tone[0]}, ${s.tone[1]})`, ...style,
       }}
     >
       <s.Icon size={iconSize || size * 0.38} strokeWidth={1.6} />
@@ -28,14 +29,21 @@ export function ServiceArt({ type, size = 86, radius = 13, style, iconSize }) {
   );
 }
 
+const rewardPhoto = (item) => {
+  if (item?.image_file_id) return fileUrl(item.image_file_id);
+  const text = `${item?.category || ''} ${item?.name || ''}`;
+  if (/hotel|stay|resort/i.test(text)) return PHOTO.hotelroom;
+  if (/flight|air ticket|voucher/i.test(text)) return PHOTO.wing;
+  if (/transfer|airport|lounge|service/i.test(text)) return PHOTO.landing;
+  if (/cruise/i.test(text)) return PHOTO.cruise;
+  if (/ticket|experience|safari|activity/i.test(text)) return PHOTO.colosseum;
+  if (/holiday|package/i.test(text)) return PHOTO.maldives;
+  return PHOTO.santorini;
+};
+export const rewardImage = rewardPhoto;
+
 export function RewardArt({ item, height = 120, style }) {
-  const category = item?.category || '';
-  const photo = item?.image_file_id
-    ? `url(${fileUrl(item.image_file_id)})`
-    : /hotel|stay/i.test(category) ? bg(IMG.chairs)
-      : /travel|flight|air/i.test(category) ? bg(IMG.coast)
-        : /experience|ticket/i.test(category) ? IMG.lake : IMG.palace;
-  return <div className="pt-art" style={{ height, backgroundImage: photo, ...style }} role="img" aria-label={item?.name || 'Reward'} />;
+  return <div className="pt-art" style={{ height, backgroundImage: `url(${rewardPhoto(item)})`, ...style }} role="img" aria-label={item?.name || 'Reward'} />;
 }
 
 export function BookingCard({ booking, onClick, showId = true }) {
@@ -43,7 +51,7 @@ export function BookingCard({ booking, onClick, showId = true }) {
   const meta = statusMeta(booking.status);
   return (
     <button type="button" className="pt-item" onClick={onClick} style={{ alignItems: 'stretch', padding: 12 }}>
-      <ServiceArt type={booking.type} size={92} />
+      <ServiceArt type={booking.type} size={92} photo={photoFor(booking.type, booking.destination, booking.to, booking.hotel, booking.region, booking.country, booking.destinations)} />
       <div className="pt-item-body" style={{ display: 'grid', alignContent: 'center', gap: 5 }}>
         <div className="pt-row between" style={{ gap: 8 }}>
           <Badge><s.Icon size={13} /> {s.label}</Badge>
@@ -59,12 +67,27 @@ export function BookingCard({ booking, onClick, showId = true }) {
 }
 
 /** Dark membership card with QR (Membership card screen & home). */
-export function MemberCardFace({ name, code, tier = 'Silver', validUntil, qr = true }) {
+export function MemberCardFace({ name, code, tier = 'Silver', validUntil, qr = true, compact = false, memberLabel }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
     if (!qr || !code) return;
     QRCode.toDataURL(`${window.location.origin}/card/${code}`, { margin: 1, width: 240 }).then(setSrc).catch(() => {});
   }, [code, qr]);
+
+  if (compact) {
+    // Dark navy "Gold Member" card used on the desktop home screen.
+    return (
+      <div className="bw-card-dark">
+        <div className="bw-card-dark-top">
+          <span className="pt-row" style={{ gap: 8 }}><WingsIcon size={26} color="#e0b25a" /><span className="pt-serif" style={{ fontSize: 19 }}>Bright Wings</span></span>
+          <span className="bw-card-tier"><b>{tier.toUpperCase()}</b><small>{memberLabel || 'MEMBER'}</small></span>
+        </div>
+        <WingsIcon size={190} color="#c9963e" strokeWidth={0.9} />
+        <div className="bw-card-dark-bottom"><div className="pt-serif" style={{ fontSize: 24, fontWeight: 600 }}>{name}</div><div className="bw-card-code">{code}</div></div>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-member-card" style={{ backgroundImage: IMG.palace, minHeight: 220 }}>
       <div className="pt-row between top">

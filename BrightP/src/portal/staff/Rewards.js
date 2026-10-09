@@ -58,7 +58,7 @@ export function RewardCatalogAdmin() {
 }
 
 function RewardDrawer({ item, categories, onClose, onSaved }) {
-  const [f, setF] = useState({ name: item?.name || '', category: item?.category || 'Hotel Stays', wings_cost: item?.wings_cost || '', unlimited: item ? item.stock == null : true, stock: item?.stock ?? '', validity_days: item?.validity_days || 90, terms: item?.terms || '', description: item?.description || '', reward_value: item?.reward_value || '', image_file_id: item?.image_file_id || '', is_active: item ? item.is_active : true });
+  const [f, setF] = useState({ name: item?.name || '', category: item?.category || 'Hotel Stays', wings_cost: item?.wings_cost || '', unlimited: item ? item.stock == null : true, stock: item?.stock ?? '', validity_days: item?.validity_days || 90, terms: item?.terms || '', description: item?.description || '', reward_value: item?.reward_value || '', image_file_id: item?.image_file_id || '', min_tier: item?.min_tier || 'Silver', destination: item?.destination || '', is_active: item ? item.is_active : true });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [up, setUp] = useState(false);
@@ -81,7 +81,7 @@ function RewardDrawer({ item, categories, onClose, onSaved }) {
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
-    const body = { name: f.name.trim(), category: f.category, description: f.description || undefined, wings_cost: Number(f.wings_cost), validity_days: Number(f.validity_days), terms: f.terms.trim(), reward_value: f.reward_value || undefined, image_file_id: f.image_file_id || undefined, is_active: asActive, stock: f.unlimited ? (item ? -1 : undefined) : Number(f.stock) };
+    const body = { name: f.name.trim(), category: f.category, description: f.description || undefined, wings_cost: Number(f.wings_cost), validity_days: Number(f.validity_days), terms: f.terms.trim(), reward_value: f.reward_value || undefined, min_tier: f.min_tier, destination: f.destination.trim() || undefined, image_file_id: f.image_file_id || undefined, is_active: asActive, stock: f.unlimited ? (item ? -1 : undefined) : Number(f.stock) };
     try { if (item) await api.patch(`/admin/reward-items/${item.id}`, body); else await api.post('/admin/reward-items', body); toast.success(item ? 'Reward updated' : 'Reward created'); onSaved(); } catch (err) { toast.error(err.message); } finally { setBusy(false); }
   };
   return (
@@ -91,6 +91,7 @@ function RewardDrawer({ item, categories, onClose, onSaved }) {
         <Field label="Reward title *" error={errors.name}><Input value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="₹500 Hotel Credit" error={errors.name} /></Field>
         <Field label="Short description" optional><Input value={f.description} onChange={(e) => set('description', e.target.value)} placeholder="Instant credit on hotel bookings" /></Field>
         <div className="pt-grid2"><Field label="Category *"><Select value={f.category} onChange={(e) => set('category', e.target.value)}>{categories.map((c) => <option key={c}>{c}</option>)}</Select></Field><Field label="Wings cost *" error={errors.wings_cost}><Input type="number" min="1" value={f.wings_cost} onChange={(e) => set('wings_cost', e.target.value)} error={errors.wings_cost} /></Field></div>
+        <div className="pt-grid2"><Field label="Minimum tier" hint="Members below this tier can see the reward but not redeem it."><Select value={f.min_tier} onChange={(e) => set('min_tier', e.target.value)}>{['Silver', 'Gold', 'Platinum', 'Titanium'].map((t) => <option key={t}>{t}</option>)}</Select></Field><Field label="Destination" optional><Input value={f.destination} onChange={(e) => set('destination', e.target.value)} placeholder="Maldives" /></Field></div>
         <div className="pt-grid2"><Field label="Stock availability *" error={errors.stock}><Select value={f.unlimited ? 'unlimited' : 'limited'} onChange={(e) => set('unlimited', e.target.value === 'unlimited')}><option value="unlimited">Unlimited</option><option value="limited">Limited stock</option></Select></Field>{!f.unlimited && <Field label="Units available" error={errors.stock}><Input type="number" min="0" value={f.stock} onChange={(e) => set('stock', e.target.value)} error={errors.stock} /></Field>}</div>
         <div className="pt-grid2"><Field label="Validity (days from issue) *" error={errors.validity_days}><Input type="number" min="1" value={f.validity_days} onChange={(e) => set('validity_days', e.target.value)} error={errors.validity_days} /></Field><Field label="Reward value" optional><Input value={f.reward_value} onChange={(e) => set('reward_value', e.target.value)} placeholder="₹500 booking credit" /></Field></div>
         <Field label="Terms & conditions *" error={errors.terms} hint="One condition per line — shown as bullet points to members."><TextArea value={f.terms} onChange={(e) => set('terms', e.target.value)} max={500} error={errors.terms} placeholder="Valid on hotel bookings across partner hotels.&#10;Minimum booking value ₹3,000." /></Field>

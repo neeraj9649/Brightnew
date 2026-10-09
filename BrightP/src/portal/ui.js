@@ -1,22 +1,27 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert,
-  Eye, EyeOff, House, Info, Minus, Plus, Search, User, Users, X,
+  Eye, EyeOff, Gift, House, Info, LogOut, Minus, Plus, Search, ShieldCheck, User, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { fileUrl } from '../services/storage';
+import { useBooking } from '../contexts/BookingContext';
 import BrightLogo from '../assets/BrightLogo.png';
 import chairs from '../assets/travel/hero-palace.jpg';
 import coast from '../assets/travel/hero-coast.jpg';
 import village from '../assets/travel/destination-beach.jpg';
-import { SCENE } from './scenes';
+import { PHOTO } from './photos';
 import './portal.css';
 
-// Hero imagery. `palace`/`lake` are illustrated scenes until real destination
-// photography is supplied; point them at a photo here and every screen follows.
-export const IMG = { palace: SCENE.palace, lake: SCENE.lake, mountains: SCENE.mountains, backwaters: SCENE.backwaters, skyline: SCENE.skyline, coast, beach: coast, chairs, village };
+// Hero imagery. These are CSS `url(...)` values so they can be dropped straight
+// into `backgroundImage`; swap a photo in src/assets/photos and every screen follows.
+const u = (path) => `url(${path})`;
+export const IMG = {
+  palace: u(PHOTO.santorini), lake: u(PHOTO.domes), mountains: u(PHOTO.mountains), backwaters: u(PHOTO.kerala), skyline: u(PHOTO.dubai),
+  coast, beach: coast, chairs, village,
+};
 export const bg = (image) => (String(image).startsWith('url(') ? image : `url(${image})`);
 export { BrightLogo };
 
@@ -96,7 +101,7 @@ export function useMedia(query) {
   return matches;
 }
 
-export const useWide = () => useMedia('(min-width: 1024px)');
+export const useWide = () => useMedia('(min-width: 900px)');
 
 /** Loads data with loading/error/retry state. `load` must be stable (useCallback) or deps given. */
 export function useAsync(load, deps = []) {
@@ -178,46 +183,169 @@ export function Avatar({ user, size, onClick }) {
   return onClick ? <button type="button" className={cls} onClick={onClick} aria-label="Account">{body}</button> : <span className={cls}>{body}</span>;
 }
 
-/** Customer shell: sidebar on desktop, bottom tabs on mobile. */
-export function Shell({ active, children, wide = false, topbar = true, hideNav = false, greeting }) {
+/* --------------------------------------------------------- desktop chrome */
+
+const SEARCH_PAGES = [
+  ['Home', 'Your Wings, trips and activity', '/dashboard', House],
+  ['My bookings', 'Track every request', '/bookings', CalendarDays],
+  ['Request new travel', 'Flights, hotels, visas and more', '/bookings/new', CalendarDays],
+  ['Wings & rewards', 'Balance, activity and rewards catalogue', '/rewards', WingsIcon],
+  ['Refer a friend', 'Share your code and earn', '/referrals', Users],
+  ['Account', 'Details, preferences and security', '/account', User],
+  ['Membership card', 'Your card and QR code', '/membership', User],
+  ['Tier benefits', 'What each tier unlocks', '/tier-benefits', WingsIcon],
+  ['Notifications', 'Updates on trips and Wings', '/notifications', Bell],
+  ['Help & support', 'FAQs and contacting us', '/support', Info],
+  ['Redemption history', 'Your reward requests', '/rewards/redemptions', WingsIcon],
+];
+
+function GlobalSearch() {
+  const navigate = useNavigate();
+  const { bookings } = useBooking();
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const [rewards, setRewards] = useState(null);
+  const [cursor, setCursor] = useState(0);
+  const box = useRef(null);
+
+  useEffect(() => {
+    const away = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, []);
+
+  const loadRewards = () => { if (rewards === null) api.get('/redemptions/catalog').then(setRewards).catch(() => setRewards([])); };
+  const term = q.trim().toLowerCase();
+  const groups = useMemo(() => {
+    if (!term) return [];
+    const has = (...parts) => parts.filter(Boolean).join(' ').toLowerCase().includes(term);
+    const trips = (bookings || []).filter((b) => has(b.id, b.destination, b.from, b.to, b.hotel, b.type, b.country, b.region)).slice(0, 4)
+      .map((b) => ({ key: `b${b.docId}`, title: `${b.from && b.to ? `${b.from} → ${b.to}` : b.destination || humanize(b.type)}`, sub: `${humanize(b.type)} · ${b.id}`, to: `/bookings/${b.docId}` }));
+    const rw = (rewards || []).filter((r) => has(r.name, r.category, r.description, r.destination)).slice(0, 4)
+      .map((r) => ({ key: `r${r.id}`, title: r.name, sub: `${fmtNum(r.wings_cost)} Wings · ${r.category || 'Reward'}`, to: `/rewards/catalog/${r.id}` }));
+    const pages = SEARCH_PAGES.filter(([t, d]) => has(t, d)).slice(0, 5).map(([t, d, to]) => ({ key: `p${to}`, title: t, sub: d, to }));
+    return [['Trips', trips], ['Rewards', rw], ['Pages', pages]].filter(([, list]) => list.length);
+  }, [term, bookings, rewards]);
+  const flat = groups.flatMap(([, list]) => list);
+
+  const go = (to) => { setOpen(false); setQ(''); navigate(to); };
+  const onKey = (e) => {
+    if (e.key === 'Escape') setOpen(false);
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setCursor((c) => Math.min(c + 1, flat.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); }
+    else if (e.key === 'Enter' && flat[cursor]) go(flat[cursor].to);
+  };
+
+  return (
+    <div className="pt-desk-search" ref={box} role="search">
+      <Search size={18} />
+      <input
+        value={q}
+        placeholder="Search trips, rewards or help…"
+        aria-label="Search"
+        onFocus={() => { setOpen(true); loadRewards(); }}
+        onChange={(e) => { setQ(e.target.value); setCursor(0); setOpen(true); }}
+        onKeyDown={onKey}
+      />
+      {open && term && (
+        <div className="pt-desk-results" role="listbox">
+          {flat.length === 0 ? <div style={{ padding: 18, color: 'var(--pt-muted)', fontSize: 13 }}>No matches for “{q.trim()}”.</div> : groups.map(([label, list]) => (
+            <div key={label}>
+              <h6>{label}</h6>
+              {list.map((item) => (
+                <button type="button" key={item.key} className={flat[cursor]?.key === item.key ? 'on' : ''} onClick={() => go(item.to)}>
+                  <span><span>{item.title}</span><small>{item.sub}</small></span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UserMenu() {
+  const navigate = useNavigate();
+  const { userData, isAdmin, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const away = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, []);
+  const pick = (to) => { setOpen(false); navigate(to); };
+  return (
+    <div className="pt-desk-user" ref={ref}>
+      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Avatar user={userData} />
+        <div><b>{memberName(userData)}</b><small>{userData?.membershipTier || 'Silver'} Member</small></div>
+        <ChevronDown size={16} />
+      </button>
+      {open && (
+        <div className="pt-desk-menu" role="menu">
+          <button type="button" role="menuitem" onClick={() => pick('/account')}><User size={17} /> Account & profile</button>
+          <button type="button" role="menuitem" onClick={() => pick('/membership')}><Gift size={17} /> Membership card</button>
+          <button type="button" role="menuitem" onClick={() => pick('/support')}><Info size={17} /> Help & support</button>
+          {isAdmin && <button type="button" role="menuitem" onClick={() => pick('/admin')}><ShieldCheck size={17} /> Admin workspace</button>}
+          <hr />
+          <button type="button" role="menuitem" className="danger" onClick={async () => { await logout().catch(() => {}); navigate('/auth', { replace: true }); }}><LogOut size={17} /> Sign out</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Customer shell: dark sidebar + top bar from 900px, bottom tabs on phones. */
+export function Shell({ active, children, wide = false, topbar = true, hideNav = false }) {
   const navigate = useNavigate();
   const { userData } = useAuth();
   const location = useLocation();
   const current = active || NAV.find((n) => location.pathname.startsWith(n.path))?.key;
   return (
     <div className="pt-app">
-      <div className="pt-shell" style={hideNav ? { paddingBottom: 0 } : undefined}>
+      <div className="pt-shell" style={hideNav ? { paddingBottom: 0, paddingLeft: 0 } : undefined}>
         {!hideNav && (
-          <aside className="pt-side">
-            <button type="button" className="pt-brand" onClick={() => navigate('/dashboard')}>
+          <aside className="pt-desk-side" aria-label="Primary">
+            <button type="button" className="pt-desk-brand" onClick={() => navigate('/dashboard')}>
               <img src={BrightLogo} alt="" />
-              <span className="pt-brand-stack"><span className="pt-brand-name">Bright Wings</span><span className="pt-brand-sub">LOYALTY PORTAL</span></span>
+              <span><b>Bright Wings</b><small>TRAVEL MORE. EARN HIGHER.</small></span>
             </button>
-            <nav aria-label="Primary">
+            <nav className="pt-desk-nav">
               {NAV.map(({ key, label, path, Icon }) => (
-                <button key={key} type="button" className={current === key ? 'active' : ''} onClick={() => navigate(path)}>
-                  <Icon size={19} /> {label}
+                <button key={key} type="button" className={current === key ? 'active' : ''} aria-current={current === key ? 'page' : undefined} onClick={() => navigate(path)}>
+                  <Icon size={21} /> {label}
                 </button>
               ))}
             </nav>
-            <div className="pt-side-art">
-              <div className="pt-art" style={{ backgroundImage: bg(IMG.palace) }} />
-              <p>More journeys<br />brighter days</p>
+            <button type="button" className="pt-desk-balance" onClick={() => navigate('/rewards')}>
+              <WingsIcon size={30} color="#e6b865" />
+              <span style={{ flex: 1 }}><small>Your Wings balance</small><b>{fmtNum(userData?.tokens)}<span>Wings</span></b></span>
+              <ChevronRight size={18} />
+            </button>
+            <div className="pt-desk-art" style={{ backgroundImage: `url(${PHOTO.mountains})` }}>
+              <p>More journeys.<br />Brighter tomorrows.</p>
             </div>
           </aside>
         )}
         <div className="pt-main">
+          {!hideNav && (
+            <header className="pt-desk-top">
+              <GlobalSearch />
+              <div className="pt-desk-spacer" />
+              <BellButton />
+              <UserMenu />
+            </header>
+          )}
           {topbar && (
             <header className="pt-topbar">
               <button type="button" className="pt-brand" onClick={() => navigate('/dashboard')}>
                 <img src={BrightLogo} alt="" />
                 <span className="pt-brand-name">Bright Wings</span>
               </button>
-              {greeting ? <div className="pt-hide-sm" style={{ flex: 1 }}>{greeting}</div> : <div style={{ flex: 1 }} />}
-              <div className="pt-top-actions">
-                <BellButton />
-                <span className="pt-hide-sm"><Avatar user={userData} onClick={() => navigate('/account')} /></span>
-              </div>
+              <div style={{ flex: 1 }} />
+              <div className="pt-top-actions"><BellButton /></div>
             </header>
           )}
           {children}
@@ -349,14 +477,14 @@ export function Select({ icon: Icon, error, children, ...props }) {
   return Icon ? <div className="pt-input-icon"><Icon size={18} />{select}</div> : select;
 }
 
-export function TextArea({ error, max, value = '', ...props }) {
+export const TextArea = React.forwardRef(function TextArea({ error, max, value = '', ...props }, ref) {
   return (
     <div style={{ display: 'grid', gap: 4 }}>
-      <textarea className={`pt-textarea ${error ? 'err' : ''}`} value={value} maxLength={max} {...props} />
+      <textarea ref={ref} className={`pt-textarea ${error ? 'err' : ''}`} value={value} maxLength={max} {...props} />
       {max && <span className="pt-count">{String(value).length}/{max}</span>}
     </div>
   );
-}
+});
 
 export function PhoneField({ value, onChange, error, placeholder = '98765 43210', autoFocus, disabled }) {
   return (

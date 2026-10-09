@@ -49,6 +49,15 @@ pub struct ReferredFriendDTO {
     pub credited_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct InviteDTO {
+    pub id: Uuid,
+    pub email: String,
+    pub created_at: DateTime<Utc>,
+    /// True once someone registered with this e-mail under this member's code.
+    pub joined: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct ReferralActivityDTO {
     pub referral_code: Option<String>,
@@ -57,6 +66,7 @@ pub struct ReferralActivityDTO {
     pub completed: i64,
     pub wings_earned: i64,
     pub friends: Vec<ReferredFriendDTO>,
+    pub invites: Vec<InviteDTO>,
 }
 
 /// The member's referred friends and where each one is on the way to the
@@ -92,6 +102,15 @@ async fn referral_activity_handler(
             .fetch_optional(pool.get_ref())
             .await?
             .unwrap_or(50);
+    let invites = sqlx::query_as::<_, InviteDTO>(
+        r#"SELECT i.id, i.email, i.created_at,
+                  EXISTS(SELECT 1 FROM referrals r JOIN users u ON u.id = r.referred_id
+                         WHERE r.referrer_id = i.referrer_id AND LOWER(u.email) = LOWER(i.email)) AS joined
+           FROM referral_invites i WHERE i.referrer_id = $1 ORDER BY i.created_at DESC"#,
+    )
+    .bind(claims.sub)
+    .fetch_all(pool.get_ref())
+    .await?;
     Ok(ApiResponse(ReferralActivityDTO {
         referral_code: user.referral_code,
         wings_per_friend,
@@ -99,6 +118,7 @@ async fn referral_activity_handler(
         completed: friends.iter().filter(|f| f.wings_credited.is_some()).count() as i64,
         wings_earned: friends.iter().filter_map(|f| f.wings_credited).map(i64::from).sum(),
         friends,
+        invites,
     }))
 }
 

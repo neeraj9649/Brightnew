@@ -22,12 +22,12 @@ const stepDates = (events = [], booking) => {
   ];
 };
 
-const iata = (value = '') => {
+export const iata = (value = '') => {
   const m = String(value).match(/\(([A-Z]{3})\)/);
   return m ? [m[1], String(value).replace(/\s*\(.*\)/, '')] : [String(value).slice(0, 3).toUpperCase() || '—', String(value)];
 };
 
-function useBookingData(id) {
+export function useBookingData(id) {
   return useAsync(async () => {
     const [dto, portal, docs] = await Promise.all([
       api.get(`/bookings/${id}`),
@@ -38,7 +38,7 @@ function useBookingData(id) {
   }, [id]);
 }
 
-export default function BookingDetail() {
+export function MobileBookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const wide = useWide();

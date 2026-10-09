@@ -18,6 +18,7 @@ export const CITIES = [
  */
 export const SERVICES = {
   flight: {
+    desc: 'International and domestic flights, with the best options for your journey.',
     label: 'Flight', title: 'Flight request', Icon: Plane, tone: ['#3b7bb8', '#8fc3ea'],
     blurb: 'Request a quote. Price confirmed by your travel advisor.',
     heroTitle: <>New places<br />brighter stories</>,
@@ -39,6 +40,7 @@ export const SERVICES = {
     ].filter(Boolean),
   },
   hotel: {
+    desc: 'Choose from handpicked hotels around the world.',
     label: 'Hotel', title: 'Hotel request', Icon: Building2, tone: ['#b7792e', '#f0c98a'],
     blurb: 'Request a quote. Price confirmed by your travel advisor.',
     heroTitle: <>Stays that<br />feel like you</>,
@@ -60,6 +62,7 @@ export const SERVICES = {
     ],
   },
   car_rental: {
+    desc: 'Get the right vehicle for your journey.',
     label: 'Car rental', title: 'Car rental request', Icon: CarFront, tone: ['#2f6f8f', '#9ad0e6'],
     blurb: 'Share your trip and we will arrange the right vehicle.',
     heroTitle: <>Explore at your own pace<br /><span style={{ font: '500 14px sans-serif' }}>Cars for every journey</span></>,
@@ -78,6 +81,7 @@ export const SERVICES = {
     summary: (d) => [['Pickup', `${d.pickupCity || '—'}, ${fmtDate(d.pickupAt)}`], ['Drop-off', `${d.dropoffCity || '—'}, ${fmtDate(d.dropoffAt)}`], ['Rental type', d.rentalType], ['Vehicle', d.vehicleType], ['Passengers', d.passengers]],
   },
   visa: {
+    desc: 'Get expert guidance on visa requirements and application support.',
     label: 'Visa', title: 'Visa request', Icon: IdCard, tone: ['#6e4b8f', '#c7a6e6'],
     blurb: 'Document upload after advisor review.',
     heroTitle: <>Travel further<br /><span style={{ font: '500 14px sans-serif' }}>We’ll help with your visa</span></>,
@@ -96,6 +100,7 @@ export const SERVICES = {
     summary: (d) => [['Destination', d.country], ['Nationality', d.nationality], ['Visa type', humanize(d.visaType)], ['Travel date', fmtDate(d.travelDate)], ['Applicants', d.applicants], ['Appointment', d.urgency === 'urgent' ? 'As soon as possible' : 'Flexible']],
   },
   tour: {
+    desc: 'Explore curated tour packages with flights, hotels and more.',
     label: 'Tour package', title: 'Tour package request', Icon: MapIcon, tone: ['#2c7a6b', '#8fd6c2'],
     blurb: 'Tell us what you love and we will shape the itinerary.',
     heroTitle: <>Curated journeys<br /><span style={{ font: '500 14px sans-serif' }}>Real places. Deeper experiences.</span></>,
@@ -114,6 +119,7 @@ export const SERVICES = {
     summary: (d) => [['Destination', d.destination], ['Dates', `${fmtDate(d.startDate)} – ${fmtDate(d.endDate)}`], ['Travelers', d.participants], ['Budget', d.budget], ['Interests', (d.activities || []).join(', ') || '—']],
   },
   cruise: {
+    desc: 'Set sail with top cruise lines to amazing destinations.',
     label: 'Cruise', title: 'Cruise request', Icon: Ship, tone: ['#25557a', '#86b6dc'],
     blurb: 'Share a few details and we’ll plan the perfect cruise for you.',
     heroTitle: <>Cruise Holidays<br /><span style={{ font: '500 14px sans-serif' }}>Sail to new horizons</span></>,
@@ -132,6 +138,7 @@ export const SERVICES = {
     summary: (d) => [['Region', d.region], ['Departure port', d.departurePort], ['Dates', d.preferredDates], ['Nights', d.nights], ['Travelers', d.travelers], ['Cabin', d.cabinPreference], ['Budget', d.budget]],
   },
   custom: {
+    desc: 'Have something unique in mind? Let our advisors create a personalized itinerary for you.',
     label: 'Customized travel', title: 'Customized travel request', Icon: Compass, tone: ['#a55a2a', '#efb98a'],
     blurb: 'Tell us what you have in mind and we’ll create a personalized itinerary.',
     heroTitle: <>Your Journey, Your Way<br /><span style={{ font: '500 14px sans-serif' }}>Customized travel across India and beyond</span></>,
@@ -149,6 +156,7 @@ export const SERVICES = {
     summary: (d) => [['Destinations', d.destinations], ['Dates', d.travelDates], ['Travelers', d.travelers], ['Budget', d.budget], ['Style', d.travelStyle || '—']],
   },
   airport_transfer: {
+    desc: 'Arrange a private or shared transfer for a smooth arrival and departure.',
     label: 'Airport transfer', title: 'Airport transfer request', Icon: CarTaxiFront, tone: ['#34495e', '#9fb2c6'],
     blurb: 'Share your travel details and we’ll take care of the rest.',
     heroTitle: <>Seamless Airport Transfers<br /><span style={{ font: '500 14px sans-serif' }}>Comfortable rides for a smoother journey</span></>,
@@ -168,6 +176,7 @@ export const SERVICES = {
     summary: (d) => [['Airport', d.airport], ['Flight', d.flightReference], ['Pickup', d.pickupLocation], ['Drop-off', d.dropoffLocation], ['Pickup time', fmtDate(d.pickupAt)], ['Passengers', d.passengers], ['Vehicle', d.vehiclePreference]],
   },
   insurance: {
+    desc: 'Get peace of mind for your trip with trusted travel insurance plans.',
     label: 'Insurance', title: 'Travel insurance request', Icon: ShieldCheck, tone: ['#2a6b5e', '#8ad0be'],
     blurb: 'Coverage and price confirmed by our advisor after your request.',
     heroTitle: <>Travel with added peace of mind<br /><span style={{ font: '500 14px sans-serif' }}>Curated insurance for your next journey.</span></>,
@@ -184,6 +193,7 @@ export const SERVICES = {
     summary: (d) => [['Destination', d.destination], ['Dates', `${fmtDate(d.departureDate)} – ${fmtDate(d.returnDate)}`], ['Traveller ages', d.travelerAges], ['Coverage', d.coverage]],
   },
   activity: {
+    desc: 'Book tickets for attractions, shows, and local experiences.',
     label: 'Activity tickets', title: 'Activity tickets request', Icon: Ticket, tone: ['#a8412f', '#f0a898'],
     blurb: 'Availability and price confirmed by our advisor after your request.',
     heroTitle: <>Unforgettable experiences await<br /><span style={{ font: '500 14px sans-serif' }}>Get activity tickets for your next destination.</span></>,
