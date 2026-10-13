@@ -2,6 +2,7 @@ use actix_web::web;
 use rand::Rng;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
+use base::role;
 use base::result_paging::ResultPaging;
 
 use crate::api::dto::user::{
@@ -62,6 +63,7 @@ pub async fn staff_get_user_handler(
 
 pub async fn admin_update_user_handler(
     user_service: web::Data<dyn UserService>,
+    claims: JwtClaims,
     body: web::Json<AdminUpdateUserDTO>,
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let body = body.into_inner();
@@ -69,9 +71,24 @@ pub async fn admin_update_user_handler(
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
     }
     if body.role.as_deref().is_some_and(|role| {
-        !matches!(role, "customer" | "employee" | "admin")
+        !matches!(role, "customer" | "employee" | "admin" | "super_admin")
     }) {
         return Err(ApiError::new("Invalid user role", 400));
+    }
+    // Only a super admin may touch admin-level accounts or hand out admin
+    // roles, and nobody may change their own role or deactivate themselves
+    // (so at least one super admin always remains).
+    if claims.role != role::SUPER_ADMIN {
+        let grants_admin = body.role.as_deref().is_some_and(role::is_admin);
+        let target = user_service.get(body.id).await?;
+        if grants_admin || role::is_admin(&target.role) {
+            return Err(ApiError::new("Only a super admin can manage admin accounts", 403));
+        }
+    }
+    if body.id == claims.sub
+        && (body.role.as_deref().is_some_and(|r| r != claims.role) || body.is_active == Some(false))
+    {
+        return Err(ApiError::new("You can't change your own role or deactivate your own account", 400));
     }
     let membership_tier = body.membership_tier.map(|tier| match tier.as_str() {
         // Bronze was used by the legacy portal; Silver is the v2 entry tier.

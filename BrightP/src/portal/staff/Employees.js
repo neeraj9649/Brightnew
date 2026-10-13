@@ -7,13 +7,14 @@ import { api } from '../../services/api';
 import { Avatar, Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, fmtDate, formatPhone, isValidIndianMobile, nationalNumber, useAsync } from '../ui';
 import StaffShell from './StaffShell';
 
+const ROLE_LABEL = { employee: 'Employee', admin: 'Admin', super_admin: 'Super admin' };
 const PERMISSIONS = [
   ['View customers', true, true], ['Create / edit customers', true, true], ['View bookings', true, true], ['Create / edit bookings', true, true],
   ['Manage Wings & rewards', true, false], ['Manage employees', true, false], ['View reports', true, false],
 ];
 
 export default function Employees() {
-  const { userData } = useAuth();
+  const { userData, isSuperAdmin } = useAuth();
   const { allUsers, loadAllUsers, loading } = useAdminBooking();
   const stats = useAsync(() => api.get('/admin/analytics/employees').catch(() => []), []);
   const [q, setQ] = useState('');
@@ -23,7 +24,7 @@ export default function Employees() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const staff = useMemo(() => allUsers.filter((u) => u.role === 'employee' || u.role === 'admin'), [allUsers]);
+  const staff = useMemo(() => allUsers.filter((u) => ['employee', 'admin', 'super_admin'].includes(u.role)), [allUsers]);
   const list = staff.filter((u) => {
     if (role !== 'all' && u.role !== role) return false;
     if (status !== 'all' && (status === 'active') !== u.isActive) return false;
@@ -47,7 +48,7 @@ export default function Employees() {
 
   return (
     <StaffShell title="Team & permissions" sub="Manage staff, set roles and control access to bookings."
-      actions={<><SearchBox value={q} onChange={setQ} placeholder="Search name or phone…" /><Select value={role} onChange={(e) => setRole(e.target.value)} style={{ minWidth: 130 }}><option value="all">All roles</option><option value="admin">Admin</option><option value="employee">Employee</option></Select><Select value={status} onChange={(e) => setStatus(e.target.value)} style={{ minWidth: 120 }}><option value="all">All status</option><option value="active">Active</option><option value="inactive">Inactive</option></Select><button type="button" className="pt-btn sm" onClick={() => setInviteOpen(true)}><Plus size={16} /> Invite employee</button></>}>
+      actions={<><SearchBox value={q} onChange={setQ} placeholder="Search name or phone…" /><Select value={role} onChange={(e) => setRole(e.target.value)} style={{ minWidth: 130 }}><option value="all">All roles</option><option value="super_admin">Super admin</option><option value="admin">Admin</option><option value="employee">Employee</option></Select><Select value={status} onChange={(e) => setStatus(e.target.value)} style={{ minWidth: 120 }}><option value="all">All status</option><option value="active">Active</option><option value="inactive">Inactive</option></Select><button type="button" className="pt-btn sm" onClick={() => setInviteOpen(true)}><Plus size={16} /> Invite employee</button></>}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 18, alignItems: 'start' }}>
         <Card pad={false} className="st-span2">
           {loading && !staff.length ? <div style={{ padding: 18 }}><Skeleton h={220} /></div> : (
@@ -57,9 +58,9 @@ export default function Employees() {
                 {list.map((u) => (
                   <tr key={u.uid} className={`clickable ${sel?.uid === u.uid ? 'sel' : ''}`} onClick={() => setPick(u.uid)}>
                     <td><span className="pt-row"><Avatar user={u} size="sm" /><span><strong>{u.displayName}</strong><span className="sub">{formatPhone(u.profile?.phone)}</span></span></span></td>
-                    <td><Badge tone={u.role === 'admin' ? 'gold' : ''}>{u.role === 'admin' ? 'Admin' : 'Employee'}</Badge></td>
+                    <td><Badge tone={u.role === 'employee' ? '' : 'gold'}>{ROLE_LABEL[u.role]}</Badge></td>
                     <td><Badge tone={u.isActive ? 'green' : 'red'}>{u.isActive ? 'Active' : 'Inactive'}</Badge></td>
-                    <td>{u.role === 'admin' ? 'All bookings' : `${assigned(u)} booking${assigned(u) === 1 ? '' : 's'}`}</td>
+                    <td>{u.role !== 'employee' ? 'All bookings' : `${assigned(u)} booking${assigned(u) === 1 ? '' : 's'}`}</td>
                     <td>{fmtDate(u.joinedAt)}</td>
                     <td onClick={(e) => e.stopPropagation()}><button type="button" className="pt-icon-btn" aria-label="Select" onClick={() => setPick(u.uid)}><MoreVertical size={17} /></button></td>
                   </tr>
@@ -73,20 +74,20 @@ export default function Employees() {
         {sel && (
           <div className="pt-stack lg">
             <Card>
-              <div className="pt-row between"><h2 className="pt-h2">Role details</h2><Badge tone={sel.role === 'admin' ? 'gold' : ''}>{sel.role === 'admin' ? 'Admin' : 'Employee'}</Badge></div>
-              <p className="pt-small" style={{ margin: '6px 0 12px' }}>{sel.role === 'admin' ? 'Full access to all features and data.' : 'Works on assigned bookings and their customers.'}</p>
+              <div className="pt-row between"><h2 className="pt-h2">Role details</h2><Badge tone={sel.role === 'employee' ? '' : 'gold'}>{ROLE_LABEL[sel.role]}</Badge></div>
+              <p className="pt-small" style={{ margin: '6px 0 12px' }}>{sel.role === 'super_admin' ? 'Full access, including managing admins and staff roles.' : sel.role === 'admin' ? 'Full access to all features and data.' : 'Works on assigned bookings and their customers.'}</p>
               <table className="pt-table" style={{ border: '1px solid var(--pt-line)', borderRadius: 12 }}>
                 <thead><tr><th>Permission</th><th>Admin</th><th>Employee</th></tr></thead>
                 <tbody>{PERMISSIONS.map(([name, a, e]) => <tr key={name}><td>{name}</td><td>{a ? <Check size={16} style={{ color: 'var(--pt-green)' }} /> : '—'}</td><td>{e ? <Check size={16} style={{ color: 'var(--pt-green)' }} /> : '—'}</td></tr>)}<tr><td>Access scope</td><td className="pt-tiny">All bookings</td><td className="pt-tiny">Assigned only</td></tr></tbody>
               </table>
               <div className="pt-grid2" style={{ marginTop: 14 }}>
-                <Field label="Role"><Select value={sel.role} disabled={busy || sel.uid === userData?.uid} onChange={(e) => setRoleOf(sel, e.target.value)}><option value="employee">Employee</option><option value="admin">Admin</option></Select></Field>
+                <Field label="Role"><Select value={sel.role} disabled={busy || sel.uid === userData?.uid || (!isSuperAdmin && sel.role !== 'employee')} onChange={(e) => setRoleOf(sel, e.target.value)}><option value="employee">Employee</option>{(isSuperAdmin || sel.role !== 'employee') && <option value="admin">Admin</option>}{isSuperAdmin && <option value="super_admin">Super admin</option>}</Select></Field>
               </div>
             </Card>
             <div className="pt-notice red" style={{ display: 'block', borderRadius: 18, padding: 18 }}>
               <div className="pt-row" style={{ gap: 10, marginBottom: 6 }}><CircleAlert size={20} /><strong style={{ margin: 0, fontSize: 15 }}>{sel.isActive ? 'Deactivate employee' : 'Reactivate employee'}</strong></div>
               <p style={{ marginBottom: 12 }}>{sel.isActive ? 'This will immediately revoke access to the portal. The employee will not be able to sign in.' : 'This restores sign-in access for this employee.'}</p>
-              <button type="button" className="pt-btn danger full" disabled={busy || (sel.uid === userData?.uid && sel.isActive)} onClick={() => setActive(sel, !sel.isActive)}><Trash2 size={16} /> {sel.isActive ? 'Deactivate employee' : 'Reactivate employee'}</button>
+              <button type="button" className="pt-btn danger full" disabled={busy || (sel.uid === userData?.uid && sel.isActive) || (!isSuperAdmin && sel.role !== 'employee')} onClick={() => setActive(sel, !sel.isActive)}><Trash2 size={16} /> {sel.isActive ? 'Deactivate employee' : 'Reactivate employee'}</button>
             </div>
           </div>
         )}

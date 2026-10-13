@@ -17,7 +17,7 @@ use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 use base::{
     error::{ApiError, ApiResponse},
     jwt_claims::JwtClaims,
-    role::ADMIN,
+    role,
 };
 
 fn db_err(e: sqlx::Error) -> ApiError {
@@ -66,7 +66,7 @@ async fn booking_party(
         return Err(ApiError::new("Booking not found", 404));
     };
     if as_staff {
-        if claims.role == ADMIN || assigned == Some(claims.sub) {
+        if role::is_admin(&claims.role) || assigned == Some(claims.sub) {
             Ok((owner, assigned))
         } else {
             Err(ApiError::new("This booking is not assigned to you", 403))

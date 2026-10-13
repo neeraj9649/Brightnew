@@ -68,3 +68,16 @@ quotations, the booking activity feed, richer rewards/redemptions and task
 priorities. `0024_desktop_portal.sql` adds reward tier gating and
 destinations, the partner-offers preference, advisor/customer booking
 messages and e-mail referral invites for the desktop portal. Deploy the backend **before** publishing the matching portal build.
+
+## Super admin
+
+`super_admin` (migration `0025_super_admin_role.sql`) can do everything an admin can,
+and is the only role that can promote/demote admins and staff or deactivate admin
+accounts. Nobody can change their own role or deactivate themselves. Sign-in is phone +
+4-digit PIN like every other account. After deploying the backend, promote a phone
+(creating the account with a random one-time PIN if it doesn't exist):
+
+```sh
+DATABASE_URL=postgres://... API_URL=https://<api-host> \
+  backend/scripts/make_super_admin.sh 9649863232 "First Last"
+```

@@ -23,8 +23,8 @@ const mapUserDTO = (dto) => ({
   displayName: [dto.first_name, dto.last_name].filter(Boolean).join(" "),
   photoURL: dto.profile_image_url,
   role: dto.role,
-  isAdmin: dto.role === "admin",
-  isStaff: dto.role === "admin" || dto.role === "employee",
+  isAdmin: dto.role === "admin" || dto.role === "super_admin",
+  isStaff: ["admin", "super_admin", "employee"].includes(dto.role),
   isActive: dto.is_active !== false,
   membershipTier: dto.membership_tier,
   membershipCode: dto.membership_code,
@@ -43,13 +43,15 @@ export const AuthProvider = ({ children }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
 
   const applyUserDTO = (dto) => {
     setCurrentUser({ uid: dto.id, email: dto.email });
     setUserData(mapUserDTO(dto));
-    setIsAdmin(dto.role === "admin");
-    setIsStaff(dto.role === "admin" || dto.role === "employee");
+    setIsAdmin(dto.role === "admin" || dto.role === "super_admin");
+    setIsSuperAdmin(dto.role === "super_admin");
+    setIsStaff(["admin", "super_admin", "employee"].includes(dto.role));
   };
 
   const signUp = async (phone, pin, additionalData = {}) => {
@@ -99,6 +101,7 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(null);
       setUserData(null);
       setIsAdmin(false);
+      setIsSuperAdmin(false);
       setIsStaff(false);
     }
   };
@@ -184,6 +187,7 @@ export const AuthProvider = ({ children }) => {
     userData,
     loading,
     isAdmin,
+    isSuperAdmin,
     isStaff,
     // Login.js/AuthPage.js gate their old Firebase-demo-credentials banner
     // on this flag; there's always a real backend now, so keep it hidden.

@@ -25,7 +25,7 @@ use base::{
     constants::{PASSWORD_HASH_SECRET, REFRESH_TOKEN_COOKIE_NAME},
     error::{ApiError, ApiResponse},
     jwt_claims::JwtClaims,
-    role::{ADMIN, EMPLOYEE, STAFF},
+    role::{self, EMPLOYEE, STAFF},
 };
 
 const OTP_TTL_MINUTES: i64 = 10;
@@ -655,7 +655,7 @@ async fn ensure_staff_access(
     let Some((assigned,)) = assigned else {
         return Err(ApiError::new("Booking not found", 404));
     };
-    if claims.role == ADMIN || (claims.role == EMPLOYEE && assigned == Some(claims.sub)) {
+    if role::is_admin(&claims.role) || (claims.role == EMPLOYEE && assigned == Some(claims.sub)) {
         Ok(())
     } else {
         Err(ApiError::new("This booking is not assigned to you", 403))
@@ -865,7 +865,7 @@ async fn staff_tasks_handler(
     claims: JwtClaims,
     query: web::Query<StaffTaskQuery>,
 ) -> Result<ApiResponse<Vec<StaffTaskDTO>>, ApiError> {
-    let all = claims.role == ADMIN && query.scope.as_deref() == Some("all");
+    let all = role::is_admin(&claims.role) && query.scope.as_deref() == Some("all");
     let rows = sqlx::query_as::<_, StaffTaskDTO>(&format!(
         "{TASK_SELECT} WHERE ($2 OR t.assigned_to = $1) ORDER BY (t.status IN ('done', 'cancelled')), t.due_at ASC NULLS LAST, t.created_at DESC LIMIT 500"
     ))
@@ -916,7 +916,7 @@ async fn staff_create_task_handler(
     if let Some(booking_id) = b.booking_id {
         ensure_staff_access(&pool, &claims, booking_id).await?;
     }
-    let assignee = if claims.role == ADMIN { b.assigned_to.unwrap_or(claims.sub) } else { claims.sub };
+    let assignee = if role::is_admin(&claims.role) { b.assigned_to.unwrap_or(claims.sub) } else { claims.sub };
     let id: Uuid = sqlx::query_scalar(
         r#"INSERT INTO tasks (booking_id, customer_id, assigned_to, title, description, due_at, priority, created_by)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id"#,
@@ -979,7 +979,7 @@ async fn staff_update_task_handler(
         .await
         .map_err(db_err)?;
     let Some(owner) = owner else { return Err(ApiError::new("Task not found", 404)) };
-    if claims.role != ADMIN && owner != claims.sub {
+    if !role::is_admin(&claims.role) && owner != claims.sub {
         return Err(ApiError::new("This task is not assigned to you", 403));
     }
     sqlx::query(
@@ -1054,7 +1054,7 @@ async fn staff_customers_handler(
            ORDER BY u.joined_at DESC LIMIT 300"#,
     )
     .bind(claims.sub)
-    .bind(claims.role == ADMIN)
+    .bind(role::is_admin(&claims.role))
     .bind(q)
     .fetch_all(pool.get_ref())
     .await
