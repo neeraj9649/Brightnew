@@ -8,8 +8,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useBooking } from '../../contexts/BookingContext';
 import { api } from '../../services/api';
 import {
-  AppBar, Card, Check2, Counter, Field, Hero, IMG, Input, isValidIndianMobile, MultiChips, Notice, Page, PhoneField, Segmented, Select, Shell, Spinner,
-  TextArea, bg, fmtDate, fmtDateTime, fmtNum, memberName, nationalNumber, useAsync, useCopy, useWide, WingsIcon, ErrorState,
+  AppBar, Card, Check2, Counter, Field, Hero, IMG, Input, isValidPhone, MultiChips, Notice, Page, PhoneField, Segmented, Select, Shell, Spinner,
+  TextArea, bg, fmtDate, fmtDateTime, fmtNum, formatPhone, memberName, toStoredPhone, useAsync, useCopy, useWide, WingsIcon, ErrorState,
 } from '../ui';
 import { CITIES, SERVICE_ORDER, SERVICES } from '../booking';
 import { clearDraft, RecoverableError, saveDraft } from './Bookings';
@@ -216,7 +216,7 @@ export function BookingWizard() {
     } else if (step === 2) {
       const e = {};
       if (lead.name.trim().length < 2) e.leadName = 'Enter the name exactly as on the ID';
-      if (!isValidIndianMobile(lead.phone)) e.leadPhone = 'Enter a valid 10-digit mobile number';
+      if (!isValidPhone(lead.phone)) e.leadPhone = 'Enter a valid mobile number';
       if (service === 'visa' && !lead.dob) e.leadDob = 'Date of birth is needed for visa applications';
       if (lead.dob && lead.dob > today()) e.leadDob = 'Date of birth cannot be in the future';
       others.forEach((o, i) => { if (o.dob && o.dob > today()) e[`o${i}dob`] = 'Date of birth cannot be in the future'; });
@@ -231,7 +231,7 @@ export function BookingWizard() {
     specialRequests: (hasOwnNotes ? form.specialRequests || form.preferences : special) || undefined,
     ...form,
     travelerDetails: {
-      lead: { name: lead.name.trim(), dob: lead.dob || null, phone: nationalNumber(lead.phone) },
+      lead: { name: lead.name.trim(), dob: lead.dob || null, phone: toStoredPhone(lead.phone) },
       additional: others.map((o) => ({ name: o.name.trim(), dob: o.dob || null })).filter((o) => o.name || o.dob),
     },
     ...(special && hasOwnNotes ? { travelNotes: special } : {}),
@@ -301,7 +301,7 @@ export function BookingWizard() {
                 <div className="pt-stack">
                   <Field label="Full name (as per ID)" error={errors.leadName}><Input icon={User} value={lead.name} onChange={(e) => setLead({ ...lead, name: e.target.value })} error={errors.leadName} autoComplete="name" /></Field>
                   <Field label="Date of birth" optional={service !== 'visa'} error={errors.leadDob}><Input icon={Calendar} type="date" max={today()} value={lead.dob} onChange={(e) => setLead({ ...lead, dob: e.target.value })} error={errors.leadDob} /></Field>
-                  <Field label="Phone number" error={errors.leadPhone} hint="We’ll use this number for all travel updates."><PhoneField value={nationalNumber(lead.phone)} onChange={(v) => setLead({ ...lead, phone: v })} error={errors.leadPhone} /></Field>
+                  <Field label="Phone number" error={errors.leadPhone} hint="We’ll use this number for all travel updates."><PhoneField value={lead.phone} onChange={(v) => setLead({ ...lead, phone: v })} error={errors.leadPhone} /></Field>
                 </div>
               </Card>
               {extra > 0 && (
@@ -342,7 +342,7 @@ export function BookingWizard() {
               </ReviewCard>
               <ReviewCard title="Traveller details" icon={Users} onEdit={() => setStep(2)}>
                 <div className="pt-kv"><span>Lead traveler</span><strong>{lead.name}</strong></div>
-                <div className="pt-kv"><span>Contact</span><strong>+91 {nationalNumber(lead.phone)}</strong></div>
+                <div className="pt-kv"><span>Contact</span><strong>{formatPhone(lead.phone)}</strong></div>
                 {others.filter((o) => o.name).map((o, i) => <div className="pt-kv" key={i}><span>Traveler {i + 2}</span><strong>{o.name}</strong></div>)}
               </ReviewCard>
               <Card>

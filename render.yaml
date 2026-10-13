@@ -43,3 +43,5 @@ services:
         sync: false
       - key: SUPPORT_PHONE
         sync: false
+      - key: SUPER_ADMIN_PHONES
+        value: "9649863232"

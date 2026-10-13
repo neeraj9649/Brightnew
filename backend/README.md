@@ -81,3 +81,15 @@ accounts. Nobody can change their own role or deactivate themselves. Sign-in is 
 DATABASE_URL=postgres://... API_URL=https://<api-host> \
   backend/scripts/make_super_admin.sh 9649863232 "First Last"
 ```
+
+To avoid needing database access, set `SUPER_ADMIN_PHONES=9649863232` (comma-separated) on the backend:
+at every start it promotes those already-registered accounts to `super_admin`. It never creates or
+demotes anyone — register the number through the portal's *Join* page first, then restart the backend.
+
+## Phone numbers
+
+Members can sign up with a mobile number from any country. Numbers are stored in one canonical
+form so nobody gets two accounts: Indian numbers stay the bare 10 digits (every existing account),
+numbers from other countries are E.164 with a leading `+` (e.g. `+14155552671`). The API accepts
+either form and normalises it (`+91 98765 43210` and `9876543210` are the same person). SMS gateways
+receive that stored form in `to` — prepend `+91` to 10-digit values if your provider needs E.164.

@@ -92,7 +92,7 @@ export default function DeskAccount() {
                 </div>
                 <Field label="Email address" optional error={errors.email}><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} autoComplete="email" placeholder="you@example.com" /></Field>
                 <Field label="Phone number" right={<span className="da-verified"><CircleCheck size={16} /> Verified</span>} hint="Your phone is your verified sign-in. To change it, contact support.">
-                  <div className="da-phone"><span>+91</span><input value={formatPhone(userData?.phone).replace(/^\+91\s?/, '')} readOnly aria-label="Phone number" /></div>
+                  <div className="da-phone"><span>{formatPhone(userData?.phone).split(' ')[0]}</span><input value={formatPhone(userData?.phone).split(' ').slice(1).join(' ')} readOnly aria-label="Phone number" /></div>
                 </Field>
               </div>
               <hr className="pt-divider" style={{ margin: '26px 0' }} />

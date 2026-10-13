@@ -71,20 +71,6 @@ export const relTime = (value) => {
 export const initials = (name = '') =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || 'BW';
 
-export const formatPhone = (phone = '') => {
-  const digits = String(phone).replace(/\D/g, '');
-  if (digits.length === 10) return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
-  if (digits.length === 12 && digits.startsWith('91')) return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
-  return phone || '—';
-};
-
-export const maskPhone = (phone = '') => {
-  const digits = String(phone).replace(/\D/g, '').slice(-10);
-  return digits.length === 10 ? `+91 ${digits.slice(0, 2)}*** **${digits.slice(-3)}` : '—';
-};
-
-export const isValidIndianMobile = (value) => /^[6-9]\d{9}$/.test(String(value).replace(/\D/g, '').slice(-10)) && String(value).replace(/\D/g, '').length >= 10;
-export const nationalNumber = (value) => String(value).replace(/\D/g, '').slice(-10);
 
 export const memberName = (user) => user?.displayName || user?.name || 'Traveler';
 
@@ -486,25 +472,8 @@ export const TextArea = React.forwardRef(function TextArea({ error, max, value =
   );
 });
 
-export function PhoneField({ value, onChange, error, placeholder = '98765 43210', autoFocus, disabled }) {
-  return (
-    <div className={`pt-phone ${error ? 'err' : ''}`}>
-      <span className="pt-phone-cc"><span className="pt-flag" /> +91 <ChevronDown size={14} /></span>
-      <input
-        type="tel"
-        name="phone"
-        inputMode="numeric"
-        autoComplete="tel-national"
-        placeholder={placeholder}
-        value={value}
-        autoFocus={autoFocus}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 10))}
-        aria-label="Phone number"
-      />
-    </div>
-  );
-}
+export { default as PhoneField } from './PhoneField';
+export { formatPhone, isValidPhone, maskPhone, toStoredPhone } from './phone';
 
 export function PinBoxes({ value = '', onChange, show = false, length = 4, error, autoFocus, label = 'PIN', size }) {
   const ref = useRef(null);

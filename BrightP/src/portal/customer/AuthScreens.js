@@ -5,8 +5,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import {
-  Check2, Field, Hero, IMG, Input, isValidIndianMobile, Modal, ModalHead, Notice, PhoneField, PinBoxes, PinField,
-  fmtNum, formatPhone, memberName, nationalNumber, useWide,
+  Check2, Field, Hero, IMG, Input, isValidPhone, Modal, ModalHead, Notice, PhoneField, PinBoxes, PinField,
+  fmtNum, formatPhone, memberName, toStoredPhone, useWide,
 } from '../ui';
 import { DeskJoin, DeskLogin } from '../desktop/Auth';
 
@@ -75,13 +75,13 @@ export default function AuthPage() {
   const submitLogin = async (event) => {
     event.preventDefault();
     const next = {};
-    if (!isValidIndianMobile(phone)) next.phone = 'Enter your 10-digit mobile number';
+    if (!isValidPhone(phone)) next.phone = 'Enter a valid mobile number';
     if (pin.length !== 4) next.pin = 'Enter your 4-digit PIN';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
-      const user = await signIn(nationalNumber(phone), pin);
+      const user = await signIn(toStoredPhone(phone), pin);
       navigate(user?.role === 'customer' ? '/dashboard' : '/admin', { replace: true });
     } catch (error) {
       if (error.status === 403) {
@@ -99,7 +99,7 @@ export default function AuthPage() {
     event.preventDefault();
     const next = {};
     if (name.trim().length < 2) next.name = 'Please enter your full name';
-    if (!isValidIndianMobile(phone)) next.phone = 'Enter your 10-digit mobile number';
+    if (!isValidPhone(phone)) next.phone = 'Enter a valid mobile number';
     if (pin.length !== 4) next.pin = 'Choose a 4-digit PIN';
     if (pin2.length !== 4 || pin2 !== pin) next.pin2 = 'PINs do not match';
     if (!agree) next.agree = 'Please accept the Terms & Conditions to continue';
@@ -108,7 +108,7 @@ export default function AuthPage() {
     setBusy(true);
     try {
       sessionStorage.setItem('bw_welcome', '1');
-      await signUp(nationalNumber(phone), pin, { name: name.trim(), referredByCode: referral.trim() || undefined });
+      await signUp(toStoredPhone(phone), pin, { name: name.trim(), referredByCode: referral.trim() || undefined });
       navigate('/welcome', { replace: true });
     } catch (error) {
       sessionStorage.removeItem('bw_welcome');
@@ -224,11 +224,11 @@ function PinRecovery({ initialPhone, onBack }) {
 
   const sendCode = async (event) => {
     event?.preventDefault();
-    if (!isValidIndianMobile(phone)) { setError('Enter your 10-digit mobile number'); return; }
+    if (!isValidPhone(phone)) { setError('Enter a valid mobile number'); return; }
     setBusy(true);
     setError('');
     try {
-      const data = await api.post('/pin-reset/request', { phone: nationalNumber(phone) });
+      const data = await api.post('/pin-reset/request', { phone: toStoredPhone(phone) });
       setDevCode(data?.dev_code || '');
       setStep('code');
       setCooldown(60);
@@ -246,7 +246,7 @@ function PinRecovery({ initialPhone, onBack }) {
     setBusy(true);
     setError('');
     try {
-      const data = await api.post('/pin-reset/verify', { phone: nationalNumber(phone), code });
+      const data = await api.post('/pin-reset/verify', { phone: toStoredPhone(phone), code });
       setToken(data.reset_token);
       setStep('reset');
     } catch (err) {
@@ -264,9 +264,9 @@ function PinRecovery({ initialPhone, onBack }) {
     setBusy(true);
     setError('');
     try {
-      await api.post('/pin-reset/confirm', { phone: nationalNumber(phone), reset_token: token, new_pin: pin });
+      await api.post('/pin-reset/confirm', { phone: toStoredPhone(phone), reset_token: token, new_pin: pin });
       toast.success('PIN updated. Please sign in with your new PIN.');
-      onBack(nationalNumber(phone));
+      onBack(toStoredPhone(phone));
     } catch (err) {
       setError(err.message || 'We could not update your PIN. Please start again.');
     } finally {
@@ -286,7 +286,7 @@ function PinRecovery({ initialPhone, onBack }) {
               <form onSubmit={sendCode} className="pt-stack lg" noValidate>
                 <div><h1 className="pt-h1">Forgot your PIN?</h1><p className="pt-sub" style={{ marginTop: 8 }}>No worries. We’ll send a verification code to your registered mobile number to help you reset your PIN.</p></div>
                 {error && <Notice tone="red" icon={CircleAlert}>{error}</Notice>}
-                <Field label="Mobile number"><PhoneField value={phone} onChange={setPhone} autoFocus error={!!error && !isValidIndianMobile(phone)} /></Field>
+                <Field label="Mobile number"><PhoneField value={phone} onChange={setPhone} autoFocus error={!!error && !isValidPhone(phone)} /></Field>
                 <button type="submit" className="pt-btn full" disabled={busy}>{busy ? 'Sending…' : <>Send verification code <ArrowRight size={18} /></>}</button>
                 <Notice plain tone="plain" icon={ShieldCheck}>We’ll send a 6-digit verification code to your registered mobile number.</Notice>
                 <hr className="pt-divider" />

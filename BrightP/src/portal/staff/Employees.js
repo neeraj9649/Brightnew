@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
-import { Avatar, Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, fmtDate, formatPhone, isValidIndianMobile, nationalNumber, useAsync } from '../ui';
+import { Avatar, Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
 import StaffShell from './StaffShell';
 
 const ROLE_LABEL = { employee: 'Employee', admin: 'Admin', super_admin: 'Super admin' };
@@ -107,14 +107,14 @@ function InviteModal({ open, onClose, onDone }) {
     e.preventDefault();
     const next = {};
     if (form.name.trim().length < 2) next.name = 'Enter the employee’s name';
-    if (!isValidIndianMobile(form.phone)) next.phone = 'Enter a valid 10-digit mobile number';
+    if (!isValidPhone(form.phone)) next.phone = 'Enter a valid mobile number';
     if (!form.hr.trim()) next.hr = 'HR code is required';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
       const [first, ...rest] = form.name.trim().split(/\s+/);
-      const user = await api.post('/admin/users', { first_name: first, last_name: rest.join(' ') || null, phone: nationalNumber(form.phone), email: form.email.trim() || undefined, hr_code: form.hr.trim() });
+      const user = await api.post('/admin/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(form.phone), email: form.email.trim() || undefined, hr_code: form.hr.trim() });
       if (form.role !== 'customer') await api.patch('/admin/users', { id: user.id, role: form.role });
       setDone(user);
     } catch (err) { setErrors({ form: err.status === 409 ? 'That phone number or HR code is already in use.' : err.message }); } finally { setBusy(false); }

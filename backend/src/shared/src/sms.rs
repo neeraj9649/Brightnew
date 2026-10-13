@@ -15,6 +15,10 @@ pub fn sms_configured() -> bool {
 /// `SMS_WEBHOOK_TOKEN` (optional) is sent as a bearer token. Any provider that
 /// can be fronted by a webhook (MSG91, Twilio Functions, a PHP relay on the
 /// existing Hostinger box, ...) works without code changes.
+///
+/// `<phone>` is the stored form: Indian numbers are the bare 10 digits, numbers from
+/// other countries are E.164 with a leading "+" (e.g. `+14155552671`). A gateway that
+/// needs E.164 for everything should prepend "+91" to 10-digit values.
 pub async fn send_sms(to: &str, message: &str) -> Result<(), String> {
     let url = env_optional("SMS_WEBHOOK_URL").ok_or("SMS_WEBHOOK_URL not configured")?;
     let payload = serde_json::json!({ "to": to, "message": message }).to_string();

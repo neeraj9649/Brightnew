@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { api } from '../../services/api';
 import {
-  Avatar, Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, TextArea, fmtDate, fmtNum, formatPhone, humanize, isValidIndianMobile, nationalNumber, useAsync,
+  Avatar, Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, TextArea, fmtDate, fmtNum, formatPhone, humanize, isValidPhone, toStoredPhone, useAsync,
 } from '../ui';
 import { TIERS, bookingTitle, serviceOf, statusMeta } from '../booking';
 import { TierIcon } from '../customer/parts';
@@ -96,13 +96,13 @@ function CreateCustomer({ open, onClose, onCreated }) {
     e.preventDefault();
     const next = {};
     if (form.name.trim().length < 2) next.name = 'Enter the customer’s name';
-    if (!isValidIndianMobile(form.phone)) next.phone = 'Enter a valid 10-digit mobile number';
+    if (!isValidPhone(form.phone)) next.phone = 'Enter a valid mobile number';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
       const [first, ...rest] = form.name.trim().split(/\s+/);
-      const user = await api.post('/staff/users', { first_name: first, last_name: rest.join(' ') || null, phone: nationalNumber(form.phone) });
+      const user = await api.post('/staff/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(form.phone) });
       if (isAdmin) loadAllUsers();
       setDone(user);
     } catch (err) { setErrors({ form: err.status === 409 ? 'A member with this phone number already exists.' : err.message }); } finally { setBusy(false); }

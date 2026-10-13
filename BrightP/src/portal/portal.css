@@ -1081,3 +1081,36 @@
 @media (min-width: 900px) and (max-width: 1099px) { .dh-hero, .dw-hero { margin: 0 -22px; } .dh-hero-copy { padding-left: 22px; } .dw-hero-copy { left: 22px; } .dh-hero-art em { right: 22px; } }
 @media (min-width: 900px) and (max-width: 1099px) { .pt-desk-brand { padding: 26px 14px 22px; gap: 8px; } .pt-desk-brand img { width: 36px; height: 36px; } .pt-desk-brand b { font-size: 18px; } .pt-desk-brand small { letter-spacing: 0.1em; } }
 @media (min-width: 900px) { .pt-page:not(.wide):not(:has(> .pt-crumbs:first-child)) { padding-top: 24px; } }
+
+/* ---- international phone field ---- */
+.pt-phone { position: relative; }
+.pt-phone.off { background: #f6f4ee; }
+.pt-cc-trigger { border: 0; border-right: 1px solid var(--pt-line-strong); background: none; cursor: pointer; padding: 0 10px 0 14px; height: 34px; gap: 7px; white-space: nowrap; }
+.pt-cc-trigger:hover:not(:disabled), .pt-cc-trigger[aria-expanded='true'] { background: #f6f2e9; border-radius: 10px 0 0 10px; }
+.pt-cc-trigger:disabled { cursor: not-allowed; }
+.pt-cc-trigger:focus-visible { outline: 2px solid var(--pt-gold); outline-offset: 1px; border-radius: 8px; }
+.pt-cc-flag { font: 20px/1 'Twemoji Country Flags', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; flex: none; }
+.pt-cc-panel { position: fixed; z-index: 400; max-height: min(380px, calc(100vh - 24px)); display: flex; flex-direction: column; background: #fff; border: 1px solid var(--pt-line); border-radius: 16px; box-shadow: 0 24px 56px rgba(16, 40, 63, 0.22); overflow: hidden; text-align: left; }
+.pt-cc-backdrop { display: none; }
+.pt-cc-search { display: flex; align-items: center; gap: 10px; padding: 0 12px; height: 52px; border-bottom: 1px solid var(--pt-line); color: var(--pt-muted); flex: none; }
+.pt-cc-search input { flex: 1; min-width: 0; border: 0 !important; outline: 0 !important; box-shadow: none !important; background: transparent; height: 50px !important; padding: 0 !important; font: 500 15px var(--font-family-base, sans-serif); color: var(--pt-ink); }
+.pt-cc-search button { border: 0; background: none; cursor: pointer; color: var(--pt-muted); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; }
+.pt-cc-search button:hover { background: #f1ede3; }
+.pt-cc-close { display: none !important; }
+.pt-cc-panel ul { list-style: none; margin: 0; padding: 6px; overflow-y: auto; overscroll-behavior: contain; }
+.pt-cc-head { padding: 10px 10px 4px; font: 700 11px var(--font-family-base, sans-serif); letter-spacing: 0.14em; text-transform: uppercase; color: var(--pt-muted); }
+.pt-cc-row { display: flex; align-items: center; gap: 12px; padding: 0 10px; min-height: 44px; border-radius: 10px; cursor: pointer; font: 500 15px var(--font-family-base, sans-serif); color: var(--pt-ink); }
+.pt-cc-row.on { background: #f6f2e9; }
+.pt-cc-row[aria-selected='true'] { font-weight: 700; }
+.pt-cc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-cc-dial { color: var(--pt-muted); font-variant-numeric: tabular-nums; }
+.pt-cc-check { color: var(--pt-gold-dark); flex: none; }
+.pt-cc-empty { padding: 26px 14px; text-align: center; color: var(--pt-muted); font-size: 14px; line-height: 1.5; }
+@media (max-width: 640px) {
+  .pt-cc-backdrop { display: block; position: fixed; inset: 0; z-index: 399; background: rgba(10, 24, 48, 0.5); }
+  .pt-cc-panel { left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; width: auto !important; max-height: 78vh; border-radius: 22px 22px 0 0; border: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .pt-cc-panel::before { content: ''; width: 40px; height: 4px; border-radius: 4px; background: #d8d3c6; margin: 8px auto 0; flex: none; }
+  .pt-cc-close { display: grid !important; }
+  .pt-cc-row { min-height: 52px; font-size: 16px; }
+  .pt-cc-search input { font-size: 16px; }
+}

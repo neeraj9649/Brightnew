@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBooking } from '../../contexts/BookingContext';
 import { api } from '../../services/api';
-import { Check2, ErrorState, Field, Input, Page, PhoneField, Select, Shell, TextArea, WingsIcon, fmtDate, fmtNum, isValidIndianMobile, memberName, nationalNumber, useAsync } from '../ui';
+import { Check2, ErrorState, Field, Input, Page, PhoneField, Select, Shell, TextArea, WingsIcon, fmtDate, fmtNum, isValidPhone, memberName, toStoredPhone, useAsync } from '../ui';
 import { SERVICE_PHOTO, photoFor } from '../photos';
 import { SERVICE_ORDER, SERVICES } from '../booking';
 import { FieldView, initialForm, validateTrip } from '../customer/BookingNew';
@@ -152,7 +152,7 @@ export function DeskWizard() {
         if (t.name.trim().length < 2) e[key('name')] = 'Enter the name exactly as on the passport or ID';
         if (i === 0 && (!t.dob || (needsPassport && !t.dob))) e[key('dob')] = 'Date of birth is required';
         if (t.dob && t.dob > today()) e[key('dob')] = 'Date of birth cannot be in the future';
-        if (i === 0 && !isValidIndianMobile(t.phone)) e[key('phone')] = 'Enter a valid 10-digit mobile number';
+        if (i === 0 && !isValidPhone(t.phone)) e[key('phone')] = 'Enter a valid mobile number';
         if (t.email && !/^\S+@\S+\.\S+$/.test(t.email.trim())) e[key('email')] = 'Enter a valid e-mail address';
         if (needsPassport && !t.passport.trim()) e[key('passport')] = 'Passport number is required for visa requests';
         if (t.expiry && t.expiry < today()) e[key('expiry')] = 'This passport has expired';
@@ -169,7 +169,7 @@ export function DeskWizard() {
     ...form,
     ...(isFlight ? { travelPrefs: tp } : {}),
     travelerDetails: {
-      lead: { name: trav[0].name.trim(), dob: trav[0].dob || null, phone: nationalNumber(trav[0].phone), email: trav[0].email.trim() || null, gender: trav[0].gender || null, passport: trav[0].passport.trim() || null, nationality: trav[0].nationality || null, passportExpiry: trav[0].expiry || null },
+      lead: { name: trav[0].name.trim(), dob: trav[0].dob || null, phone: toStoredPhone(trav[0].phone), email: trav[0].email.trim() || null, gender: trav[0].gender || null, passport: trav[0].passport.trim() || null, nationality: trav[0].nationality || null, passportExpiry: trav[0].expiry || null },
       additional: trav.slice(1).map((t) => ({ name: t.name.trim(), dob: t.dob || null, gender: t.gender || null, passport: t.passport.trim() || null, nationality: t.nationality || null, passportExpiry: t.expiry || null })).filter((t) => t.name),
     },
     ...(notes && hasNotes ? { travelNotes: notes } : {}),
@@ -257,7 +257,7 @@ export function DeskWizard() {
                         </div>
                         {i === 0 && (
                           <div className="dp-grid2" style={{ marginTop: 14 }}>
-                            <Field label="Phone number *" error={err('phone')}><PhoneField value={nationalNumber(t.phone)} onChange={(v) => setT(i, { phone: v })} error={err('phone')} /></Field>
+                            <Field label="Phone number *" error={err('phone')}><PhoneField value={t.phone} onChange={(v) => setT(i, { phone: v })} error={err('phone')} /></Field>
                             <Field label="Email address" optional error={err('email')}><Input type="email" value={t.email} onChange={(e) => setT(i, { email: e.target.value })} error={err('email')} /></Field>
                           </div>
                         )}

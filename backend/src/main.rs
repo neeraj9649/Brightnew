@@ -10,6 +10,7 @@ async fn main() -> std::io::Result<()> {
     let address = (*constants::ADDRESS).clone();
 
     let container = Arc::new(Container::new().await);
+    app::bootstrap::promote_super_admins(&container.sqlx_pool).await;
     let server = HttpServer::new(move || create_app(container.clone())).bind((address, port))?;
     server.run().await
 }
