@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
-import { Avatar, Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
+import { Avatar, Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, PinField, SearchBox, Select, Skeleton, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
 import StaffShell from './StaffShell';
 
 const ROLE_LABEL = { employee: 'Employee', admin: 'Admin', super_admin: 'Super admin' };
@@ -98,25 +98,27 @@ export default function Employees() {
 }
 
 function InviteModal({ open, onClose, onDone }) {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', hr: '', role: 'employee' });
+  const { isSuperAdmin } = useAuth();
+  const [form, setForm] = useState({ name: '', phone: '', email: '', hr: '', role: 'employee', pin: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
-  const close = () => { setForm({ name: '', phone: '', email: '', hr: '', role: 'employee' }); setErrors({}); setDone(null); onClose(); };
+  const close = () => { setForm({ name: '', phone: '', email: '', hr: '', role: 'employee', pin: '' }); setErrors({}); setDone(null); onClose(); };
   const submit = async (e) => {
     e.preventDefault();
     const next = {};
     if (form.name.trim().length < 2) next.name = 'Enter the employee’s name';
     if (!isValidPhone(form.phone)) next.phone = 'Enter a valid mobile number';
     if (!form.hr.trim()) next.hr = 'HR code is required';
+    if (form.pin && form.pin.length !== 4) next.pin = 'Enter all 4 digits or leave it empty';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
       const [first, ...rest] = form.name.trim().split(/\s+/);
-      const user = await api.post('/admin/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(form.phone), email: form.email.trim() || undefined, hr_code: form.hr.trim() });
+      const user = await api.post('/admin/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(form.phone), email: form.email.trim() || undefined, hr_code: form.hr.trim(), pin: form.pin || undefined });
       if (form.role !== 'customer') await api.patch('/admin/users', { id: user.id, role: form.role });
-      setDone(user);
+      setDone({ ...user, pinSet: !!form.pin });
     } catch (err) { setErrors({ form: err.status === 409 ? 'That phone number or HR code is already in use.' : err.message }); } finally { setBusy(false); }
   };
   return (
@@ -124,8 +126,8 @@ function InviteModal({ open, onClose, onDone }) {
       {done ? (
         <div className="pt-stack lg" style={{ textAlign: 'center', paddingTop: 30 }}>
           <div className="pt-success-mark"><CircleCheck size={44} /></div>
-          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name} has been added</h2><p className="pt-sub" style={{ marginTop: 6 }}>They can sign in once they set a PIN with <strong>Forgot PIN</strong> on the sign-in page, using {formatPhone(done.phone)}.</p></div>
-          <Notice icon={ShieldCheck}>No PIN is set or visible to you.</Notice>
+          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name} has been added</h2><p className="pt-sub" style={{ marginTop: 6 }}>{done.pinSet ? <>Share the PIN you chose with them. They sign in with {formatPhone(done.phone)} and that PIN, and can change it under Account.</> : <>They can sign in once they set a PIN with <strong>Forgot PIN</strong> on the sign-in page, using {formatPhone(done.phone)}. This needs SMS or e-mail delivery to be configured.</>}</p></div>
+          <Notice icon={ShieldCheck}>{done.pinSet ? 'The PIN is not stored in readable form and is not shown again.' : 'No PIN is set or visible to you.'}</Notice>
           <button type="button" className="pt-btn full" onClick={() => { setDone(null); onDone(); }}>Done</button>
         </div>
       ) : (
@@ -136,7 +138,9 @@ function InviteModal({ open, onClose, onDone }) {
           <Field label="Phone number *" error={errors.phone}><PhoneField value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} error={errors.phone} /></Field>
           <Field label="Email" optional><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
           <Field label="HR code *" error={errors.hr}><Input value={form.hr} onChange={(e) => setForm({ ...form, hr: e.target.value })} error={errors.hr} /></Field>
-          <Field label="Role"><Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="employee">Employee — assigned bookings only</option><option value="admin">Admin — full access</option></Select></Field>
+          <PinField label="Initial PIN (optional)" value={form.pin} onChange={(v) => setForm({ ...form, pin: v })} error={errors.pin} show size="sm" />
+          <p className="pt-tiny" style={{ marginTop: -8 }}>Set a 4-digit PIN to share with them directly, or leave empty so they choose their own with Forgot PIN (needs SMS or e-mail set up).</p>
+          <Field label="Role"><Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="employee">Employee — assigned bookings only</option>{isSuperAdmin && <option value="admin">Admin — full access</option>}{isSuperAdmin && <option value="super_admin">Super admin — full access + manage admins</option>}</Select></Field>
           <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={close}>Cancel</button><button type="submit" className="pt-btn" disabled={busy}>{busy ? 'Inviting…' : 'Invite employee'}</button></div>
         </form>
       )}
