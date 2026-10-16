@@ -8,6 +8,7 @@ import { Badge, Page, Progress, Shell, Skeleton, bg, fmtDate, fmtNum, memberName
 import { PHOTO, photoFor } from '../photos';
 import { bookingDate, bookingTitle, isPast, serviceOf, statusMeta } from '../booking';
 import { MemberCardFace } from '../customer/parts';
+import { OffersStrip } from '../customer/Offers';
 import { fmtRange, milestoneDates, nightsBetween } from './common';
 
 const greeting = () => {
@@ -96,7 +97,7 @@ export default function DeskHome() {
           </div>
 
           <button type="button" className="dh-card-link" onClick={() => navigate('/membership')} aria-label="Open membership card">
-            <MemberCardFace name={name} code={userData?.membershipCode} tier={tier.current} qr={false} compact />
+            <MemberCardFace name={summary?.card?.name || name} code={summary?.card?.membership_code || userData?.membershipCode} tier={tier.current} validUntil={summary?.card?.valid_until} />
           </button>
         </section>
 
@@ -141,6 +142,8 @@ export default function DeskHome() {
             ))}
           </div>
         </section>
+
+        <OffersStrip />
 
         <section className="dh-row2 last">
           <div className="pt-card dh-activity">

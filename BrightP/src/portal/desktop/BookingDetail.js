@@ -1,3 +1,4 @@
+import { StepsCard } from '../customer/BookingExtras';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -193,6 +194,8 @@ export default function DeskBookingDetail() {
               <div style={{ marginTop: 8 }}>{docs.map((d) => <a key={d.id} className="bd-doc" href={d.file_url || fileUrl(d.file_id)} target="_blank" rel="noreferrer"><FileText size={20} /><span><b>{d.label || humanize(d.kind)}</b><small>{humanize(d.kind)} · {fmtDate(d.created_at)}</small></span><Download size={18} /></a>)}</div>
             </section>
           )}
+
+          <StepsCard bookingId={booking.docId} className="pt-card bd-quote" />
 
           <section className="pt-card bd-thread">
             <div className="pt-row between"><h2 className="pt-serif-h">Activity &amp; messages</h2>{thread.length > 1 && <button type="button" className="dh-more" onClick={() => setShowAll(!showAll)}>{showAll ? 'Show latest' : 'View all'} <ArrowRight size={14} /></button>}</div>

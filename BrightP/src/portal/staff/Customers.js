@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { api } from '../../services/api';
 import {
-  Avatar, Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, TextArea, fmtDate, fmtNum, formatPhone, humanize, isValidPhone, toStoredPhone, useAsync,
+  Avatar, Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Notice, PhoneField, PinField, SearchBox, Select, Skeleton, TextArea, fmtDate, fmtNum, formatPhone, humanize, isValidPhone, toStoredPhone, useAsync,
 } from '../ui';
 import { TIERS, bookingTitle, serviceOf, statusMeta } from '../booking';
 import { TierIcon } from '../customer/parts';
@@ -88,7 +88,7 @@ export default function Customers() {
 function CreateCustomer({ open, onClose, onCreated }) {
   const { loadAllUsers } = useAdminBooking();
   const { isAdmin } = useAuth();
-  const [form, setForm] = useState({ name: '', phone: '' });
+  const [form, setForm] = useState({ name: '', phone: '', pin: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
@@ -97,24 +97,25 @@ function CreateCustomer({ open, onClose, onCreated }) {
     const next = {};
     if (form.name.trim().length < 2) next.name = 'Enter the customer’s name';
     if (!isValidPhone(form.phone)) next.phone = 'Enter a valid mobile number';
+    if (form.pin && form.pin.length !== 4) next.pin = 'Enter all 4 digits or leave it empty';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
       const [first, ...rest] = form.name.trim().split(/\s+/);
-      const user = await api.post('/staff/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(form.phone) });
+      const user = await api.post('/staff/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(form.phone), pin: form.pin || undefined });
       if (isAdmin) loadAllUsers();
-      setDone(user);
+      setDone({ ...user, pinSet: !!form.pin });
     } catch (err) { setErrors({ form: err.status === 409 ? 'A member with this phone number already exists.' : err.message }); } finally { setBusy(false); }
   };
-  const close = () => { setForm({ name: '', phone: '' }); setErrors({}); setDone(null); onClose(); };
+  const close = () => { setForm({ name: '', phone: '', pin: '' }); setErrors({}); setDone(null); onClose(); };
   return (
     <Modal open={open} onClose={close} side label="Create customer">
       {done ? (
         <div className="pt-stack lg" style={{ textAlign: 'center', paddingTop: 30 }}>
           <div className="pt-success-mark"><CircleCheck size={44} /></div>
           <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name}’s membership is ready</h2><p className="pt-sub" style={{ marginTop: 6 }}>Member number <strong>{done.membership_code}</strong> · Silver tier · {fmtNum(done.tokens)} welcome Wings added.</p></div>
-          <Notice icon={ShieldCheck} title="PIN setup invitation">The customer sets their own PIN using Forgot PIN on the sign-in page with {formatPhone(done.phone)}. No PIN is set or visible to you.</Notice>
+          {done.pinSet ? <Notice icon={ShieldCheck} title="Sign-in details">Tell the customer the PIN you chose. They sign in with {formatPhone(done.phone)} and that PIN, and can change it under Account.</Notice> : <Notice icon={ShieldCheck} title="PIN setup invitation">The customer sets their own PIN using Forgot PIN on the sign-in page with {formatPhone(done.phone)}. This needs SMS or e-mail delivery to be set up.</Notice>}
           <button type="button" className="pt-btn full" onClick={() => onCreated(done)}>Done</button>
         </div>
       ) : (
@@ -123,6 +124,8 @@ function CreateCustomer({ open, onClose, onCreated }) {
           {errors.form && <Notice tone="red">{errors.form}</Notice>}
           <Field label="Full name *" error={errors.name}><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter customer name" error={errors.name} /></Field>
           <Field label="Phone number *" error={errors.phone}><PhoneField value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} error={errors.phone} placeholder="Enter 10 digit mobile number" /></Field>
+          <PinField label="Initial PIN (optional)" value={form.pin} onChange={(v) => setForm({ ...form, pin: v })} error={errors.pin} show size="sm" />
+          <p className="pt-tiny" style={{ marginTop: -8 }}>Set a 4-digit PIN to give the customer directly, or leave it empty so they choose their own with Forgot PIN.</p>
           <Notice tone="gold" icon={Gift}>A new <strong style={{ display: 'inline' }}>Silver membership</strong> will be created automatically with a welcome bonus, identical to self signup.</Notice>
           <div><h3 className="pt-h3">PIN setup invitation</h3><p className="pt-sub" style={{ marginTop: 4 }}>We’ll send a secure PIN setup message by SMS (when an SMS gateway is configured). The customer creates their own 4-digit PIN to access their account.</p></div>
           <div className="pt-notice green" style={{ display: 'block' }}>{['Creates Silver tier membership', 'Adds welcome Wings to wallet', 'Generates a referral code', 'No PIN is set or visible to you'].map((t) => <div key={t} className="pt-row" style={{ gap: 8, margin: '3px 0' }}><CircleCheck size={15} /> {t}</div>)}</div>

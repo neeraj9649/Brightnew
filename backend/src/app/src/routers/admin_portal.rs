@@ -242,6 +242,9 @@ pub fn admin_portal_routes(cfg: &mut ServiceConfig) {
                 check_permission_middleware(req, next, ADMIN_ONLY).await
             }))
             .route("/overview", web::get().to(overview_handler))
-            .route("/loyalty-analytics", web::get().to(loyalty_analytics_handler)),
+            .route("/loyalty-analytics", web::get().to(loyalty_analytics_handler))
+            .route("/wings-requests", web::get().to(super::workflow::admin_list_wings_requests_handler))
+            .route("/wings-requests/{id}/approve", web::post().to(super::workflow::admin_approve_wings_handler))
+            .route("/wings-requests/{id}/reject", web::post().to(super::workflow::admin_reject_wings_handler)),
     );
 }

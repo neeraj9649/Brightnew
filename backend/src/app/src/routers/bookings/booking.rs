@@ -11,7 +11,7 @@ use base::role::STAFF;
 use bookings::api::controllers::booking_handler::{
     admin_list_bookings_handler, admin_update_booking_handler,
     cancel_booking_handler, create_booking_handler, get_booking_handler,
-    list_my_bookings_handler, staff_create_booking_handler,
+    list_my_bookings_handler,
 };
 use crm::api::dto::document::BookingDocumentDTO;
 use crm::domain::services::document::BookingDocumentService;
@@ -59,6 +59,6 @@ pub fn booking_config(cfg: &mut ServiceConfig) {
             }))
             .route("", web::get().to(admin_list_bookings_handler))
             .route("", web::patch().to(admin_update_booking_handler))
-            .route("", web::post().to(staff_create_booking_handler)),
+            .route("", web::post().to(crate::routers::workflow::staff_record_booking_handler)),
     );
 }

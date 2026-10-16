@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  ChartNoAxesColumn, CalendarDays, ClipboardList, Gift, House, LayoutDashboard, LogOut, Menu, MessageCircleMore, Settings, ShieldCheck, Star, UserCog, Users, X,
+  BadgeCheck, ChartNoAxesColumn, CalendarDays, ClipboardList, Gift, House, LayoutDashboard, LogOut, Menu, MessageCircleMore, Settings, ShieldCheck, Star, Tag, UserCog, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, BrightLogo, memberName } from '../ui';
@@ -9,11 +9,12 @@ import { Avatar, BrightLogo, memberName } from '../ui';
 const ADMIN_NAV = [
   ['overview', 'Overview', '/admin', LayoutDashboard], ['bookings', 'Bookings', '/admin/bookings', CalendarDays], ['customers', 'Customers', '/admin/customers', Users],
   ['rewards', 'Rewards', '/admin/rewards', Gift], ['redemptions', 'Redemptions', '/admin/redemptions', ShieldCheck], ['crm', 'CRM & follow-ups', '/admin/crm', MessageCircleMore],
+  ['approvals', 'Wings approvals', '/admin/wings-approvals', BadgeCheck], ['offers', 'Offers', '/admin/offers', Tag],
   ['analytics', 'Analytics', '/admin/analytics', ChartNoAxesColumn], ['employees', 'Employees & permissions', '/admin/employees', UserCog], ['loyalty', 'Loyalty settings', '/admin/loyalty', Settings],
 ];
 const EMPLOYEE_NAV = [
   ['overview', 'Overview', '/admin', House], ['bookings', 'Bookings', '/admin/bookings', CalendarDays], ['customers', 'Customers', '/admin/customers', Users],
-  ['redemptions', 'Rewards', '/admin/redemptions', Star], ['crm', 'CRM & follow-ups', '/admin/crm', ClipboardList],
+  ['redemptions', 'Rewards', '/admin/redemptions', Star], ['offers', 'Offers', '/admin/offers', Tag], ['crm', 'CRM & follow-ups', '/admin/crm', ClipboardList],
 ];
 
 /** Dark-sidebar workspace shell for employees and admins. */

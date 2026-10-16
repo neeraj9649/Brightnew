@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import html2canvas from 'html2canvas';
-import QRCode from 'qrcode';
+import { MembershipCardPair, downloadCardImage } from '../MembershipCard';
 import { CircleCheck, Clock, Download, KeyRound, LogOut, Share2, ShieldCheck, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
-import { Check2, Field, Input, Modal, ModalHead, Notice, Page, PinField, Shell, Skeleton, WingsIcon, fmtDate, fmtDateTime, formatPhone, useAsync, useCopy } from '../ui';
+import { Check2, Field, Input, Modal, ModalHead, Notice, Page, PinField, Shell, Skeleton, fmtDateTime, formatPhone, useAsync, useCopy } from '../ui';
 
 const splitName = (full = '') => { const [first, ...rest] = full.trim().split(/\s+/); return [first || '', rest.join(' ')]; };
 
@@ -24,13 +23,11 @@ export default function DeskAccount() {
   const [pinOpen, setPinOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [sessionBusy, setSessionBusy] = useState(false);
-  const [qr, setQr] = useState('');
   const [downloading, setDownloading] = useState(false);
   const cardRef = useRef(null);
 
   useEffect(() => { if (prefs.data && !pref) setPref(prefs.data); }, [prefs.data, pref]);
   const code = card.data?.membership_code || userData?.membershipCode;
-  useEffect(() => { if (code) QRCode.toDataURL(`${window.location.origin}/card/${code}`, { margin: 1, width: 260 }).then(setQr).catch(() => {}); }, [code]);
 
   const p = pref || { travel_offers: false, trip_updates: true, partner_offers: false };
   const dirty = form.first !== first0 || form.last !== last0 || form.email !== (userData?.email || '') || (pref && prefs.data && JSON.stringify(pref) !== JSON.stringify(prefs.data));
@@ -57,9 +54,7 @@ export default function DeskAccount() {
     if (!cardRef.current) return;
     setDownloading(true);
     try {
-      const canvas = await html2canvas(cardRef.current, { backgroundColor: null, scale: 2, useCORS: true });
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png'); a.download = `bright-wings-${code}.png`; a.click();
+      await downloadCardImage(cardRef.current, `bright-wings-${code}.png`);
     } catch { toast.error('We could not create the image. Please try again.'); } finally { setDownloading(false); }
   };
   const share = async () => {
@@ -74,7 +69,6 @@ export default function DeskAccount() {
   };
 
   const tier = card.data?.membership_tier || userData?.membershipTier || 'Silver';
-  const spaced = (v = '') => v.replace(/(.{4})(?=.)/g, '$1 ').trim();
 
   return (
     <Shell active="account">
@@ -116,17 +110,8 @@ export default function DeskAccount() {
           <div className="pt-stack lg" style={{ minWidth: 0 }}>
             <section className="pt-card da-panel">
               <div className="pt-row between top"><div><h2 className="pt-serif-h">Your Bright Wings membership card</h2><p className="pt-sub" style={{ marginTop: 4 }}>Your digital card gives you easy access to member benefits worldwide.</p></div><span className="da-active"><i /> Active member</span></div>
-              <div className="da-card-row">
-                <div ref={cardRef} className="da-card">
-                  <div className="da-card-brand"><WingsIcon size={42} color="#e0b25a" strokeWidth={1.5} /><span><b>BRIGHT WINGS</b><small>TRAVEL MORE. EARN HIGHER.</small></span></div>
-                  <WingsIcon size={230} color="#c9963e" strokeWidth={0.8} />
-                  <div className="da-card-name">{userData?.displayName}</div>
-                  <div className="da-card-meta">
-                    <div><small>MEMBERSHIP CODE</small><b>{spaced(code || '')}</b></div>
-                    <div className="grid"><div><small>TIER</small><b className="gold">{tier}</b></div><div><small>VALID UNTIL</small><b>{card.data?.valid_until ? fmtDate(card.data.valid_until) : '—'}</b></div></div>
-                  </div>
-                </div>
-                <div className="da-qr"><b>Scan to verify membership</b><div>{qr ? <img src={qr} alt="Membership QR code" /> : <Skeleton h={150} w={150} />}</div></div>
+              <div className="da-card-pair">
+                <MembershipCardPair ref={cardRef} name={card.data?.name || userData?.displayName} code={code} tier={card.data?.membership_tier || tier} validUntil={card.data?.valid_until} />
               </div>
               <div className="da-card-actions"><button type="button" className="pt-navy-btn" disabled={downloading} onClick={download}><Download size={17} /> {downloading ? 'Preparing…' : 'Download card'}</button><button type="button" className="pt-navy-btn ghost" onClick={share}><Share2 size={17} /> Share card</button></div>
               <div className="da-private"><span><ShieldCheck size={26} /></span><div><b>Private and secure verification</b><p>When your QR code is scanned in public, it will show only your name, membership code, tier and validity date. Your Wings balance and personal contact details are never displayed.</p></div></div>

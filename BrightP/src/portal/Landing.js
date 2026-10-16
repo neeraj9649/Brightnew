@@ -9,6 +9,7 @@ import { BrightLogo, IMG, WingsIcon, bg, fmtNum, useAsync } from './ui';
 import { SERVICES, SERVICE_ORDER, TIERS, TIER_BENEFITS } from './booking';
 import { TermsModal } from './customer/AuthScreens';
 import { TierIcon } from './customer/parts';
+import { OfferCard } from './customer/Offers';
 import './landing.css';
 
 const CONTACT_EMAIL = (process.env.REACT_APP_CONTACT_EMAIL || '').trim();
@@ -68,6 +69,8 @@ export default function Landing() {
   const [menu, setMenu] = useState(false);
   const [terms, setTerms] = useState(false);
   const { data: program } = useAsync(() => api.get('/public/program').catch(() => null), []);
+  const { data: offers } = useAsync(() => api.get('/public/offers').catch(() => []), []);
+  const navItems = (offers || []).length ? [...NAV.slice(0, 4), ['offers', 'Offers'], ...NAV.slice(4)] : NAV;
 
   const portalPath = isStaff ? '/admin' : '/dashboard';
   const join = () => navigate('/auth?mode=register');
@@ -101,7 +104,7 @@ export default function Landing() {
             <img src={BrightLogo} alt="" />
             <span><b>Bright Wings</b><small>TRAVEL &amp; TOURISM</small></span>
           </button>
-          <nav className="lp-links" aria-label="Sections">{NAV.map(([id, label]) => <button key={id} type="button" onClick={() => go(id)}>{label}</button>)}</nav>
+          <nav className="lp-links" aria-label="Sections">{navItems.map(([id, label]) => <button key={id} type="button" onClick={() => go(id)}>{label}</button>)}</nav>
           <div className="lp-nav-cta">
             {currentUser ? (
               <button type="button" className="lp-btn gold sm" onClick={() => navigate(portalPath)}>Open my portal <ArrowRight size={16} /></button>
@@ -116,7 +119,7 @@ export default function Landing() {
         </div>
         {menu && (
           <div className="lp-sheet" role="dialog" aria-label="Menu">
-            {NAV.map(([id, label]) => <button key={id} type="button" onClick={() => go(id)}>{label}</button>)}
+            {navItems.map(([id, label]) => <button key={id} type="button" onClick={() => go(id)}>{label}</button>)}
             {!currentUser && <button type="button" className="lp-sheet-signin" onClick={() => navigate('/auth')}>Sign in</button>}
           </div>
         )}
@@ -237,6 +240,15 @@ export default function Landing() {
       </section>
 
       {/* ---------------------------------------------------------- destinations */}
+      {(offers || []).length > 0 && (
+        <section id="offers" className="lp-section lp-tint">
+          <div className="lp-wrap">
+            <header className="lp-head"><span className="lp-kicker">Offers</span><h2>Current offers</h2><p>Deals from our travel team. Join to request them and earn Wings on every trip.</p></header>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 290px), 1fr))', gap: 18, textAlign: 'left' }}>{offers.map((o) => <OfferCard key={o.id} offer={o} />)}</div>
+          </div>
+        </section>
+      )}
+
       <section id="destinations" className="lp-section">
         <div className="lp-wrap">
           <header className="lp-head"><span className="lp-kicker">Inspiration</span><h2>Where to next?</h2><p>A few ideas to start the conversation. Tell your advisor what you have in mind and they will shape the rest.</p></header>
@@ -301,7 +313,7 @@ export default function Landing() {
           </div>
           <div>
             <h4>Explore</h4>
-            {NAV.map(([id, label]) => <button key={id} type="button" onClick={() => go(id)}>{label}</button>)}
+            {navItems.map(([id, label]) => <button key={id} type="button" onClick={() => go(id)}>{label}</button>)}
           </div>
           <div>
             <h4>Members</h4>

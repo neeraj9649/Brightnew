@@ -1,3 +1,4 @@
+import { OffersStrip } from './Offers';
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ChevronRight, Gift, Info, Plane, Users } from 'lucide-react';
@@ -72,7 +73,7 @@ export function MobileHome() {
 
   const ExtraWings = (
     <div className="pt-banner" style={{ backgroundImage: bg(IMG.chairs), minHeight: 150, justifyContent: 'flex-end' }}>
-      <div className="kicker">TRAVEL MORE. EARN MORE.</div>
+      <div className="kicker">YOUR JOURNEY, OUR WINGS</div>
       <h2>Extra Wings<br />for unforgettable<br />journeys</h2>
       <button type="button" className="pt-btn xs" style={{ position: 'absolute', right: 14, bottom: 16, background: '#fff', color: 'var(--pt-navy)', borderColor: '#fff', boxShadow: 'none', zIndex: 2 }} onClick={() => navigate('/tier-benefits')}>Explore benefits <ArrowRight size={14} /></button>
     </div>
@@ -97,6 +98,7 @@ export function MobileHome() {
               <button type="button" className="pt-tile" onClick={() => navigate('/rewards/catalog')}><Gift size={26} strokeWidth={1.5} />Redeem</button>
             </div>
             {UpcomingCard}
+            <OffersStrip limit={2} />
             {ExtraWings}
           </div>
         </Page>

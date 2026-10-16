@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, CircleAlert, List, LayoutGrid, MapPin, Phone, Plus, Search, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { api } from '../../services/api';
-import { Avatar, Badge, Card, Check2, Empty, Field, Modal, ModalHead, Notice, SearchBox, Select, Skeleton, TextArea, fmtDate, useAsync } from '../ui';
+import { Avatar, Badge, Card, Check2, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, PinField, SearchBox, Select, Skeleton, TextArea, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
 import { SERVICES, SERVICE_ORDER, bookingTitle, serviceOf, statusMeta, STATUS } from '../booking';
 import { FieldView, initialForm, validateTrip } from '../customer/BookingNew';
 import StaffShell from './StaffShell';
@@ -183,48 +183,100 @@ function AssignModal({ open, bookings, employees, onClose, onDone, update }) {
   );
 }
 
-function CreateBookingModal({ open, onClose, users }) {
+function CreateBookingModal({ open, onClose }) {
   const navigate = useNavigate();
   const { staffCreateBooking } = useAdminBooking();
   const [q, setQ] = useState('');
-  const [customerId, setCustomerId] = useState('');
+  const [found, setFound] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [customer, setCustomer] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [fresh, setFresh] = useState({ name: '', phone: '', pin: '' });
+  const [freshErr, setFreshErr] = useState({});
   const [service, setService] = useState('flight');
   const [form, setForm] = useState(null);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
-  const customers = users.filter((u) => u.role === 'customer' && `${u.displayName} ${u.profile?.phone} ${u.membershipCode}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8);
   const svc = SERVICES[service];
   const f = form || initialForm(svc, new URLSearchParams(), null);
+
+  // Look customers up by name, phone or member code (any customer, once there are 3+ characters).
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 3) { setFound([]); return undefined; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      api.get(`/portal/staff/customers?scope=search&q=${encodeURIComponent(term)}`).then((rows) => setFound((rows || []).slice(0, 8))).catch(() => setFound([])).finally(() => setSearching(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const addCustomer = async () => {
+    const next = {};
+    if (fresh.name.trim().length < 2) next.name = 'Enter the customer’s name';
+    if (!isValidPhone(fresh.phone)) next.phone = 'Enter a valid mobile number';
+    if (fresh.pin && fresh.pin.length !== 4) next.pin = 'Enter all 4 digits or leave it empty';
+    setFreshErr(next);
+    if (Object.keys(next).length) return;
+    setBusy(true);
+    try {
+      const [first, ...rest] = fresh.name.trim().split(/\s+/);
+      const u = await api.post('/staff/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(fresh.phone), pin: fresh.pin || undefined });
+      setCustomer({ id: u.id, name: [u.first_name, u.last_name].filter(Boolean).join(' '), phone: u.phone, membership_code: u.membership_code });
+      setAdding(false);
+      toast.success('Customer registered');
+    } catch (err) { setFreshErr({ form: err.status === 409 ? 'A customer with this phone number already exists — search for them above.' : err.message }); } finally { setBusy(false); }
+  };
 
   const save = async () => {
     const e = validateTrip(svc, f);
     setErrors(e);
-    if (!customerId) { toast.error('Choose a customer first'); return; }
+    if (!customer) { toast.error('Choose a customer first'); return; }
     if (Object.keys(e).some((k) => e[k])) { toast.error('Please complete the highlighted details'); return; }
     setBusy(true);
     const { specialRequests, ...details } = f;
-    const created = await staffCreateBooking({ userId: customerId, type: service, details, specialRequests });
+    const created = await staffCreateBooking({ userId: customer.id, type: service, details, specialRequests });
     setBusy(false);
     if (created) { onClose(); navigate(`/admin/bookings/${created.docId}`); }
   };
 
   return (
     <Modal open={open} onClose={onClose} side label="New booking">
-      <ModalHead title="New booking" sub="Create a booking on behalf of a customer." onClose={onClose} />
+      <ModalHead title="Record a booking" sub="Create a booking on behalf of a customer. It is saved under your name and the customer can follow it in their portal." onClose={onClose} />
       <div className="pt-stack">
-        <Field label="Customer"><SearchBox value={q} onChange={setQ} placeholder="Search name, phone or member ID" /></Field>
-        <div className="pt-menu-list">
-          {customers.map((u) => <button type="button" key={u.uid} onClick={() => setCustomerId(u.uid)} style={{ background: customerId === u.uid ? '#eaf3fb' : undefined }}><Avatar user={u} size="sm" /><span><span className="pt-item-title" style={{ display: 'block' }}>{u.displayName}</span><span className="pt-item-sub" style={{ display: 'block' }}>{u.profile?.phone} · {u.membershipCode}</span></span></button>)}
-          {!customers.length && <div style={{ padding: 16 }} className="pt-sub">No matching customers.</div>}
-        </div>
+        {customer ? (
+          <div className="pt-notice green" style={{ alignItems: 'center' }}><Users size={20} /><div><strong>{customer.name}</strong>{formatPhone(customer.phone)} · {customer.membership_code}</div><button type="button" className="pt-link" onClick={() => { setCustomer(null); setQ(''); }}>Change</button></div>
+        ) : (
+          <>
+            <Field label="Customer" hint="Search by name, phone number or member code (3+ characters)."><SearchBox value={q} onChange={setQ} placeholder="Search name, phone or member ID" /></Field>
+            {q.trim().length >= 3 && (
+              <div className="pt-menu-list">
+                {found.map((u) => <button type="button" key={u.id} onClick={() => setCustomer(u)}><Avatar user={{ displayName: u.name }} size="sm" /><span><span className="pt-item-title" style={{ display: 'block' }}>{u.name}</span><span className="pt-item-sub" style={{ display: 'block' }}>{formatPhone(u.phone)} · {u.membership_code}</span></span></button>)}
+                {!found.length && <div style={{ padding: 16 }} className="pt-sub">{searching ? 'Searching…' : 'No matching customers.'}</div>}
+              </div>
+            )}
+            {!adding ? (
+              <button type="button" className="pt-link" style={{ justifySelf: 'start', color: 'var(--pt-blue)' }} onClick={() => setAdding(true)}>Customer not registered yet? Add them</button>
+            ) : (
+              <div className="pt-card" style={{ padding: 16, display: 'grid', gap: 12 }}>
+                <strong>Register a new customer</strong>
+                {freshErr.form && <Notice tone="red" icon={CircleAlert}>{freshErr.form}</Notice>}
+                <Field label="Full name *" error={freshErr.name}><Input value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} error={freshErr.name} /></Field>
+                <Field label="Phone number *" error={freshErr.phone}><PhoneField value={fresh.phone} onChange={(v) => setFresh({ ...fresh, phone: v })} error={freshErr.phone} /></Field>
+                <PinField label="Initial PIN (optional)" value={fresh.pin} onChange={(v) => setFresh({ ...fresh, pin: v })} error={freshErr.pin} show size="sm" />
+                <p className="pt-tiny" style={{ marginTop: -6 }}>Give the customer this PIN so they can sign in, or leave it empty and they set their own with Forgot PIN (needs SMS or e-mail set up).</p>
+                <div className="pt-grid2"><button type="button" className="pt-btn ghost sm" onClick={() => setAdding(false)}>Cancel</button><button type="button" className="pt-btn sm" disabled={busy} onClick={addCustomer}>{busy ? 'Registering…' : 'Register customer'}</button></div>
+              </div>
+            )}
+          </>
+        )}
         <Field label="Service"><Select value={service} onChange={(e) => { setService(e.target.value); setForm(null); setErrors({}); }}>{SERVICE_ORDER.map((t) => <option key={t} value={t}>{SERVICES[t].label}</option>)}</Select></Field>
         {svc.fields.map((row, i) => (Array.isArray(row)
           ? <div className="pt-grid2" key={i} style={{ alignItems: 'start' }}>{row.map((fd) => <FieldView key={fd.key} def={fd} form={f} set={(k, v) => setForm({ ...f, [k]: v })} error={errors[fd.key]} />)}</div>
           : <FieldView key={row.key} def={row} form={f} set={(k, v) => setForm({ ...f, [k]: v })} error={row.type === 'route' ? errors.route : errors[row.key]} />))}
-        <Notice icon={Users}>The customer will see this request in their portal and receive Wings when it is completed.</Notice>
-        <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={onClose}>Cancel</button><button type="button" className="pt-btn" disabled={busy} onClick={save}>{busy ? 'Creating…' : 'Create booking'}</button></div>
+        <Notice icon={Users}>The customer will see this booking in their portal, can message you about it, and receives Wings when it is completed.</Notice>
+        <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={onClose}>Cancel</button><button type="button" className="pt-btn" disabled={busy || !customer} onClick={save}>{busy ? 'Creating…' : 'Create booking'}</button></div>
       </div>
     </Modal>
   );
 }
-

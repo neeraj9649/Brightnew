@@ -49,30 +49,38 @@ const MESSAGE_SELECT: &str = r#"
 "#;
 
 /// The booking's owner may always read and write; staff only on bookings they
-/// may work (admin: all, employee: assigned).
-async fn booking_party(
+/// may work: an admin on all, an employee on the ones assigned to them or that
+/// they recorded. Returns the owner and the staff who answer customer messages
+/// (the one who recorded the booking, else the assigned one).
+pub(super) async fn booking_party(
     pool: &PgPool,
     claims: &JwtClaims,
     booking_id: Uuid,
     as_staff: bool,
-) -> Result<(Uuid, Option<Uuid>), ApiError> {
-    let row: Option<(Uuid, Option<Uuid>)> =
-        sqlx::query_as("SELECT user_id, assigned_employee_id FROM bookings WHERE id = $1")
+) -> Result<(Uuid, Vec<Uuid>), ApiError> {
+    let row: Option<(Uuid, Option<Uuid>, Option<Uuid>)> =
+        sqlx::query_as("SELECT user_id, assigned_employee_id, recorded_by FROM bookings WHERE id = $1")
             .bind(booking_id)
             .fetch_optional(pool)
             .await
             .map_err(db_err)?;
-    let Some((owner, assigned)) = row else {
+    let Some((owner, assigned, recorded)) = row else {
         return Err(ApiError::new("Booking not found", 404));
     };
+    let mut responsible: Vec<Uuid> = recorded.into_iter().collect();
+    if let Some(a) = assigned {
+        if !responsible.contains(&a) {
+            responsible.push(a);
+        }
+    }
     if as_staff {
-        if role::is_admin(&claims.role) || assigned == Some(claims.sub) {
-            Ok((owner, assigned))
+        if role::is_admin(&claims.role) || responsible.contains(&claims.sub) {
+            Ok((owner, responsible))
         } else {
             Err(ApiError::new("This booking is not assigned to you", 403))
         }
     } else if owner == claims.sub {
-        Ok((owner, assigned))
+        Ok((owner, responsible))
     } else {
         Err(ApiError::new("Booking not found", 404))
     }
@@ -134,15 +142,16 @@ pub async fn customer_send_message_handler(
     body: web::Json<SendMessageDTO>,
 ) -> Result<ApiResponse<MessageDTO>, ApiError> {
     let id = path.into_inner();
-    let (_, assigned) = booking_party(&pool, &claims, id, false).await?;
+    let (_, responsible) = booking_party(&pool, &claims, id, false).await?;
     let message = insert_message(&pool, id, claims.sub, "customer", &body.body).await?;
-    // Make sure the advisor sees it: one open "reply" task per booking.
-    if let Some(employee) = assigned {
+    // Make sure the staff who recorded the booking (and whoever is assigned) sees it:
+    // one open "reply" task each per booking.
+    for employee in responsible {
         sqlx::query(
             r#"INSERT INTO tasks (booking_id, assigned_to, title, description, due_at, priority, created_by)
                SELECT $1, $2, 'Reply to customer message', $3, NOW() + INTERVAL '1 day', 'high', $4
                WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE booking_id = $1 AND title = 'Reply to customer message'
-                                 AND status IN ('pending', 'in_progress'))"#,
+                                 AND assigned_to = $2 AND status IN ('pending', 'in_progress'))"#,
         )
         .bind(id)
         .bind(employee)

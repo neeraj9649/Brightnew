@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import html2canvas from 'html2canvas';
 import {
   Bell, BellRing, Calendar, Check, ChevronDown, ChevronRight, CircleCheck, CircleHelp, Copy, Download, FileText, Gift, Headset, IdCard, Info, LifeBuoy, Lock, LogOut, MessageSquare,
   Plane, Share2, ShieldCheck, Smartphone, Star, UserRound, Users, Camera, ArrowRight, Settings2, Sparkles, ShieldAlert,
@@ -13,7 +12,8 @@ import {
   AppBar, Avatar, Badge, BellButton, BrightLogo, Card, Check2, Empty, ErrorState, Field, Hero, IMG, Input, Modal, ModalHead, Notice, Page, PinField, Progress, Select, Shell, Skeleton, Switch, TextArea,
   WingsIcon, bg, fmtDate, fmtNum, formatPhone, humanize, maskPhone, memberName, relTime, useAsync, useCopy, useWide, SearchBox, Tabs,
 } from '../ui';
-import { MemberCardFace, TierIcon, TierRail } from './parts';
+import { MembershipCardPair, downloadCardImage } from '../MembershipCard';
+import { TierIcon, TierRail } from './parts';
 import { TermsModal } from './AuthScreens';
 import { TIER_BENEFITS, TIERS } from '../booking';
 
@@ -230,7 +230,6 @@ export function MembershipCardPage() {
   const ref = useRef(null);
   const [busy, setBusy] = useState(false);
   const card = summary?.card;
-  const valid = card?.valid_until ? fmtDate(card.valid_until) : '';
   const code = card?.membership_code || userData?.membershipCode;
   const link = `${window.location.origin}/card/${code}`;
   const { copy } = useCopy();
@@ -239,9 +238,7 @@ export function MembershipCardPage() {
     if (!ref.current) return;
     setBusy(true);
     try {
-      const canvas = await html2canvas(ref.current, { backgroundColor: null, scale: 2, useCORS: true });
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png'); a.download = `bright-wings-${code}.png`; a.click();
+      await downloadCardImage(ref.current, `bright-wings-${code}.png`);
     } catch { toast.error('We could not create the image. Please try again.'); } finally { setBusy(false); }
   };
   const share = async () => {
@@ -253,9 +250,9 @@ export function MembershipCardPage() {
     <Shell active="account" topbar={wide}>
       {withBack(wide, 'Membership Card', () => navigate('/account'), <BellButton />)}
       <Page>
-        <div className="pt-stack lg" style={{ marginTop: wide ? 16 : 0, maxWidth: 560, marginInline: 'auto' }}>
+        <div className="pt-stack lg" style={{ marginTop: wide ? 16 : 0, maxWidth: wide ? 720 : 560, marginInline: 'auto' }}>
           <div><h1 className="pt-h1">Membership Card</h1><p className="pt-sub" style={{ marginTop: 4 }}>Your Bright Wings membership</p></div>
-          <div ref={ref}><MemberCardFace name={card?.name || memberName(userData)} code={code} tier={card?.membership_tier || userData?.membershipTier} validUntil={valid} /></div>
+          <MembershipCardPair ref={ref} name={card?.name || memberName(userData)} code={code} tier={card?.membership_tier || userData?.membershipTier} validUntil={card?.valid_until} />
           <div className="pt-grid2"><button type="button" className="pt-btn" onClick={download} disabled={busy}><Download size={17} /> {busy ? 'Preparing…' : 'Download card'}</button><button type="button" className="pt-btn soft" onClick={share}><Share2 size={17} /> Share card</button></div>
           <div className="pt-notice gold" style={{ alignItems: 'center' }}><Sparkles size={24} /><div>Show this card or QR code at Bright Wings partner locations to enjoy your member benefits.</div></div>
           <button type="button" className="pt-link" style={{ justifySelf: 'center', color: 'var(--pt-blue)' }} onClick={() => navigate(`/card/${code}`)}>Preview public verification</button>
