@@ -19,6 +19,9 @@ There is no screen that makes the first admin: only an existing admin can create
 
 1. Register the phone number on the portal's **Join** page (choose your own PIN).
 2. Promote it with **one** of:
+   - **A migration** (what this project uses): `backend/migrations/0026_promote_owner_super_admin.sql` promotes
+     `9649863232` when the backend starts after a push. It runs only once, so the account must already be registered
+     at that moment; if it was not, add a new migration (next number) with the same `UPDATE` after registering.
    - **SQL on the production database** (works with any backend version):
      `UPDATE users SET role = 'super_admin' WHERE phone = '9649863232';`
      (use `'admin'` if the backend does not have migration `0025` yet). For a non-Indian number use the stored
