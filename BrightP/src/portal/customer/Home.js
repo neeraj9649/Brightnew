@@ -26,7 +26,7 @@ export function MobileHome() {
 
   const name = memberName(userData);
   const balance = Number(summary?.balance ?? userData?.tokens ?? 0);
-  const tier = summary?.tier || { current: userData?.membershipTier || 'Silver', lifetime_wings: userData?.lifetimePointsEarned || 0, next_tier: null, next_threshold: null, progress_percent: 0 };
+  const tier = summary?.tier || { current: userData?.membershipTier || 'Member', lifetime_wings: userData?.lifetimePointsEarned || 0, next_tier: null, next_threshold: null, progress_percent: 0 };
   const lifetime = Number(tier.lifetime_wings || 0);
   const remaining = tier.next_threshold ? Math.max(0, tier.next_threshold - lifetime) : 0;
 

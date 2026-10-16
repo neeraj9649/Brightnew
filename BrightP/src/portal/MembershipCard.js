@@ -51,7 +51,7 @@ function Brand({ className = '' }) {
   );
 }
 
-export function CardFront({ name, code, tier = 'Silver', validUntil }) {
+export function CardFront({ name, code, tier = 'Member', validUntil }) {
   const ref = useRef(null);
   const size = useCardFontSize(ref);
   return (
@@ -62,7 +62,7 @@ export function CardFront({ name, code, tier = 'Silver', validUntil }) {
       <small className="bwc-label bwc-l-code">MEMBERSHIP CODE</small>
       <div className="bwc-code">{formatMemberCode(code) || '—'}</div>
       <i className="bwc-rule" />
-      <div className="bwc-tier">{String(tier).toUpperCase()} MEMBER</div>
+      <div className="bwc-tier">{tier === 'Member' ? 'MEMBER' : `${String(tier).toUpperCase()} MEMBER`}</div>
       <small className="bwc-label bwc-l-valid">VALID THRU</small>
       <div className="bwc-valid">{formatValidThru(validUntil)}</div>
     </div>

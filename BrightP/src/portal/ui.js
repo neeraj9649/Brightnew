@@ -30,6 +30,9 @@ export { BrightLogo };
 export const humanize = (value = '') =>
   String(value).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
+/** "Gold Member", "Silver Member"; the entry level is just "Member". */
+export const tierTitle = (tier) => (!tier || tier === 'Member' ? 'Member' : `${tier} Member`);
+
 export const fmtNum = (value) => Number(value || 0).toLocaleString('en-IN');
 
 export const fmtMoney = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -275,7 +278,7 @@ function UserMenu() {
     <div className="pt-desk-user" ref={ref}>
       <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Avatar user={userData} />
-        <div><b>{memberName(userData)}</b><small>{userData?.membershipTier || 'Silver'} Member</small></div>
+        <div><b>{memberName(userData)}</b><small>{tierTitle(userData?.membershipTier)}</small></div>
         <ChevronDown size={16} />
       </button>
       {open && (

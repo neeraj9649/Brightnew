@@ -3,11 +3,11 @@ import { CircleCheck, Download, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { Badge, Card, ErrorState, Input, Modal, ModalHead, Select, Skeleton, Tabs, fmtDate, fmtNum, useAsync } from '../ui';
-import { TIERS } from '../booking';
+import { EARN_LABEL, TIERS } from '../booking';
 import StaffShell from './StaffShell';
 import { BarChart, Donut, HBar as HBarRow, LineChart } from './charts';
 
-const SERVICE_LABEL = { flight: 'Flight booking', hotel: 'Hotel booking', car_rental: 'Car rental', visa: 'Visa booking', tour: 'Tour package', cruise: 'Cruise booking', custom: 'Customized travel', airport_transfer: 'Airport transfer', insurance: 'Insurance', activity: 'Activity tickets' };
+const SERVICE_LABEL = EARN_LABEL;
 
 /* ------------------------------------------------------------ loyalty settings */
 
@@ -119,7 +119,7 @@ export function Analytics() {
 
   const rate = useMemo(() => (data ? data.created_series.map((d, i) => ({ date: d.date, value: d.value ? Math.round((data.completion_series[i].value / d.value) * 100) : 0 })) : []), [data]);
   const tierTotal = (data?.tier_distribution || []).reduce((a, t) => a + t.count, 0);
-  const tiers = ['Silver', 'Gold', 'Platinum', 'Titanium'].map((t, i) => ({ label: t, value: (data?.tier_distribution || []).find((x) => x.tier === t)?.count || 0, color: ['#bfc5cc', '#d9a43e', '#6e8aa6', '#10283f'][i] }));
+  const tiers = ['Member', 'Silver', 'Gold', 'Platinum'].map((t, i) => ({ label: t, value: (data?.tier_distribution || []).find((x) => x.tier === t)?.count || 0, color: ['#cfd5db', '#9aa7b4', '#d9a43e', '#10283f'][i] }));
   const funnelMax = Math.max(data?.referral_conversion.referred || 0, 1);
 
   return (

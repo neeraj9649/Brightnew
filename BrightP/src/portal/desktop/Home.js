@@ -4,7 +4,7 @@ import { Building2, ChevronRight, Coins, Crown, Gem, Gift, ListChecks, Medal, Pl
 import { useAuth } from '../../contexts/AuthContext';
 import { useBooking } from '../../contexts/BookingContext';
 import { api } from '../../services/api';
-import { Badge, Page, Progress, Shell, Skeleton, bg, fmtDate, fmtNum, memberName, useAsync } from '../ui';
+import { Badge, Page, Progress, Shell, Skeleton, bg, fmtDate, fmtNum, memberName, useAsync, tierTitle } from '../ui';
 import { PHOTO, photoFor } from '../photos';
 import { bookingDate, bookingTitle, isPast, serviceOf, statusMeta } from '../booking';
 import { MemberCardFace } from '../customer/parts';
@@ -16,7 +16,7 @@ const greeting = () => {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 };
 
-const TIER_ICON = { Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
+const TIER_ICON = { Member: Users, Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
 
 const REASON_ICON = { booking: Plane, first_booking: Gift, welcome_bonus: Gift, referral: Users, manual: Star, redemption: Gift };
 const REASON_TITLE = { booking: 'Trip completed', first_booking: 'First booking bonus', welcome_bonus: 'Welcome bonus', referral: 'Referral bonus', manual: 'Wings adjustment', redemption: 'Reward redemption' };
@@ -31,7 +31,7 @@ export default function DeskHome() {
   const name = memberName(userData);
   const first = name.split(' ')[0];
   const balance = Number(summary?.balance ?? userData?.tokens ?? 0);
-  const tier = summary?.tier || { current: userData?.membershipTier || 'Silver', lifetime_wings: userData?.lifetimePointsEarned || 0, progress_percent: 0 };
+  const tier = summary?.tier || { current: userData?.membershipTier || 'Member', lifetime_wings: userData?.lifetimePointsEarned || 0, progress_percent: 0 };
   const lifetime = Number(tier.lifetime_wings || 0);
   const TierIcon = TIER_ICON[tier.current] || Medal;
   const remaining = tier.next_threshold ? Math.max(0, tier.next_threshold - lifetime) : 0;
@@ -88,7 +88,7 @@ export default function DeskHome() {
 
           <div className="pt-card dh-tier">
             <div className="pt-row between" style={{ gap: 12 }}>
-              <span className="pt-row" style={{ gap: 12, minWidth: 0 }}><span className="dh-crown"><TierIcon size={34} strokeWidth={1.3} /></span><strong className="dh-gold-title">{tier.current} Member</strong></span>
+              <span className="pt-row" style={{ gap: 12, minWidth: 0 }}><span className="dh-crown"><TierIcon size={34} strokeWidth={1.3} /></span><strong className="dh-gold-title">{tierTitle(tier.current)}</strong></span>
               <button type="button" className="pt-link" style={{ textDecoration: 'none', color: 'var(--pt-muted)', fontWeight: 600 }} onClick={() => navigate('/tier-benefits')}>View benefits <ChevronRight size={14} style={{ verticalAlign: -3 }} /></button>
             </div>
             <div><p className="dh-away">{tier.next_tier ? <>You’re <b>{fmtNum(remaining)} Wings</b> away from {tier.next_tier}</> : 'You’ve reached our highest tier'}</p>

@@ -42,7 +42,7 @@ const DESTINATIONS = [
 ];
 
 const FAQ = [
-  ['Does it cost anything to join?', 'No. Membership is free. You start on the Silver tier and your welcome Wings are added as soon as you sign up.'],
+  ['Does it cost anything to join?', 'No. Membership is free. You join at the Member level and your welcome Wings are added as soon as you sign up. Silver starts at 10,000 points, Gold at 20,000 and Platinum at 50,000.'],
   ['Do I pay inside the portal?', 'No. You request a quote, your advisor sends a written quotation and you accept it or ask for a change. Payment is arranged with your advisor.'],
   ['When do I receive Wings?', 'After a service is completed. A first-booking bonus and referral rewards are credited once, as shown in the portal. Cancelled requests do not earn Wings.'],
   ['What can I spend Wings on?', 'Rewards such as hotel credits, airport services and experiences. Redemptions are reviewed by our team and Wings are refunded in full if a request is declined.'],

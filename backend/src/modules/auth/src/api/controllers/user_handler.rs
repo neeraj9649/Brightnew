@@ -91,11 +91,11 @@ pub async fn admin_update_user_handler(
         return Err(ApiError::new("You can't change your own role or deactivate your own account", 400));
     }
     let membership_tier = body.membership_tier.map(|tier| match tier.as_str() {
-        // Bronze was used by the legacy portal; Silver is the v2 entry tier.
-        "Bronze" | "bronze" => "Silver".to_string(),
+        // Bronze was used by the legacy portal and Titanium has been retired; Member is the entry level.
+        "Bronze" | "bronze" | "member" => "Member".to_string(),
+        "silver" => "Silver".to_string(),
         "gold" => "Gold".to_string(),
-        "platinum" => "Platinum".to_string(),
-        "titanium" => "Titanium".to_string(),
+        "platinum" | "titanium" | "Titanium" => "Platinum".to_string(),
         _ => tier,
     });
     let user = user_service
@@ -162,7 +162,7 @@ pub async fn admin_create_user_handler(
                 first_name: body.first_name,
                 last_name: body.last_name,
                 phone: normalize_phone(&body.phone),
-                membership_tier: "Silver".to_string(),
+                membership_tier: "Member".to_string(),
                 membership_code: String::new(),
                 referral_code: String::new(),
                 hr_code: body.hr_code.map(|c| c.trim().to_string()).filter(|c| !c.is_empty()),

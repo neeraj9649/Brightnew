@@ -1,12 +1,12 @@
 import React from 'react';
-import { ChevronRight, Crown, Gem, Medal, Star } from 'lucide-react';
+import { ChevronRight, Crown, Gem, Medal, Star, Users } from 'lucide-react';
 import { fileUrl } from '../../services/storage';
 import { Badge, fmtNum } from '../ui';
 import { CardFront } from '../MembershipCard';
 import { PHOTO, SERVICE_PHOTO, photoFor } from '../photos';
 import { bookingSubtitle, bookingTitle, serviceOf, statusMeta, TIERS } from '../booking';
 
-export const TIER_ICON = { Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
+export const TIER_ICON = { Member: Users, Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
 export const TierIcon = ({ tier, size = 18 }) => {
   const Ico = TIER_ICON[tier] || Medal;
   return <Ico size={size} />;
@@ -68,11 +68,11 @@ export function BookingCard({ booking, onClick, showId = true }) {
 
 /** Dark membership card with QR (Membership card screen & home). */
 /** The membership card front (see MembershipCard.js). `validUntil` is the card's ISO date from the API. */
-export function MemberCardFace({ name, code, tier = 'Silver', validUntil }) {
+export function MemberCardFace({ name, code, tier = 'Member', validUntil }) {
   return <CardFront name={name} code={code} tier={tier} validUntil={validUntil} />;
 }
 
-export function TierRail({ current = 'Silver' }) {
+export function TierRail({ current = 'Member' }) {
   const idx = Math.max(0, TIERS.findIndex(([name]) => name === current));
   return (
     <div className="pt-tier-rail">

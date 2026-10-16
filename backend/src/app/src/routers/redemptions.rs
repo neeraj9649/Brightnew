@@ -472,8 +472,8 @@ async fn create_item_handler(
     if b.name.trim().is_empty() || b.wings_cost <= 0 {
         return Err(ApiError::new("Reward name and positive Wings cost are required", 400));
     }
-    if b.min_tier.as_deref().is_some_and(|t| !matches!(t, "Silver" | "Gold" | "Platinum" | "Titanium")) {
-        return Err(ApiError::new("Minimum tier must be Silver, Gold, Platinum or Titanium", 400));
+    if b.min_tier.as_deref().is_some_and(|t| !matches!(t, "Member" | "Silver" | "Gold" | "Platinum")) {
+        return Err(ApiError::new("Minimum tier must be Member, Silver, Gold or Platinum", 400));
     }
     if b.validity_days.is_some_and(|days| days <= 0) || b.stock.is_some_and(|stock| stock < 0) {
         return Err(ApiError::new("Validity and stock must be positive numbers", 400));
@@ -482,7 +482,7 @@ async fn create_item_handler(
         r#"INSERT INTO reward_items
                (name, description, category, wings_cost, image_file_id, is_active,
                 validity_days, terms, stock, reward_value, min_tier, destination)
-           VALUES ($1, $2, $3, $4, $5, COALESCE($6, TRUE), COALESCE($7, 90), $8, $9, $10, COALESCE($11, 'Silver'), $12)
+           VALUES ($1, $2, $3, $4, $5, COALESCE($6, TRUE), COALESCE($7, 90), $8, $9, $10, COALESCE($11, 'Member'), $12)
            RETURNING {ITEM_COLUMNS}"#
     ))
     .bind(b.name.trim())
@@ -515,8 +515,8 @@ async fn update_item_handler(
     {
         return Err(ApiError::new("Reward name and positive Wings cost are required", 400));
     }
-    if b.min_tier.as_deref().is_some_and(|t| !matches!(t, "Silver" | "Gold" | "Platinum" | "Titanium")) {
-        return Err(ApiError::new("Minimum tier must be Silver, Gold, Platinum or Titanium", 400));
+    if b.min_tier.as_deref().is_some_and(|t| !matches!(t, "Member" | "Silver" | "Gold" | "Platinum")) {
+        return Err(ApiError::new("Minimum tier must be Member, Silver, Gold or Platinum", 400));
     }
     if b.validity_days.is_some_and(|days| days <= 0) || b.stock.is_some_and(|stock| stock < -1) {
         return Err(ApiError::new("Validity and stock must be positive numbers", 400));

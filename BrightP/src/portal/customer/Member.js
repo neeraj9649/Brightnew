@@ -10,8 +10,7 @@ import { api } from '../../services/api';
 import { uploadProfileImage, validateFile } from '../../services/storage';
 import {
   AppBar, Avatar, Badge, BellButton, BrightLogo, Card, Check2, Empty, ErrorState, Field, Hero, IMG, Input, Modal, ModalHead, Notice, Page, PinField, Progress, Select, Shell, Skeleton, Switch, TextArea,
-  WingsIcon, bg, fmtDate, fmtNum, formatPhone, humanize, maskPhone, memberName, relTime, useAsync, useCopy, useWide, SearchBox, Tabs,
-} from '../ui';
+  WingsIcon, bg, fmtDate, fmtNum, formatPhone, humanize, maskPhone, memberName, relTime, useAsync, useCopy, useWide, SearchBox, Tabs, tierTitle } from '../ui';
 import { MembershipCardPair, downloadCardImage } from '../MembershipCard';
 import { TierIcon, TierRail } from './parts';
 import { TermsModal } from './AuthScreens';
@@ -75,7 +74,7 @@ export function TierBenefits() {
   const wide = useWide();
   const { userData } = useAuth();
   const { data: summary, loading } = useAsync(() => api.get('/loyalty/summary'), []);
-  const tier = summary?.tier || { current: userData?.membershipTier || 'Silver', lifetime_wings: userData?.lifetimePointsEarned || 0 };
+  const tier = summary?.tier || { current: userData?.membershipTier || 'Member', lifetime_wings: userData?.lifetimePointsEarned || 0 };
   const [view, setView] = useState(null);
   const active = view || tier.current;
   const remaining = tier.next_threshold ? Math.max(0, tier.next_threshold - tier.lifetime_wings) : 0;
@@ -90,7 +89,7 @@ export function TierBenefits() {
             <p>Explore exclusive benefits at every tier.</p>
           </div>
           <Card><TierRail current={tier.current} /></Card>
-          <div className="pt-notice gold" style={{ alignItems: 'center' }}><span className="pt-item-icon round" style={{ background: '#fff' }}><TierIcon tier={tier.current} size={22} /></span><div><strong style={{ fontSize: 15 }}>You’re a {tier.current} member</strong>Enjoy enhanced rewards and travel benefits.</div></div>
+          <div className="pt-notice gold" style={{ alignItems: 'center' }}><span className="pt-item-icon round" style={{ background: '#fff' }}><TierIcon tier={tier.current} size={22} /></span><div><strong style={{ fontSize: 15 }}>{tier.current === 'Member' ? 'You’re a Bright Wings Member' : `You’re a ${tier.current} member`}</strong>Enjoy enhanced rewards and travel benefits.</div></div>
           {loading && !summary ? <Skeleton h={90} r={16} /> : tier.next_tier ? (
             <Card>
               <div className="pt-row between"><strong style={{ color: 'var(--pt-navy)' }}>Your progress to {tier.next_tier}</strong><span className="pt-small">{fmtNum(remaining)} Wings to go</span></div>
@@ -354,7 +353,7 @@ export function Account() {
         <div className="pt-stack lg" style={{ maxWidth: 640 }}>
           <button type="button" className="pt-item" style={{ padding: 16 }} onClick={() => navigate('/profile')}>
             <Avatar user={userData} size="lg" />
-            <div className="pt-item-body"><div className="pt-item-title" style={{ fontSize: 18 }}>{memberName(userData)}</div><div className="pt-item-sub"><span style={{ color: 'var(--pt-gold-dark)', fontWeight: 700 }}>{tier} Member</span> &nbsp;•&nbsp; {userData?.membershipCode}</div></div>
+            <div className="pt-item-body"><div className="pt-item-title" style={{ fontSize: 18 }}>{memberName(userData)}</div><div className="pt-item-sub"><span style={{ color: 'var(--pt-gold-dark)', fontWeight: 700 }}>{tierTitle(tier)}</span> &nbsp;•&nbsp; {userData?.membershipCode}</div></div>
             <ChevronRight size={20} style={{ color: 'var(--pt-faint)' }} />
           </button>
           {rows.map((group, gi) => (

@@ -12,7 +12,7 @@ import { TIERS, bookingTitle, serviceOf, statusMeta } from '../booking';
 import { TierIcon } from '../customer/parts';
 import StaffShell from './StaffShell';
 
-const TIER_TONE = { Silver: '', Gold: 'gold', Platinum: 'blue', Titanium: 'navy' };
+const TIER_TONE = { Member: '', Silver: 'blue', Gold: 'gold', Platinum: 'navy', Titanium: 'navy' };
 const nextTier = (lifetime) => TIERS.find(([, t]) => t > lifetime);
 
 export default function Customers() {
@@ -114,7 +114,7 @@ function CreateCustomer({ open, onClose, onCreated }) {
       {done ? (
         <div className="pt-stack lg" style={{ textAlign: 'center', paddingTop: 30 }}>
           <div className="pt-success-mark"><CircleCheck size={44} /></div>
-          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name}’s membership is ready</h2><p className="pt-sub" style={{ marginTop: 6 }}>Member number <strong>{done.membership_code}</strong> · Silver tier · {fmtNum(done.tokens)} welcome Wings added.</p></div>
+          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name}’s membership is ready</h2><p className="pt-sub" style={{ marginTop: 6 }}>Member number <strong>{done.membership_code}</strong> · Member level · {fmtNum(done.tokens)} welcome Wings added.</p></div>
           {done.pinSet ? <Notice icon={ShieldCheck} title="Sign-in details">Tell the customer the PIN you chose. They sign in with {formatPhone(done.phone)} and that PIN, and can change it under Account.</Notice> : <Notice icon={ShieldCheck} title="PIN setup invitation">The customer sets their own PIN using Forgot PIN on the sign-in page with {formatPhone(done.phone)}. This needs SMS or e-mail delivery to be set up.</Notice>}
           <button type="button" className="pt-btn full" onClick={() => onCreated(done)}>Done</button>
         </div>
@@ -126,9 +126,9 @@ function CreateCustomer({ open, onClose, onCreated }) {
           <Field label="Phone number *" error={errors.phone}><PhoneField value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} error={errors.phone} placeholder="Enter 10 digit mobile number" /></Field>
           <PinField label="Initial PIN (optional)" value={form.pin} onChange={(v) => setForm({ ...form, pin: v })} error={errors.pin} show size="sm" />
           <p className="pt-tiny" style={{ marginTop: -8 }}>Set a 4-digit PIN to give the customer directly, or leave it empty so they choose their own with Forgot PIN.</p>
-          <Notice tone="gold" icon={Gift}>A new <strong style={{ display: 'inline' }}>Silver membership</strong> will be created automatically with a welcome bonus, identical to self signup.</Notice>
+          <Notice tone="gold" icon={Gift}>A new <strong style={{ display: 'inline' }}>Bright Wings membership</strong> will be created automatically with a welcome bonus, identical to self signup.</Notice>
           <div><h3 className="pt-h3">PIN setup invitation</h3><p className="pt-sub" style={{ marginTop: 4 }}>We’ll send a secure PIN setup message by SMS (when an SMS gateway is configured). The customer creates their own 4-digit PIN to access their account.</p></div>
-          <div className="pt-notice green" style={{ display: 'block' }}>{['Creates Silver tier membership', 'Adds welcome Wings to wallet', 'Generates a referral code', 'No PIN is set or visible to you'].map((t) => <div key={t} className="pt-row" style={{ gap: 8, margin: '3px 0' }}><CircleCheck size={15} /> {t}</div>)}</div>
+          <div className="pt-notice green" style={{ display: 'block' }}>{['Creates a Member-level membership', 'Adds welcome Wings to wallet', 'Generates a referral code', 'No PIN is set or visible to you'].map((t) => <div key={t} className="pt-row" style={{ gap: 8, margin: '3px 0' }}><CircleCheck size={15} /> {t}</div>)}</div>
           <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={close}>Cancel</button><button type="submit" className="pt-btn" disabled={busy}>{busy ? 'Creating…' : 'Create customer'}</button></div>
         </form>
       )}

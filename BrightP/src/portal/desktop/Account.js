@@ -68,7 +68,7 @@ export default function DeskAccount() {
     try { await api.post('/sessions/revoke-others'); toast.success('Other sessions have been signed out'); } catch (err) { toast.error(err.message || 'We could not sign out other sessions'); } finally { setSessionBusy(false); }
   };
 
-  const tier = card.data?.membership_tier || userData?.membershipTier || 'Silver';
+  const tier = card.data?.membership_tier || userData?.membershipTier || 'Member';
 
   return (
     <Shell active="account">

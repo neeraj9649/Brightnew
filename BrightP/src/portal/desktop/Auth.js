@@ -56,7 +56,7 @@ export function DeskJoin({ name, setName, phone, setPhone, pin, setPin, pin2, se
     [Ticket, 'Get your member code instantly', 'Your unique Bright Wings member code is created as soon as you join.'],
     [IdCard, 'Receive your digital membership card', 'A beautiful digital card, ready to use immediately.'],
     [Wallet, 'Your personal Wings wallet', 'Track and use your Wings for flights, holidays and more.'],
-    [ChartNoAxesColumn, welcome ? <>Start at Silver tier with <em>{fmtNum(welcome)} welcome Wings</em></> : 'Start at Silver tier with welcome Wings', welcome ? `You’ll be a Silver member from day one with ${fmtNum(welcome)} welcome Wings in your wallet.` : 'You’ll be a Silver member from day one.'],
+    [ChartNoAxesColumn, welcome ? <>Start earning with <em>{fmtNum(welcome)} welcome Wings</em></> : 'Start earning with welcome Wings', welcome ? `Join as a Member with ${fmtNum(welcome)} welcome Wings in your wallet and move up to Silver at 10,000 points.` : 'Join as a Member and move up to Silver at 10,000 points.'],
   ];
   return (
     <div className="pt-app da2-join" style={{ backgroundImage: `url(${PHOTO.santorini})` }}>

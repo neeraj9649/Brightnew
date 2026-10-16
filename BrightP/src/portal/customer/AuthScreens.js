@@ -19,7 +19,7 @@ export function TermsModal({ open, onClose }) {
     <Modal open={open} onClose={onClose} label="Terms and conditions">
       <ModalHead title="Terms & Conditions" onClose={onClose} sub="Bright Wings membership and Wings program" />
       <div className="pt-stack" style={{ fontSize: 13, color: 'var(--pt-muted)', lineHeight: 1.6 }}>
-        <p><strong style={{ color: 'var(--pt-navy)' }}>Membership.</strong> Joining is free. Every new member starts on the Silver tier and receives the welcome Wings shown at enrolment. Your phone number is your login identity and your 4-digit PIN must be kept private.</p>
+        <p><strong style={{ color: 'var(--pt-navy)' }}>Membership.</strong> Joining is free. Every new member joins at the Member level and receives the welcome Wings shown at enrolment. Your phone number is your login identity and your 4-digit PIN must be kept private.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Earning Wings.</strong> Wings are credited after a service is completed, at the rates published in the portal. First-booking bonuses and referral rewards are credited once per eligible member. Cancelled bookings do not earn Wings.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Tiers.</strong> Your tier is based on lifetime Wings earned. Redeeming Wings never reduces your lifetime Wings or lowers your tier.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Redemptions.</strong> Rewards are subject to availability and approval. Wings are reserved when you submit a request and refunded in full if it is rejected or cancelled. Vouchers are valid until the date shown on the voucher.</p>
@@ -135,7 +135,7 @@ export default function AuthPage() {
       <div className="pt-app">
         <div className="pt-auth">
           <Hero image={IMG.palace} className="pt-auth-art" tall style={{ minHeight: 300 }}
-            title={<>Join Silver.<br />Get 200 welcome Wings.</>}
+            title={<>Join Bright Wings.<br />Get 200 welcome Wings.</>}
             subtitle="Start your journey to exclusive travel rewards." />
           <div className="pt-auth-panel">
             <form onSubmit={submitRegister} noValidate className="pt-stack lg">
@@ -345,7 +345,7 @@ export function WelcomePage() {
   const first = memberName(userData).split(' ')[0];
   const balance = summary?.balance ?? userData?.tokens ?? 0;
   const lifetime = summary?.tier?.lifetime_wings ?? userData?.lifetimePointsEarned ?? balance;
-  const tier = summary?.tier?.current || userData?.membershipTier || 'Silver';
+  const tier = summary?.tier?.current || userData?.membershipTier || 'Member';
   const code = summary?.member?.membership_code || userData?.membershipCode;
 
   return (
@@ -364,7 +364,7 @@ export function WelcomePage() {
               <div className="pt-card flat" style={{ overflow: 'hidden', background: `linear-gradient(135deg, #e9e6df, #f6f4ef)`, padding: '18px 18px 16px', position: 'relative' }}>
                 <div className="pt-row between top">
                   <span className="pt-brand"><span className="pt-brand-name" style={{ fontSize: 17 }}>Bright Wings</span></span>
-                  <span style={{ font: '800 9px sans-serif', letterSpacing: '0.2em', color: 'var(--pt-navy)', textAlign: 'right', lineHeight: 1.5 }}>{tier.toUpperCase()}<br />MEMBER</span>
+                  <span style={{ font: '800 9px sans-serif', letterSpacing: '0.2em', color: 'var(--pt-navy)', textAlign: 'right', lineHeight: 1.5 }}>{tier === 'Member' ? 'BRIGHT WINGS' : tier.toUpperCase()}<br />MEMBER</span>
                 </div>
                 <h3 className="pt-serif" style={{ fontSize: 22, color: 'var(--pt-navy)', marginTop: 20 }}>{memberName(userData)}</h3>
                 <p className="pt-small" style={{ marginTop: 3 }}>{code}</p>
