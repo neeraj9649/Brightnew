@@ -273,6 +273,8 @@
 .pt-empty { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 30px 18px; color: var(--pt-muted); font-size: 13px; }
 .pt-empty svg { color: var(--pt-faint); }
 .pt-empty strong { color: var(--pt-navy); font-size: 14px; }
+/* A button passed inside the message goes on its own line below the text. */
+.pt-empty > span { display: grid; justify-items: center; gap: 14px; }
 .pt-skel { background: linear-gradient(90deg, #f0ede5 25%, #f8f6f0 50%, #f0ede5 75%); background-size: 200% 100%; animation: pt-shimmer 1.3s infinite; border-radius: 10px; }
 @keyframes pt-shimmer { to { background-position: -200% 0; } }
 
@@ -877,6 +879,7 @@
 .dw-tabs { display: flex; gap: 6px; margin-top: 18px; padding: 0 22px; background: #fff; border: 1px solid var(--pt-line); border-radius: 14px; }
 .dw-tabs button { position: relative; padding: 22px 36px; border: 0; background: none; cursor: pointer; font: 500 17px var(--font-family-base, sans-serif); color: #55657a; }
 .dw-tabs button.active { color: var(--pt-navy); font-weight: 600; }
+.dw-tabs button:focus, .dw-tabs button:focus-visible { outline: none; }
 .dw-tabs button.active::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px; background: #c9963e; }
 .dw-split { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 26px; margin-top: 26px; align-items: start; }
 .dw-h { font: 500 30px Georgia, serif; color: var(--pt-navy); letter-spacing: -0.01em; }
@@ -999,16 +1002,18 @@
 .dr2-share > * { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; border-radius: 10px; border: 1px solid var(--pt-line-strong); background: #f6f6f6; color: var(--pt-navy); font: 600 15px var(--font-family-base, sans-serif); cursor: pointer; text-decoration: none; }
 .dr2-share .gold { background: linear-gradient(180deg, #d9ae5c, #c18f38); border-color: #c18f38; color: #fff; }
 .dr2-share .wa { background: #e8f6ee; border-color: #c9e8d6; color: #1c7a47; }
-.dr2-flow { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 0; margin-top: 22px; padding: 24px 28px; border-radius: 16px; position: relative; z-index: 3; }
+.dr2-flow { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 0; margin-top: 22px; padding: 24px 28px; border-radius: 16px; position: relative; z-index: 3; }
 .dr2-earn { display: flex; align-items: center; gap: 18px; padding-right: 26px; border-right: 1px solid var(--pt-line); }
 .dr2-earn > span { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: #fbf1dc; color: #c9963e; flex: none; }
-.dr2-earn p { margin: 0; font: 500 22px/1.35 Georgia, serif; color: var(--pt-navy); } .dr2-earn b { color: #b8832a; font-weight: 600; }
-.dr2-flow ol { list-style: none; margin: 0; padding: 0 0 0 26px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: center; }
-.dr2-flow li { position: relative; display: flex; gap: 14px; align-items: center; }
-.dr2-flow li > span { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; background: #eef0f3; color: var(--pt-navy); flex: none; }
+.dr2-earn p { margin: 0; font: 500 21px/1.35 Georgia, serif; color: var(--pt-navy); } .dr2-earn b { color: #b8832a; font-weight: 600; }
+.dr2-flow ol { list-style: none; margin: 0; padding: 0 0 0 28px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.dr2-flow li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.dr2-flow li > span { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #eef0f3; color: var(--pt-navy); flex: none; }
 .dr2-flow li.last > span { background: linear-gradient(180deg, #dcb25f, #c18f38); color: #fff; }
-.dr2-flow li b { display: block; font: 600 15.5px/1.25 Georgia, serif; color: var(--pt-navy); } .dr2-flow li small { display: block; margin-top: 3px; font-size: 13px; color: var(--pt-muted); line-height: 1.35; }
-.dr2-flow .arr { position: absolute; right: -10px; color: var(--pt-faint); }
+.dr2-flow li div { min-width: 0; }
+.dr2-flow li b { display: block; font: 600 15px/1.3 Georgia, serif; color: var(--pt-navy); } .dr2-flow li small { display: block; margin-top: 4px; font-size: 13px; color: var(--pt-muted); line-height: 1.4; }
+/* The arrow sits in the gap between two steps, level with the circles. */
+.dr2-flow .arr { position: absolute; top: 18px; right: -18px; color: var(--pt-faint); }
 .dr2-lists { display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; margin-top: 22px; }
 .dr2-panel { padding: 24px 26px; border-radius: 16px; }
 .dr2-panel ul { list-style: none; margin: 10px 0 0; padding: 0; }
@@ -1021,7 +1026,7 @@
 .dr2-lists section:last-child li { grid-template-columns: 48px minmax(0, 1fr) auto; }
 .dr2-lists section:last-child .r { text-align: right; }
 .dr2-panel b.pos { color: #1f8a5d; display: inline-flex; align-items: center; gap: 6px; } .dr2-panel b.pend { color: #b8832a; display: inline-flex; align-items: center; gap: 6px; }
-@media (max-width: 1240px) { .dr2-hero { grid-template-columns: 1fr; margin: 0; } .dr2-copy { padding: 0; } .dr2-photo { display: none; } .dr2-flow { grid-template-columns: 1fr; gap: 20px; } .dr2-earn { border-right: 0; padding-right: 0; } .dr2-flow ol { padding-left: 0; grid-template-columns: repeat(2, 1fr); } .dr2-lists { grid-template-columns: 1fr; } .dr2-panel li { grid-template-columns: 48px minmax(0, 1fr) auto; } .dr2-panel li .r, .dr2-panel li .chev { display: none; } }
+@media (max-width: 1240px) { .dr2-hero { grid-template-columns: 1fr; margin: 0; } .dr2-copy { padding: 0; } .dr2-photo { display: none; } .dr2-flow { grid-template-columns: 1fr; gap: 20px; } .dr2-earn { border-right: 0; padding-right: 0; } .dr2-flow ol { padding-left: 0; } .dr2-lists { grid-template-columns: 1fr; } .dr2-panel li { grid-template-columns: 48px minmax(0, 1fr) auto; } .dr2-panel li .r, .dr2-panel li .chev { display: none; } }
 
 /* ---- desktop auth (sign in / join) ---- */
 .da2-logo { display: inline-flex; align-items: center; gap: 12px; background: none; border: 0; cursor: pointer; text-align: left; padding: 0; color: inherit; }
@@ -1157,3 +1162,27 @@
 @media (max-width: 420px) { .bwc { border-radius: calc(var(--u) * 2.4); } }
 .da-card-pair { margin-top: 20px; }
 .bwc-capture .bwc { box-shadow: none; }
+
+/* Browser autofill paints inputs yellow; keep the portal's own white fields instead. */
+.pt-input:-webkit-autofill, .pt-textarea:-webkit-autofill, .pt-select:-webkit-autofill,
+.pt-phone input:-webkit-autofill, .da-phone input:-webkit-autofill, .da2-pwd input:-webkit-autofill,
+.pt-search input:-webkit-autofill, .pt-desk-search input:-webkit-autofill,
+.pt-input:-webkit-autofill:focus, .pt-phone input:-webkit-autofill:focus, .da-phone input:-webkit-autofill:focus, .da2-pwd input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+  -webkit-text-fill-color: var(--pt-ink, #12233f) !important;
+  caret-color: var(--pt-ink, #12233f);
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Home: list of the member's trip requests */
+.dh-trips { list-style: none; margin: 16px 0 0; padding: 0 4px 0 0; display: grid; gap: 12px; max-height: 440px; overflow-y: auto; }
+.dh-trip-row { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 16px; align-items: center; width: 100%; padding: 10px; text-align: left; cursor: pointer; background: #fff; border: 1px solid var(--pt-line); border-radius: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+.dh-trip-row:hover { border-color: var(--pt-gold); box-shadow: 0 6px 18px rgba(16, 40, 63, 0.08); }
+.dh-trip-thumb { height: 88px; border-radius: 10px; background-size: cover; background-position: center; }
+.dh-trip-info { display: grid; gap: 3px; min-width: 0; }
+.dh-trip-info small { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--pt-muted); }
+.dh-trip-info b { font: 600 19px Georgia, serif; color: var(--pt-navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dh-trip-info span { font-size: 13.5px; color: var(--pt-muted); }
+.dh-trip-end { display: flex; align-items: center; gap: 10px; color: var(--pt-muted); }
+@media (max-width: 1100px) { .dh-trip-row { grid-template-columns: 96px minmax(0, 1fr); } .dh-trip-end { grid-column: 2; } }

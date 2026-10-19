@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert,
+  ArrowLeft, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
   Eye, EyeOff, Gift, House, Info, LogOut, Minus, Plus, Search, ShieldCheck, User, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -615,6 +615,29 @@ export function Modal({ open, onClose, children, side = false, label }) {
     <div className={`pt-overlay ${side ? 'side' : ''}`} role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className={side ? 'pt-drawer' : 'pt-modal'} role="dialog" aria-modal="true" aria-label={label}>{children}</div>
     </div>
+  );
+}
+
+/** Shown once a booking request is sent. It closes itself and calls `onDone` (go home) after a few seconds. */
+export function BookingThanks({ open, onDone, seconds = 5 }) {
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    if (!open) return undefined;
+    const timer = setTimeout(() => done.current?.(), seconds * 1000);
+    return () => clearTimeout(timer);
+  }, [open, seconds]);
+  return (
+    <Modal open={open} onClose={() => done.current?.()} label="Booking request sent">
+      <div className="pt-stack lg" style={{ textAlign: 'center', padding: '8px 0' }}>
+        <div className="pt-success-mark"><CircleCheck size={50} strokeWidth={2.4} color="#1b7a5a" /></div>
+        <div>
+          <h2 className="pt-h1 serif" style={{ fontSize: 26 }}>Thank you!</h2>
+          <p className="pt-sub" style={{ marginTop: 8 }}>Your request has been sent. Your travel advisor will contact you shortly to collect the remaining details and share the best options.</p>
+        </div>
+        <button type="button" className="pt-btn full" onClick={() => done.current?.()}>Go to home</button>
+      </div>
+    </Modal>
   );
 }
 
