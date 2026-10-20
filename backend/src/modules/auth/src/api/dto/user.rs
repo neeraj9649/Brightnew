@@ -79,6 +79,10 @@ pub struct AdminCreateUserDTO {
     pub referred_by_code: Option<String>,
     #[serde(default)]
     pub date_of_birth: Option<NaiveDate>,
+    /// Admin only: the staff member the new customer is associated with. Customers added by an
+    /// employee are always associated with that employee.
+    #[serde(default)]
+    pub associated_staff_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -134,9 +134,22 @@ pub async fn change_pin_handler(
 /// initiated by an employee instead of the customer.
 pub async fn admin_create_user_handler(
     user_service: web::Data<dyn UserService>,
+    claims: JwtClaims,
     body: web::Json<AdminCreateUserDTO>,
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let body = body.into_inner();
+
+    // Who looks after the new customer: the employee who adds them, or the staff member an admin picks.
+    let creator_is_employee = claims.role == role::EMPLOYEE;
+    let staff_id = if creator_is_employee { Some(claims.sub) } else { body.associated_staff_id };
+    if !creator_is_employee {
+        if let Some(staff) = staff_id {
+            let member = user_service.get(staff).await?;
+            if !role::STAFF.contains(&member.role.as_str()) || !member.is_active {
+                return Err(ApiError::new("Choose an active staff member", 400));
+            }
+        }
+    }
 
     if !is_valid_phone(&body.phone) {
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
@@ -206,6 +219,12 @@ pub async fn admin_create_user_handler(
             shared::mail::send_plain_email(&email, &subject, &message)
         })
         .await;
+    }
+
+    if let Some(staff) = staff_id {
+        user_service
+            .associate_staff(user.id, Some(staff), if creator_is_employee { "staff_added" } else { "admin" })
+            .await?;
     }
 
     Ok(ApiResponse(user.into()))

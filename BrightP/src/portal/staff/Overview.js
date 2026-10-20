@@ -7,6 +7,7 @@ import { api } from '../../services/api';
 import { Badge, Card, ErrorState, IMG, Select, Skeleton, WingsIcon, bg, fmtDate, fmtNum, memberName, useAsync } from '../ui';
 import { bookingTitle, serviceOf, statusMeta } from '../booking';
 import StaffShell from './StaffShell';
+import { StaffCodeCard } from './StaffAssociation';
 import { CHART_COLORS, Donut, LineChart, Spark } from './charts';
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
@@ -45,6 +46,7 @@ function AdminOverview() {
       sub="Here’s what’s happening with Bright Wings today."
       actions={<Select value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ minWidth: 250 }}><option value={7}>Last 7 days · {rangeLabel(7)}</option><option value={30}>Last 30 days · {rangeLabel(30)}</option><option value={90}>Last 90 days · {rangeLabel(90)}</option></Select>}
     >
+      <StaffCodeCard />
       {error ? <ErrorState onRetry={reload} /> : (
         <div className="pt-stack lg">
           <div className="pt-grid4">
@@ -114,6 +116,7 @@ function EmployeeOverview() {
 
   return (
     <StaffShell title={`${greeting()}, ${memberName(userData).split(' ')[0]}`} sub="Here’s your workspace for today." actions={<div className="pt-row" style={{ gap: 10 }}><Calendar size={20} style={{ color: 'var(--pt-muted)' }} /><div style={{ textAlign: 'right' }}><strong style={{ color: 'var(--pt-navy)', fontSize: 13 }}>{todayLabel()}</strong><div className="pt-tiny">Bright Wings • Employee Workspace</div></div></div>}>
+      <StaffCodeCard />
       <div className="pt-stack lg">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 16 }}>
           {tile(FileText, loading ? '—' : active.length, 'Assigned bookings', 'Active bookings assigned to you', '/admin/bookings')}

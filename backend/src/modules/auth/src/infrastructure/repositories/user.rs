@@ -158,4 +158,32 @@ impl UserRepository for UserSqlxRepository {
         .fetch_optional(&self.pool)
         .await?)
     }
+
+    async fn get_associated_staff(&self, user_id: Uuid) -> RepositoryResult<Option<Uuid>> {
+        Ok(sqlx::query_scalar::<_, Option<Uuid>>("SELECT associated_staff_id FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await?
+            .flatten())
+    }
+
+    async fn set_associated_staff(
+        &self,
+        user_id: Uuid,
+        staff_id: Option<Uuid>,
+        source: &str,
+    ) -> RepositoryResult<()> {
+        sqlx::query(
+            "UPDATE users SET associated_staff_id = $2,
+                    association_source = CASE WHEN $2::uuid IS NULL THEN NULL ELSE $3 END,
+                    associated_at = CASE WHEN $2::uuid IS NULL THEN NULL ELSE NOW() END
+             WHERE id = $1",
+        )
+        .bind(user_id)
+        .bind(staff_id)
+        .bind(source)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
 }

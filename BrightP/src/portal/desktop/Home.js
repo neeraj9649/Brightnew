@@ -76,8 +76,8 @@ export default function DeskHome() {
               <button type="button" className="pt-link" style={{ textDecoration: 'none', color: 'var(--pt-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => navigate('/tier-benefits')}>View benefits <ChevronRight size={14} /></button>
             </div>
             <div><p className="dh-away">{tier.next_tier ? <>You’re <b>{fmtNum(remaining)} Wings</b> away from {tier.next_tier}</> : 'You’ve reached our highest tier'}</p>
-            <Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} />
-            <div className="pt-row between pt-small" style={{ marginTop: 10, color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)} Wings</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)} Wings</span>}</div></div>
+              <Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} />
+              <div className="pt-row between pt-small" style={{ marginTop: 10, color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)} Wings</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)} Wings</span>}</div></div>
           </div>
 
           <button type="button" className="dh-card-link" onClick={() => navigate('/membership')} aria-label="Open membership card">
@@ -113,7 +113,7 @@ export default function DeskHome() {
                 })}
               </ul>
             ) : (
-              <div className="dh-empty"><p>No trips yet. Request your first quote in a couple of minutes.</p><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Book travel</button></div>
+              <div className="dh-empty"><p>No trips yet. Request your first quote in a couple of minutes.</p><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Request trip</button></div>
             )}
           </div>
 
