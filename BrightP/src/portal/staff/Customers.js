@@ -12,6 +12,7 @@ import { TIERS, bookingTitle, serviceOf, statusMeta } from '../booking';
 import { TierIcon } from '../customer/parts';
 import StaffShell from './StaffShell';
 import { AssignStaffModal, SOURCE_LABEL, StaffBadge } from './StaffAssociation';
+import { CreateBookingModal } from './Bookings';
 
 const TIER_TONE = { Member: '', Silver: 'blue', Gold: 'gold', Platinum: 'navy', Titanium: 'navy' };
 const nextTier = (lifetime) => TIERS.find(([, t]) => t > lifetime);
@@ -29,6 +30,7 @@ export default function Customers() {
   const [staffFilter, setStaffFilter] = useState('all');
   const [selected, setSelected] = useState([]);
   const [assignFor, setAssignFor] = useState(null);
+  const [bookFor, setBookFor] = useState(null);
   const staffList = useAsync(() => (isAdmin ? api.get('/admin/portal/staff') : Promise.resolve([])), [isAdmin]);
 
   const list = useMemo(() => (data || []).filter((c) => {
@@ -47,8 +49,8 @@ export default function Customers() {
 
   return (
     <StaffShell
-      title="Customer administration"
-      sub="Search members, view tier status and manage accounts."
+      title={isAdmin ? 'Customer administration' : 'My customers'}
+      sub={isAdmin ? 'Search members, view tier status and manage accounts.' : 'The customers you look after. Open one to see their details or add a booking for them.'}
       actions={<><SearchBox value={q} onChange={setQ} placeholder="Search by name, phone or membership ID…" />{isAdmin && selected.length > 0 && <button type="button" className="pt-btn ghost sm" onClick={() => setAssignFor(chosen)}>Assign {selected.length} to staff</button>}<button type="button" className="pt-btn sm" onClick={() => setCreateOpen(true)}><Plus size={16} /> Create customer</button></>}
     >
       {error ? <ErrorState onRetry={reload} /> : (
@@ -62,7 +64,7 @@ export default function Customers() {
                 </div>
                 <div className="pt-row wrap" style={{ gap: 28 }}>
                   {[[fmtNum(sel.tokens), 'Wings balance'], [fmtNum(sel.lifetime_wings), 'Lifetime Wings'], [nt ? fmtNum(nt[1] - sel.lifetime_wings) : '—', nt ? `to ${nt[0]} (${fmtNum(nt[1])})` : 'Top tier'], [sel.staff_name || 'Not assigned', 'Staff member']].map(([v, l]) => <div key={l} style={{ textAlign: 'center' }}><strong style={{ fontSize: 24, color: 'var(--pt-navy)' }}>{v}</strong><div className="pt-small">{l}</div></div>)}
-                  <button type="button" className="pt-btn ghost sm" onClick={() => navigate(`/admin/customers/${sel.id}`)}>View details <ChevronRight size={15} /></button>
+                  <button type="button" className="pt-btn sm" onClick={() => setBookFor({ id: sel.id, name: sel.name, phone: sel.phone, membership_code: sel.membership_code })}><Plus size={15} /> Add booking</button><button type="button" className="pt-btn ghost sm" onClick={() => navigate(`/admin/customers/${sel.id}`)}>View details <ChevronRight size={15} /></button>
                 </div>
               </div>
             </Card>
@@ -80,7 +82,7 @@ export default function Customers() {
                     <tr key={c.id} className={`clickable ${sel?.id === c.id ? 'sel' : ''}`} onClick={() => setPick(c.id)} onDoubleClick={() => navigate(`/admin/customers/${c.id}`)}>
                       {isAdmin && <td onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Select ${c.name}`} checked={selected.includes(c.id)} onChange={() => toggleSel(c.id)} /></td>}<td><strong>{c.name}</strong></td><td>{c.membership_code}</td><td>{formatPhone(c.phone)}</td><td><Badge tone={TIER_TONE[c.membership_tier]}>{c.membership_tier}</Badge></td><td>{fmtNum(c.tokens)}</td><td>{fmtNum(c.lifetime_wings)}</td><td><StaffBadge name={c.staff_name} /></td><td>{fmtDate(c.joined_at)}</td>
                       <td><Badge tone={c.is_active ? 'green' : 'red'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></td>
-                      <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}><button type="button" className="pt-icon-btn" aria-label="Actions" onClick={() => setMenu(menu === c.id ? null : c.id)}><MoreVertical size={17} /></button>{menu === c.id && <div className="pt-popover" style={{ width: 190, top: '70%', zIndex: 20 }}><div className="pt-menu-list" style={{ border: 0, boxShadow: 'none', borderRadius: 0 }}><button type="button" onClick={() => navigate(`/admin/customers/${c.id}`)}>View details</button>{isAdmin && <button type="button" onClick={() => { setMenu(null); setAssignFor([c]); }}>Assign staff</button>}</div></div>}</td>
+                      <td style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}><button type="button" className="pt-icon-btn" aria-label="Actions" onClick={() => setMenu(menu === c.id ? null : c.id)}><MoreVertical size={17} /></button>{menu === c.id && <div className="pt-popover" style={{ width: 190, top: '70%', zIndex: 20 }}><div className="pt-menu-list" style={{ border: 0, boxShadow: 'none', borderRadius: 0 }}><button type="button" onClick={() => navigate(`/admin/customers/${c.id}`)}>View details</button><button type="button" onClick={() => { setMenu(null); setBookFor({ id: c.id, name: c.name, phone: c.phone, membership_code: c.membership_code }); }}>Add booking</button>{isAdmin && <button type="button" onClick={() => { setMenu(null); setAssignFor([c]); }}>Assign staff</button>}</div></div>}</td>
                     </tr>
                   ))}
                   {!list.length && <tr><td colSpan={isAdmin ? 11 : 9}><Empty icon={Search} title="No customers found">{isAdmin ? 'Try a different search or filter, or create a new customer.' : 'You see the customers associated with you — those you added, who joined with your staff code, or were assigned to you.'}</Empty></td></tr>}
@@ -90,6 +92,7 @@ export default function Customers() {
           </Card>
         </div>
       )}
+      <CreateBookingModal open={!!bookFor} customer={bookFor} onClose={() => setBookFor(null)} />
       <AssignStaffModal open={!!assignFor} customers={assignFor || []} onClose={() => setAssignFor(null)} onDone={() => { setAssignFor(null); setSelected([]); reload(); staffList.reload(); }} />
       <CreateCustomer open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(u) => { setCreateOpen(false); reload(); setPick(u.id); }} />
     </StaffShell>
@@ -166,6 +169,7 @@ export function CustomerDetail() {
   const [busy, setBusy] = useState(false);
   const assoc = useAsync(() => api.get(`/portal/staff/customers/${id}/association`).catch(() => null), [id]);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [bookOpen, setBookOpen] = useState(false);
   const u = user.data;
   const bookings = allBookings.filter((b) => b.userId === id);
 
@@ -186,7 +190,7 @@ export function CustomerDetail() {
   };
 
   return (
-    <StaffShell active="customers" title={u ? u.first_name + (u.last_name ? ` ${u.last_name}` : '') : 'Customer'} sub={u ? `${u.membership_code} · ${formatPhone(u.phone)}` : ''} actions={<button type="button" className="pt-btn ghost sm" onClick={() => navigate('/admin/customers')}>All customers</button>}>
+    <StaffShell active="customers" title={u ? u.first_name + (u.last_name ? ` ${u.last_name}` : '') : 'Customer'} sub={u ? `${u.membership_code} · ${formatPhone(u.phone)}` : ''} actions={<>{u && u.is_active && <button type="button" className="pt-btn sm" onClick={() => setBookOpen(true)}><Plus size={16} /> Add booking</button>}<button type="button" className="pt-btn ghost sm" onClick={() => navigate('/admin/customers')}>All customers</button></>}>
       {user.error ? <ErrorState onRetry={user.reload}>We couldn’t load this customer.</ErrorState> : !u ? <Skeleton h={300} r={18} /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 18, alignItems: 'start' }}>
           <div className="pt-stack lg">
@@ -224,6 +228,7 @@ export function CustomerDetail() {
           </div>
         </div>
       )}
+    {u && <CreateBookingModal open={bookOpen} customer={{ id, name: [u.first_name, u.last_name].filter(Boolean).join(' '), phone: u.phone, membership_code: u.membership_code }} onClose={() => setBookOpen(false)} />}
     {u && <AssignStaffModal open={assignOpen} customers={[{ id, name: [u.first_name, u.last_name].filter(Boolean).join(' '), staff_name: assoc.data?.staff_name }]} onClose={() => setAssignOpen(false)} onDone={() => { setAssignOpen(false); assoc.reload(); }} />}
     </StaffShell>
   );
