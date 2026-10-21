@@ -1,6 +1,7 @@
-const API_BASE_URL = (
-  process.env.REACT_APP_API_URL || 'http://localhost:9010'
-).replace(/\/$/, '');
+// A production build must never fall back to localhost: a build made by hand without
+// REACT_APP_API_URL would otherwise ship a portal that calls the visitor's own machine.
+const DEFAULT_API_URL = process.env.NODE_ENV === 'production' ? 'https://bp.nsiif.in' : 'http://localhost:9010';
+const API_BASE_URL = (process.env.REACT_APP_API_URL || DEFAULT_API_URL).replace(/\/$/, '');
 
 let accessToken = null;
 
