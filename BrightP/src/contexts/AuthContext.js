@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { api, setAccessToken } from "../services/api";
+import { api, setAccessToken, hasSessionHint } from "../services/api";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
@@ -167,6 +167,11 @@ export const AuthProvider = ({ children }) => {
   // Restore the session on page load using the httpOnly refresh-token cookie.
   useEffect(() => {
     (async () => {
+      // Never signed in on this browser: there is no refresh cookie, so don't call the API at all.
+      if (!hasSessionHint()) {
+        setLoading(false);
+        return;
+      }
       // Only a definite 401 means "no session". Network errors and 5xx get a few retries
       // so a server hiccup does not sign the user out.
       for (let attempt = 0; attempt < 3; attempt += 1) {

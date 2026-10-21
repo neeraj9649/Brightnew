@@ -29,7 +29,12 @@ fn env_flag(name: &str) -> Option<bool> {
 }
 
 fn set_cookie_secure() -> bool {
-    env_flag("COOKIE_SECURE").unwrap_or(!cfg!(debug_assertions))
+    // A deployed API is one whose allowed origins include a real https portal. That is always
+    // cross-site, so its cookie must be Secure whatever kind of binary is running.
+    let serves_https_portal = set_cors_allowed_origin()
+        .split(',')
+        .any(|origin| origin.trim().starts_with("https://"));
+    env_flag("COOKIE_SECURE").unwrap_or(!cfg!(debug_assertions) || serves_https_portal)
 }
 
 fn set_cookie_samesite() -> String {

@@ -7,6 +7,19 @@ let refreshPromise = null;
 
 let refreshTimer = null;
 
+// The refresh cookie is httpOnly, so JS cannot see it. This flag (not a credential) records that
+// this browser signed in, so a visitor who never did is not sent to /auth/refresh on every load.
+const SESSION_HINT_KEY = 'bw_session';
+export const hasSessionHint = () => {
+  try { return localStorage.getItem(SESSION_HINT_KEY) === '1'; } catch { return false; }
+};
+const setSessionHint = (on) => {
+  try {
+    if (on) localStorage.setItem(SESSION_HINT_KEY, '1');
+    else localStorage.removeItem(SESSION_HINT_KEY);
+  } catch { /* storage unavailable */ }
+};
+
 // Renew the access token shortly before it expires so the user never hits a 401 mid-click.
 const scheduleRefresh = () => {
   clearTimeout(refreshTimer);
@@ -23,6 +36,7 @@ const scheduleRefresh = () => {
 
 export const setAccessToken = (token) => {
   accessToken = token;
+  setSessionHint(Boolean(token));
   scheduleRefresh();
 };
 
@@ -94,7 +108,7 @@ export async function apiRequest(path, options = {}) {
   let { response, body } = await rawRequest(path, options);
 
   // A wrong PIN on /auth/login is also a 401, but there is nothing to refresh and a retry would count as a second guess.
-  if (response.status === 401 && path !== '/auth/refresh' && path !== '/auth/login') {
+  if (response.status === 401 && path !== '/auth/refresh' && path !== '/auth/login' && hasSessionHint()) {
     const refreshed = await tryRefresh();
     if (refreshed) {
       ({ response, body } = await rawRequest(path, options));
