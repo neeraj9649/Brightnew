@@ -93,3 +93,40 @@ form so nobody gets two accounts: Indian numbers stay the bare 10 digits (every 
 numbers from other countries are E.164 with a leading `+` (e.g. `+14155552671`). The API accepts
 either form and normalises it (`+91 98765 43210` and `9876543210` are the same person). SMS gateways
 receive that stored form in `to` — prepend `+91` to 10-digit values if your provider needs E.164.
+
+## File uploads
+
+The PHP upload service from mship is included in [`php_uploader/`](php_uploader/README.md).
+Deploy that directory on your PHP host and configure `PHP_UPLOADER_BASE_URL`
+and `PHP_UPLOADER_TOKEN` on the Rust API. Set the same token in the PHP service's
+`config.local.php` or environment. `PHP_UPLOADER_UPLOAD_URL` can override the
+upload endpoint; `PHP_UPLOADER_BASE_URL` still supplies download URLs.
+
+Send an authenticated multipart POST with exactly one `file` field (nonempty,
+maximum 10 MiB). The default PHP configuration accepts jpg, jpeg, png, gif,
+webp, pdf, doc and docx. Configure PHP's `upload_max_filesize` and `post_max_size`
+and your reverse proxy's body limit to allow 10 MiB plus multipart overhead.
+
+| Route | Access | Save the returned `file_id` in |
+| --- | --- | --- |
+| `/uploads/profile-image` | Any signed-in user | Profile `profile_image_file_id` |
+| `/uploads/booking-document` | Any signed-in user | Booking document `file_id` |
+| `/uploads/visa-document` | Any signed-in user | Booking document `file_id` |
+| `/uploads/quotation` | Employee, admin, super admin | Quotation `file_id` |
+| `/uploads/expense-receipt` | Employee, admin, super admin | Booking expense `file_id` |
+| `/uploads/support-attachment` | Any signed-in user | Support ticket `attachments` array |
+| `/uploads/reward-image` | Admin, super admin | Reward item `image_file_id` |
+
+```sh
+curl -X POST "$API_URL/uploads/booking-document" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -F "file=@ticket.pdf"
+```
+
+The response uses the standard API envelope:
+`{"data":{"file_id":"<uuid>","url":"https://<resource-host>/file.php?id=<uuid>"},"msg":"","success":true,"statusCode":200}`.
+Uploads return a file reference; use the existing profile, document, quotation,
+expense, ticket or reward API to attach it to a record. Download URLs are public,
+matching mship's retrieval service. The uploader uses HTTP/1.1 and mship's
+Hostinger-compatible request headers, with a 10-second connection timeout and
+60-second request timeout.
