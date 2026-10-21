@@ -4,6 +4,10 @@ import toast from "react-hot-toast";
 
 const AuthContext = createContext();
 let restorePromise = null;
+const restoreSession = () => {
+  restorePromise = restorePromise || api.post("/auth/refresh").finally(() => { setTimeout(() => { restorePromise = null; }, 0); });
+  return restorePromise;
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -178,8 +182,7 @@ export const AuthProvider = ({ children }) => {
         try {
           // Refresh tokens are single-use. React 18 StrictMode (dev) runs this
           // effect twice, so share one in-flight request instead of racing two.
-          restorePromise = restorePromise || api.post("/auth/refresh").finally(() => { setTimeout(() => { restorePromise = null; }, 0); });
-          const data = await restorePromise;
+          const data = await restoreSession();
           setAccessToken(data.access_token);
           applyUserDTO(data.user);
           break;
