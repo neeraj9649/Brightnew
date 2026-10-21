@@ -8,11 +8,10 @@ use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::role::{ADMIN_ONLY, STAFF};
 
+const MAX_FILE_SIZE: usize = 10 * 1024 * 1024;
 use futures_util::TryStreamExt;
 use serde::Serialize;
 
-const MAX_UPLOAD_BYTES: usize = 10 * 1024 * 1024;
-const MAX_FILE_SIZE: usize = MAX_UPLOAD_BYTES;
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
 const DOCUMENT_EXTENSIONS: &[&str] = &[
     "jpg", "jpeg", "png", "webp", "gif", "pdf", "doc", "docx", "xls", "xlsx", "csv", "txt",
@@ -65,10 +64,17 @@ async fn upload_to_namespace(
         ));
     }
 
-    let original = field.content_disposition().get_filename().unwrap_or("").to_string();
+    let original = field
+        .content_disposition()
+        .get_filename()
+        .unwrap_or("")
+        .to_string();
     let Some(ext) = allowed_extension(&original, allowed_extensions) else {
         return Err(ApiError::new(
-            format!("This file type is not allowed. Allowed: {}", allowed_extensions.join(", ")),
+            format!(
+                "This file type is not allowed. Allowed: {}",
+                allowed_extensions.join(", ")
+            ),
             400,
         ));
     };
@@ -87,12 +93,14 @@ async fn upload_to_namespace(
         }
         bytes.extend_from_slice(&chunk);
     }
-    if bytes.is_empty() || !content_matches(&ext, &bytes) {
-        return Err(ApiError::new("The file content does not match its type", 400));
-    }
-
     if bytes.is_empty() {
         return Err(ApiError::new("File must not be empty", 400));
+    }
+    if !content_matches(&ext, &bytes) {
+        return Err(ApiError::new(
+            "The file content does not match its type",
+            400,
+        ));
     }
     drop(field);
     if payload
@@ -222,12 +230,12 @@ mod tests {
     use std::io::{Read, Write};
     use uuid::Uuid;
 
-    fn multipart_with(name: &str, filename: &str, content_type: &str, data: &str) -> String {
-        format!("--boundary\r\nContent-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\nContent-Type: {content_type}\r\n\r\n{data}\r\n--boundary--\r\n")
+    fn multipart(name: &str, data: &str) -> String {
+        multipart_file(name, "receipt.pdf", "application/pdf", data)
     }
 
-    fn multipart(name: &str, data: &str) -> String {
-        multipart_with(name, "receipt.pdf", "application/pdf", data)
+    fn multipart_file(name: &str, filename: &str, content_type: &str, data: &str) -> String {
+        format!("--boundary\r\nContent-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\nContent-Type: {content_type}\r\n\r\n{data}\r\n--boundary--\r\n")
     }
 
     #[actix_web::test]
@@ -235,6 +243,8 @@ mod tests {
         let owner = Uuid::new_v4();
         let app = test::init_service(
             App::new()
+                .route("/profile", web::post().to(upload_profile_image_handler))
+                .route("/visa", web::post().to(upload_visa_document_handler))
                 .route("/document", web::post().to(upload_booking_document_handler))
                 .route("/quotation", web::post().to(upload_quotation_handler))
                 .route("/receipt", web::post().to(upload_expense_receipt_handler))
@@ -269,7 +279,13 @@ mod tests {
                 StatusCode::PAYLOAD_TOO_LARGE,
             ),
             (
-                multipart("file", "one").replace("--boundary--\r\n", &multipart("file", "two")),
+                multipart("file", "%PDF-one")
+                    .replace("--boundary--\r\n", &multipart("file", "%PDF-two")),
+                StatusCode::BAD_REQUEST,
+            ),
+            (multipart("file", "not a PDF"), StatusCode::BAD_REQUEST),
+            (
+                multipart_file("file", "script.exe", "application/pdf", "%PDF-test"),
                 StatusCode::BAD_REQUEST,
             ),
         ] {
@@ -284,6 +300,11 @@ mod tests {
             let response =
                 test::call_service(&app, send(path, multipart("file", "test"), role)).await;
             assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        }
+        for (path, role) in [("/profile", "customer"), ("/reward", "super_admin")] {
+            let response =
+                test::call_service(&app, send(path, multipart("file", "%PDF-test"), role)).await;
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         }
 
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -300,6 +321,8 @@ mod tests {
                 "expense-receipts",
                 "support-attachments",
                 "reward-images",
+                "profile-images",
+                "visa-documents",
             ] {
                 let (mut stream, _) = listener.accept().unwrap();
                 stream
@@ -331,7 +354,7 @@ mod tests {
                     .contains("x-upload-token: test-upload-token"));
                 assert!(request.contains(namespace));
                 assert!(request.contains(&owner.to_string()));
-                if namespace == "reward-images" {
+                if namespace.ends_with("images") {
                     assert!(request.contains("image/gif"));
                     assert!(request.contains("GIF89a-test"));
                 } else {
@@ -348,14 +371,15 @@ mod tests {
             ("/receipt", "admin"),
             ("/support", "customer"),
             ("/reward", "super_admin"),
+            ("/profile", "customer"),
+            ("/visa", "customer"),
         ] {
-            let body = if path == "/reward" {
-                multipart_with("file", "reward.gif", "image/gif", "GIF89a-test")
+            let body = if matches!(path, "/reward" | "/profile") {
+                multipart_file("file", "photo.GIF", "image/gif", "GIF89a-test")
             } else {
                 multipart("file", "%PDF-test")
             };
-            let response =
-                test::call_service(&app, send(path, body, role)).await;
+            let response = test::call_service(&app, send(path, body, role)).await;
             assert_eq!(response.status(), StatusCode::OK);
             let json: serde_json::Value = test::read_body_json(response).await;
             assert_eq!(json["data"]["file_id"], file_id);
