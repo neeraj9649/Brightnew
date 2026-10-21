@@ -252,9 +252,18 @@ export function DeskRewardDetail() {
             <h2 className="pt-serif-h" style={{ fontSize: 26 }}>Redeem this reward</h2>
             <div className="dr-mini"><div style={{ backgroundImage: `url(${rewardImage(item)})` }} /><span><b>{item.name}</b><small>{item.category}</small></span><strong>{fmtNum(item.wings_cost)}<small>Wings</small></strong></div>
             <div className="dr-rows">
-              <div><span>Your current Wings balance</span><b>{fmtNum(balance)} Wings</b></div>
-              <div><span>Wings required for this reward</span><b>{fmtNum(item.wings_cost)} Wings</b></div>
-              <div className="total"><span>Your remaining balance after redemption</span><b style={{ color: balance - item.wings_cost < 0 ? 'var(--pt-red)' : undefined }}>{fmtNum(balance - item.wings_cost)} Wings</b></div>
+              {open ? (
+                <>
+                  <div><span>Wings reserved for your request</span><b>{fmtNum(latest.wings_cost)} Wings</b></div>
+                  <div className="total"><span>Your Wings balance after redemption</span><b>{fmtNum(balance)} Wings</b></div>
+                </>
+              ) : (
+                <>
+                  <div><span>Your current Wings balance</span><b>{fmtNum(balance)} Wings</b></div>
+                  <div><span>Wings required for this reward</span><b>{fmtNum(item.wings_cost)} Wings</b></div>
+                  <div className="total"><span>Your remaining balance after redemption</span><b style={short ? { color: 'var(--pt-red)' } : undefined}>{short ? 'Not enough Wings' : `${fmtNum(balance - item.wings_cost)} Wings`}</b></div>
+                </>
+              )}
             </div>
             {open ? <div className="pt-notice green" style={{ marginTop: 16 }}><Check size={18} /><div><strong>Request {latest.display_code}</strong>You already have an active request for this reward.</div></div> : (
               <>
