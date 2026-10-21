@@ -5,6 +5,7 @@ use base::role::SUPER_ADMIN;
 /// `super_admin` on startup, so the first super admin never needs database access.
 ///
 /// It only promotes accounts that already exist (register through the portal first) and never
+
 /// demotes or creates anyone, so removing a number from the variable does not revoke the role.
 pub async fn promote_super_admins(pool: &sqlx::PgPool) {
     let Ok(list) = std::env::var("SUPER_ADMIN_PHONES") else { return };
