@@ -295,6 +295,30 @@ function UserMenu() {
   );
 }
 
+let dismissedOfferId = null;
+
+function OfferAnnouncement() {
+  const { data } = useAsync(() => api.get('/portal/offers')
+    .then((offers) => (Array.isArray(offers) && offers.length ? offers : api.get('/public/offers')))
+    .catch(() => api.get('/public/offers'))
+    .catch(() => []), []);
+  const [dismissedId, setDismissedId] = useState(() => dismissedOfferId);
+  const offer = Array.isArray(data) ? data[0] : null;
+  const dismissed = offer?.id && offer.id === dismissedId;
+
+  if (!offer || dismissed) return null;
+  return (
+    <div className="pt-offer-announcement" role="status" aria-live="polite">
+      <span className="pt-offer-announcement-text">
+        <strong>New offer</strong><span aria-hidden="true"> — </span>{offer.title}
+      </span>
+      <button type="button" className="pt-offer-announcement-close" aria-label="Close offer announcement" onClick={() => { dismissedOfferId = offer.id; setDismissedId(offer.id); }}>
+        <X size={18} />
+      </button>
+    </div>
+  );
+}
+
 /** Customer shell: dark sidebar + top bar from 900px, bottom tabs on phones. */
 export function Shell({ active, children, wide = false, topbar = true, hideNav = false }) {
   const navigate = useNavigate();
@@ -346,6 +370,7 @@ export function Shell({ active, children, wide = false, topbar = true, hideNav =
               <div className="pt-top-actions"><BellButton /></div>
             </header>
           )}
+          {!hideNav && <OfferAnnouncement />}
           {children}
         </div>
         {!hideNav && (

@@ -667,10 +667,10 @@ fn validate_offer(o: &OfferInput) -> Result<(), ApiError> {
 const ACTIVE_OFFERS: &str =
     "is_active AND (valid_from IS NULL OR valid_from <= CURRENT_DATE) AND (valid_until IS NULL OR valid_until >= CURRENT_DATE)";
 
-/// Customers: the offers that are live today.
+/// Customers: every offer that is live today; the home page renders these as cards.
 pub async fn customer_offers_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<Vec<OfferDTO>>, ApiError> {
     let rows = sqlx::query_as::<_, OfferDTO>(&format!(
-        "SELECT {OFFER_COLS} FROM offers WHERE {ACTIVE_OFFERS} ORDER BY created_at DESC LIMIT 50"
+        "SELECT {OFFER_COLS} FROM offers WHERE {ACTIVE_OFFERS} ORDER BY created_at DESC"
     ))
     .fetch_all(pool.get_ref())
     .await
@@ -678,10 +678,10 @@ pub async fn customer_offers_handler(pool: web::Data<PgPool>) -> Result<ApiRespo
     Ok(ApiResponse(rows))
 }
 
-/// Public (landing page): a few live offers, without the internal fields.
+/// Public (landing page): every live offer, without the internal fields.
 pub async fn public_offers_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<Vec<OfferDTO>>, ApiError> {
     let rows = sqlx::query_as::<_, OfferDTO>(&format!(
-        "SELECT {OFFER_COLS} FROM offers WHERE {ACTIVE_OFFERS} ORDER BY created_at DESC LIMIT 6"
+        "SELECT {OFFER_COLS} FROM offers WHERE {ACTIVE_OFFERS} ORDER BY created_at DESC"
     ))
     .fetch_all(pool.get_ref())
     .await

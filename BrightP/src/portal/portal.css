@@ -39,6 +39,40 @@
 .pt-shell { min-height: 100vh; padding-bottom: 88px; }
 .pt-side { display: none; }
 .pt-main { min-width: 0; }
+.pt-offer-announcement {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 9px 34px;
+  background: var(--pt-gold-soft);
+  border-bottom: 1px solid var(--pt-gold);
+  color: var(--pt-navy);
+}
+.pt-offer-announcement-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.pt-offer-announcement-text strong { color: var(--pt-gold-dark); }
+.pt-offer-announcement-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pt-navy);
+  cursor: pointer;
+}
+.pt-offer-announcement-close:hover { background: rgba(16, 40, 63, 0.08); }
 .pt-topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 14px 18px; background: transparent;
@@ -473,6 +507,30 @@
 .pt-grid2 > *, .pt-grid3 > *, .pt-grid4 > * { min-width: 0; }
 .pt-input, .pt-select, .pt-textarea { min-width: 0; }
 
+/* Customer-list filters stay on one line when the card has room. */
+.customer-list-filters {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.customer-list-filters > .pt-select {
+  width: 180px;
+  flex: 0 1 180px;
+}
+@media (max-width: 700px) {
+  .customer-list-filters {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .customer-list-filters > .pt-select {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+}
+
 .pt-input[type='date'], .pt-input[type='datetime-local'] { font-size: 13px; padding-right: 8px; }
 .pt-input-icon .pt-input[type='date'], .pt-input-icon .pt-input[type='datetime-local'] { padding-left: 38px; }
 .pt-input-icon > svg { left: 12px; }
@@ -542,6 +600,10 @@
   .pt-title { font: 600 clamp(34px, 3.6vw, 46px)/1.1 Georgia, 'Times New Roman', serif; color: var(--pt-navy); letter-spacing: -0.02em; }
   .pt-lede { margin-top: 8px; font-size: 16px; line-height: 1.55; color: #55657a; max-width: 760px; }
   .pt-card.lg { border-radius: 20px; padding: 26px; }
+}
+
+@media (max-width: 899px) {
+  .pt-offer-announcement { padding: 9px 16px; }
 }
 @media (min-width: 900px) and (max-width: 1099px) {
   .pt-shell { padding-left: 212px; }

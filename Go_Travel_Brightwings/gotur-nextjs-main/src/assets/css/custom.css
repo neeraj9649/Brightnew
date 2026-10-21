@@ -35,6 +35,25 @@
   display: none;
 }
 
+/* Keep the header login hover animation inside the button bounds. */
+.main-header--one .main-header__login-btn {
+  overflow: hidden;
+  clip-path: inset(0 round 100px);
+  border: 0;
+  transform: none;
+}
+
+.main-header--one .main-header__login-btn::before,
+.main-header--one .main-header__login-btn::after {
+  border-radius: inherit;
+}
+
+.main-header--one .main-header__login-btn:hover,
+.main-header--one .main-header__login-btn:focus-visible {
+  border: 0;
+  transform: none;
+}
+
 body.rtl .main-slider-one__destinations__hover {
   position: absolute;
   right: -180px;

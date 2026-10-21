@@ -101,7 +101,7 @@ export function MobileHome() {
               <button type="button" className="pt-tile" onClick={() => navigate('/rewards/catalog')}><Gift size={26} strokeWidth={1.5} />Redeem</button>
             </div>
             {UpcomingCard}
-            <OffersStrip limit={2} />
+            <OffersStrip />
             {ExtraWings}
           </div>
         </Page>

@@ -1,12 +1,12 @@
 import { useAuth, type User } from "@/store/auth";
 
-// Baked at build time for static export; falls back to local dev backend.
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+// Baked at build time for static export; falls back to the local Bright Wings API.
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:9010";
 
 type Body = Record<string, unknown>;
 
 function call(path: string, init: RequestInit, token?: string | null) {
-  return fetch(BASE + path, {
+  return fetch(API_BASE_URL + path, {
     ...init,
     credentials: "include", // send/receive the httpOnly refresh cookie
     headers: {
@@ -15,6 +15,38 @@ function call(path: string, init: RequestInit, token?: string | null) {
       ...init.headers,
     },
   });
+}
+
+export interface PublicOffer {
+  id: string;
+  title: string;
+  description: string | null;
+  badge: string | null;
+  code: string | null;
+  image_file_id: string | null;
+  service_type: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+/** Public, currently live offers used by the client website homepage. */
+export async function getPublicOffers(): Promise<PublicOffer[]> {
+  const response = await fetch(`${API_BASE_URL}/public/offers`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  const body = (await response.json().catch(() => null)) as {
+    success?: boolean;
+    msg?: string;
+    data?: unknown;
+  } | null;
+  if (!response.ok || body?.success !== true) {
+    throw new Error(body?.msg || `Request failed (${response.status})`);
+  }
+  return Array.isArray(body.data) ? (body.data as PublicOffer[]) : [];
 }
 
 // Backend envelope: { data, msg, success, statusCode }. Errors carry HTTP status + msg.

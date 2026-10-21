@@ -33,15 +33,19 @@ export function OfferCard({ offer }) {
   );
 }
 
-/** A few live offers for the home page; renders nothing when there are none. */
-export function OffersStrip({ limit = 3, title = 'Offers for you' }) {
-  const navigate = useNavigate();
-  const { data } = useAsync(() => api.get('/portal/offers').catch(() => []), []);
-  const offers = (data || []).slice(0, limit);
+/** Live offers for the home page; renders nothing when there are none. */
+export function OffersStrip({ title = 'Offers for you' }) {
+  const { data } = useAsync(() => api.get('/portal/offers')
+    .then((offers) => (Array.isArray(offers) && offers.length ? offers : api.get('/public/offers')))
+    .catch(() => api.get('/public/offers'))
+    .catch(() => []), []);
+  // Offers are part of the home experience. Keep every live offer visible
+  // here instead of sending members to a separate offers tab/page.
+  const offers = data || [];
   if (!offers.length) return null;
   return (
     <section className="pt-stack" style={{ marginTop: 22 }} aria-label="Offers">
-      <div className="pt-row between"><h2 className="pt-serif-h" style={{ fontSize: 22 }}>{title}</h2>{(data || []).length > limit && <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={() => navigate('/offers')}>View all offers →</button>}</div>
+      <div className="pt-row between"><h2 className="pt-serif-h" style={{ fontSize: 22 }}>{title}</h2></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 16 }}>{offers.map((o) => <OfferCard key={o.id} offer={o} />)}</div>
     </section>
   );

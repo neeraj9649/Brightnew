@@ -70,7 +70,8 @@ export default function Landing() {
   const [terms, setTerms] = useState(false);
   const { data: program } = useAsync(() => api.get('/public/program').catch(() => null), []);
   const { data: offers } = useAsync(() => api.get('/public/offers').catch(() => []), []);
-  const navItems = (offers || []).length ? [...NAV.slice(0, 4), ['offers', 'Offers'], ...NAV.slice(4)] : NAV;
+  // Offers are a homepage section, not a separate navigation tab.
+  const navItems = NAV;
 
   const portalPath = isStaff ? '/admin' : '/dashboard';
   const join = () => navigate('/auth?mode=register');

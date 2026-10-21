@@ -103,7 +103,7 @@ const HeaderOne: React.FC = () => {
               <i className='icon-menu-bar'></i>
             </div>
 
-            <Link href='https://brightwingstravel.com/' className='gotur-btn main-header__btn'>
+            <Link href='https://brightwingstravel.com/' className='gotur-btn main-header__btn main-header__login-btn'>
              Log In <i className='icon-paper-plane'></i>
             </Link>
 
