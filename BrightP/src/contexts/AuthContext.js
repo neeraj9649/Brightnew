@@ -1,13 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { api, setAccessToken, hasSessionHint } from "../services/api";
+import { api, setAccessToken, hasSessionHint, refreshSession } from "../services/api";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
-let restorePromise = null;
-const restoreSession = () => {
-  restorePromise = restorePromise || api.post("/auth/refresh").finally(() => { setTimeout(() => { restorePromise = null; }, 0); });
-  return restorePromise;
-};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -180,9 +175,7 @@ export const AuthProvider = ({ children }) => {
       // so a server hiccup does not sign the user out.
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          // Refresh tokens are single-use. React 18 StrictMode (dev) runs this
-          // effect twice, so share one in-flight request instead of racing two.
-          const data = await restoreSession();
+          const data = await refreshSession();
           setAccessToken(data.access_token);
           applyUserDTO(data.user);
           break;

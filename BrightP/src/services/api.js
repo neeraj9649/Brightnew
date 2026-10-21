@@ -3,7 +3,6 @@ const API_BASE_URL = (
 ).replace(/\/$/, '');
 
 let accessToken = null;
-let refreshPromise = null;
 
 let refreshTimer = null;
 
@@ -75,29 +74,33 @@ async function rawRequest(path, options = {}) {
 // not talking to the Bright Wings API.
 const isEnvelope = (body) => body && typeof body === 'object' && typeof body.success === 'boolean';
 
-async function tryRefresh() {
-  // Several requests can fail together when a short-lived access token
-  // expires. Rotate the httpOnly refresh token once and let the others share
-  // the result instead of racing the single-use refresh-token endpoint.
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-        const { response, body } = await rawRequest('/auth/refresh', { method: 'POST' });
-        if (response.ok && body?.data?.access_token) {
-          setAccessToken(body.data.access_token);
-          return true;
-        }
-        // Only a definite rejection ends the session; a 5xx or proxy hiccup must not log the user out.
-        if (response.status === 401 || response.status === 403) setAccessToken(null);
-      } catch {
-        /* offline: keep the current token and try again later */
-      }
-      return false;
-    })().finally(() => {
-      refreshPromise = null;
+// Refresh tokens are single-use, so every caller (page-load restore, the 401 retry and the
+// pre-expiry timer) must share ONE in-flight request instead of racing the endpoint. The promise
+// is dropped as soon as it settles; React StrictMode's double mount happens while it is in flight.
+let inflightRefresh = null;
+
+/** Rotates the httpOnly refresh cookie. Resolves to {access_token, user}; rejects with `.status` set. */
+export function refreshSession() {
+  if (!inflightRefresh) {
+    inflightRefresh = apiRequest('/auth/refresh', { method: 'POST' }).finally(() => {
+      inflightRefresh = null;
     });
   }
-  return refreshPromise;
+  return inflightRefresh;
+}
+
+async function tryRefresh() {
+  try {
+    const data = await refreshSession();
+    if (data?.access_token) {
+      setAccessToken(data.access_token);
+      return true;
+    }
+  } catch (error) {
+    // Only a definite rejection ends the session; a 5xx or proxy hiccup must not log the user out.
+    if (error.status === 401 || error.status === 403) setAccessToken(null);
+  }
+  return false;
 }
 
 /**
