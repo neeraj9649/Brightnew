@@ -6,8 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import {
   AppBar, Badge, BellButton, Card, Check2, Empty, ErrorState, Hero, IMG, Notice, Page, Progress, RupeeCoin, Select, Shell, Skeleton, WingsIcon,
-  Chips, fmtDate, fmtDateTime, fmtNum, humanize, memberName, useAsync, useCopy, useWide,
-} from '../ui';
+  Chips, fmtDate, fmtDateTime, fmtNum, humanize, memberName, useAsync, useCopy, useWide, tierTitle } from '../ui';
 import { RewardArt, TierIcon } from './parts';
 
 const REASON_LABEL = {
@@ -52,7 +51,7 @@ export function Wallet() {
               <div className="pt-row" style={{ borderLeft: '1px solid var(--pt-line)', paddingLeft: 16 }}><span className="pt-coin sm" style={{ background: '#f6e7c2', color: '#9b6b21' }}><Star size={15} /></span><div><strong style={{ fontSize: 20, color: 'var(--pt-navy)' }}>{fmtNum(tier?.lifetime_wings)}</strong><div className="pt-small">Lifetime Wings</div></div></div>
             </div>
             <div className="pt-notice gold" style={{ marginTop: 16, display: 'block' }}>
-              <div className="pt-row"><TierIcon tier={tier?.current} size={22} /><div><strong style={{ margin: 0 }}>{tier?.current} Member</strong>{tier?.next_tier ? `Earn ${fmtNum(remaining)} more Wings to reach ${tier.next_tier} (${fmtNum(tier.next_threshold)} lifetime Wings)` : 'You’ve reached our highest tier'}</div></div>
+              <div className="pt-row"><TierIcon tier={tier?.current} size={22} /><div><strong style={{ margin: 0 }}>{tierTitle(tier?.current)}</strong>{tier?.next_tier ? `Earn ${fmtNum(remaining)} more Wings to reach ${tier.next_tier} (${fmtNum(tier.next_threshold)} lifetime Wings)` : 'You’ve reached our highest tier'}</div></div>
               {tier?.next_tier && <div className="pt-row" style={{ gap: 10, marginTop: 10 }}><div style={{ flex: 1 }}><Progress value={tier.progress_percent} /></div><span className="pt-small">{fmtNum(remaining)} to go</span></div>}
             </div>
             <button type="button" className="pt-btn full" style={{ marginTop: 14 }} onClick={() => navigate('/rewards/catalog')}><Gift size={18} /> Redeem rewards <ChevronRight size={18} /></button>

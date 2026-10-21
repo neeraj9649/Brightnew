@@ -10,8 +10,9 @@ import { fileUrl } from '../../services/storage';
 import { Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, Segmented, Select, Skeleton, Spinner, TextArea, fmtDate, fmtDateTime, fmtMoney, humanize, relTime, useAsync } from '../ui';
 import { STATUS, serviceOf, statusMeta, bookingTitle } from '../booking';
 import StaffShell from './StaffShell';
+import { MessagesTab, StepsTab, WingsTab } from './BookingExtras';
 
-const TABS = [['details', 'Details'], ['quote', 'Quote'], ['notes', 'Notes'], ['activity', 'Activity'], ['documents', 'Documents'], ['financials', 'Financials'], ['followups', 'Follow-ups']];
+const TABS = [['details', 'Details'], ['quote', 'Quote'], ['messages', 'Messages'], ['steps', 'Steps'], ['wings', 'Wings'], ['notes', 'Notes'], ['activity', 'Activity'], ['documents', 'Documents'], ['financials', 'Financials'], ['followups', 'Follow-ups']];
 const EXPENSE_CATEGORIES = ['flight', 'hotel', 'cab', 'visa', 'activity', 'other'];
 const DOC_KINDS = ['ticket', 'voucher', 'invoice', 'quotation', 'other'];
 
@@ -83,6 +84,9 @@ export default function BookingWorkspace() {
 
       {tab === 'details' && <DetailsTab booking={booking} svc={svc} employees={employees} isAdmin={isAdmin} events={events} quotes={quotes} setTab={setTab} onComplete={() => setCompleteOpen(true)} update={updateBookingStatus} />}
       {tab === 'quote' && <QuoteTab booking={booking} quotes={quotes} onSent={reload} />}
+      {tab === 'messages' && <MessagesTab bookingId={id} />}
+      {tab === 'steps' && <StepsTab bookingId={id} />}
+      {tab === 'wings' && <WingsTab bookingId={id} status={booking.status} isAdmin={isAdmin} />}
       {tab === 'notes' && <NotesTab bookingId={id} />}
       {tab === 'activity' && <ActivityTab bookingId={id} events={events} />}
       {tab === 'documents' && <DocumentsTab bookingId={id} />}

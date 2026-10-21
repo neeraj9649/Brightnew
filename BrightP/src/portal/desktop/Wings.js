@@ -4,14 +4,14 @@ import { ArrowLeft, ArrowRight, Check, ChartNoAxesColumn, Clock, Coins as CoinsI
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
-import { Badge, ErrorState, Page, Progress, Select, Shell, Skeleton, WingsIcon, fmtDate, fmtDateTime, fmtNum, humanize, useAsync } from '../ui';
+import { Badge, ErrorState, Page, Progress, Select, Shell, Skeleton, WingsIcon, fmtDate, fmtDateTime, fmtNum, humanize, useAsync, tierTitle } from '../ui';
 import { PHOTO } from '../photos';
 import { rewardImage } from '../customer/parts';
-import { TIERS, TIER_BENEFITS, serviceOf } from '../booking';
+import { EARN_LABEL, TIERS, TIER_BENEFITS, serviceOf } from '../booking';
 
-const TIER_RANK = { Silver: 0, Gold: 1, Platinum: 2, Titanium: 3 };
-const TIER_ICON = { Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
-const RANGES = [['', 'All Wings ranges'], ['0-500', 'Up to 500 Wings'], ['500-1500', '500 – 1,500 Wings'], ['1500-5000', '1,500 – 5,000 Wings'], ['5000-', '5,000+ Wings']];
+const TIER_RANK = { Member: 0, Silver: 1, Gold: 2, Platinum: 3, Titanium: 3 };
+const TIER_ICON = { Member: Users, Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
+const RANGES = [['', 'All Wings ranges'], ['0-5000', 'Up to 5,000 Wings'], ['5000-10000', '5,000 – 10,000 Wings'], ['10000-20000', '10,000 – 20,000 Wings'], ['20000-', '20,000+ Wings']];
 
 const activityTitle = (e) => {
   if (e.source_type === 'redemption_refund') return ['Redemption refund', 'Wings returned'];
@@ -26,7 +26,7 @@ const activityTitle = (e) => {
 };
 
 const eligibility = (tier) => {
-  if (!tier || tier === 'Silver') return ['For all members', Users];
+  if (!tier || tier === 'Member') return ['For all members', Users];
   return [`For ${tier} members and above`, tier === 'Gold' ? Users : Gift];
 };
 
@@ -44,7 +44,7 @@ export function DeskWings({ initialTab = 'rewards', showAllRewards = false }) {
   const config = useAsync(() => api.get('/rewards/points-config').catch(() => null), []);
 
   const s = summary.data;
-  const tier = s?.tier || { current: userData?.membershipTier || 'Silver', lifetime_wings: userData?.lifetimePointsEarned || 0, progress_percent: 0 };
+  const tier = s?.tier || { current: userData?.membershipTier || 'Member', lifetime_wings: userData?.lifetimePointsEarned || 0, progress_percent: 0 };
   const balance = Number(s?.balance ?? userData?.tokens ?? 0);
   const lifetime = Number(tier.lifetime_wings || 0);
   const TierGlyph = TIER_ICON[tier.current] || Medal;
@@ -99,7 +99,7 @@ export function DeskWings({ initialTab = 'rewards', showAllRewards = false }) {
           <div className="dw-tier">
             <span className="dw-medal"><TierGlyph size={34} strokeWidth={1.3} /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="pt-row between top"><div><b className="pt-serif-h" style={{ fontSize: 24 }}>{tier.current} Member</b><small>{fmtNum(currentFloor)} Wings{tier.next_threshold ? ` to ${fmtNum(tier.next_threshold)} Wings` : ''}</small></div>{tier.next_tier && <div style={{ textAlign: 'right' }}><small>Next tier: <b style={{ color: 'var(--pt-navy)', fontFamily: 'Georgia, serif', fontSize: 17 }}>{tier.next_tier}</b></small><small>{fmtNum(Math.max(0, tier.next_threshold - lifetime))} Wings to go</small></div>}</div>
+              <div className="pt-row between top"><div><b className="pt-serif-h" style={{ fontSize: 24 }}>{tierTitle(tier.current)}</b><small>{fmtNum(currentFloor)} Wings{tier.next_threshold ? ` to ${fmtNum(tier.next_threshold)} Wings` : ''}</small></div>{tier.next_tier && <div style={{ textAlign: 'right' }}><small>Next tier: <b style={{ color: 'var(--pt-navy)', fontFamily: 'Georgia, serif', fontSize: 17 }}>{tier.next_tier}</b></small><small>{fmtNum(Math.max(0, tier.next_threshold - lifetime))} Wings to go</small></div>}</div>
               <div style={{ margin: '12px 0 6px' }}><Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} /></div>
               <div className="pt-row between pt-small" style={{ color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)}</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)}</span>}</div>
             </div>
@@ -122,7 +122,7 @@ export function DeskWings({ initialTab = 'rewards', showAllRewards = false }) {
                 <div className="dw-cards">
                   {visible.map((r) => {
                     const [label, Icon] = eligibility(r.min_tier);
-                    const locked = TIER_RANK[tier.current] < TIER_RANK[r.min_tier || 'Silver'];
+                    const locked = TIER_RANK[tier.current] < TIER_RANK[r.min_tier || 'Member'];
                     return (
                       <article key={r.id} className="pt-card dw-reward">
                         <div className="dw-reward-photo" style={{ backgroundImage: `url(${rewardImage(r)})` }}>{r.stock === 0 && <span className="pt-badge red" style={{ position: 'absolute', top: 10, right: 10 }}>Out of stock</span>}</div>
@@ -178,7 +178,7 @@ export function DeskWings({ initialTab = 'rewards', showAllRewards = false }) {
             <h3 className="pt-h3" style={{ margin: '26px 0 12px' }}>Earn on every service</h3>
             <div className="dw-earn-grid">
               {(config.data?.services || []).map((sv) => (
-                <div key={sv.booking_type} className="pt-card dw-earn"><span className="dw-stat-ic"><WingsIcon size={26} color="#c9963e" /></span><div><b>{humanize(sv.booking_type)}</b><small>After completed booking</small></div><strong>+{fmtNum(sv.points)}</strong></div>
+                <div key={sv.booking_type} className="pt-card dw-earn"><span className="dw-stat-ic"><WingsIcon size={26} color="#c9963e" /></span><div><b>{EARN_LABEL[sv.booking_type] || humanize(sv.booking_type)}</b><small>{sv.booking_type === 'office_visit' ? 'When you visit our office' : 'After completed booking'}</small></div><strong>+{fmtNum(sv.points)}</strong></div>
               ))}
             </div>
             <div className="pt-row" style={{ gap: 12, marginTop: 26 }}><button type="button" className="pt-gold-btn" onClick={() => navigate('/bookings/new')}>Request new travel <ArrowRight size={18} /></button><button type="button" className="pt-navy-btn ghost" style={{ minHeight: 54 }} onClick={() => navigate('/referrals')}>Refer a friend</button></div>
@@ -205,14 +205,14 @@ export function DeskRewardDetail() {
   const item = (catalog.data || []).find((i) => i.id === id);
   const latest = (mine.data || []).find((r) => r.reward_item_id === id);
   const balance = Number(userData?.tokens || 0);
-  const tier = userData?.membershipTier || 'Silver';
+  const tier = userData?.membershipTier || 'Member';
 
   const frame = (body) => <Shell active="wings"><Page wide>{body}</Page></Shell>;
   if (catalog.loading && !catalog.data) return frame(<div className="pt-stack" style={{ marginTop: 34 }}><Skeleton h={50} w={380} /><Skeleton h={380} r={18} /></div>);
   if (catalog.error) return frame(<div style={{ marginTop: 34 }}><ErrorState onRetry={catalog.reload} /></div>);
   if (!item) return frame(<div className="pt-card" style={{ margin: '34px 0', padding: 40, textAlign: 'center' }}><Gift size={34} /><h2 className="pt-h2" style={{ margin: '10px 0' }}>This reward is no longer available</h2><button type="button" className="pt-navy-btn" onClick={() => navigate('/rewards')}>Browse rewards</button></div>);
 
-  const locked = TIER_RANK[tier] < TIER_RANK[item.min_tier || 'Silver'];
+  const locked = TIER_RANK[tier] < TIER_RANK[item.min_tier || 'Member'];
   const out = item.stock === 0;
   const short = balance < item.wings_cost;
   const open = latest && ['requested', 'approved', 'voucher_issued'].includes(latest.status);

@@ -14,7 +14,7 @@ use referral::domain::services::referral::ReferralService;
 use referral::domain::rate_config::referral_rate_percent;
 use rewards::domain::models::reward_transaction::RewardTransaction;
 use rewards::domain::services::rewards::RewardsService;
-use rewards::domain::tier_config::tier_for_lifetime_points;
+use rewards::domain::tier_config::{next_tier, tier_for_lifetime_points, tier_ladder};
 
 #[derive(Debug, Serialize)]
 pub struct LoyaltyMemberDTO {
@@ -143,18 +143,17 @@ fn card_from(member: &MemberRow) -> LoyaltyCardDTO {
         name: member.name.clone(),
         membership_tier: member.membership_tier.clone(),
         member_since: member.joined_at,
-        valid_until: super::cards::card_valid_until(),
+        valid_until: super::cards::card_valid_until(member.joined_at),
         verification_path: format!("/cards/{}", member.membership_code),
     }
 }
 
 fn tier_progress(member: &MemberRow) -> TierProgressDTO {
     let current = tier_for_lifetime_points(member.lifetime_points_earned).to_string();
-    let (next_tier, next_threshold, floor) = match current.as_str() {
-        "Silver" => (Some("Gold".to_string()), Some(1_000), 0),
-        "Gold" => (Some("Platinum".to_string()), Some(5_000), 1_000),
-        "Platinum" => (Some("Titanium".to_string()), Some(20_000), 5_000),
-        _ => (None, None, 20_000),
+    let floor = tier_ladder().iter().find(|(tier, _)| *tier == current).map(|(_, t)| *t).unwrap_or(0);
+    let (next_tier, next_threshold) = match next_tier(&current) {
+        Some((tier, threshold)) => (Some(tier.to_string()), Some(threshold)),
+        None => (None, None),
     };
     let progress_percent = next_threshold
         .map(|threshold| {

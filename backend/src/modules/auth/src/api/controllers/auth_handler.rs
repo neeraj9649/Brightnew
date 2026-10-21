@@ -58,7 +58,7 @@ pub async fn register_handler(
                 first_name: body.first_name,
                 last_name: body.last_name,
                 phone: normalize_phone(&body.phone),
-                membership_tier: "Silver".to_string(),
+                membership_tier: "Member".to_string(),
                 membership_code: String::new(),
                 referral_code: String::new(),
                 hr_code: None,

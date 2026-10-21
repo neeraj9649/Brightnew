@@ -1,5 +1,5 @@
 use actix_web::web::{self, ServiceConfig};
-use chrono::{DateTime, Datelike, NaiveDate, Utc};
+use chrono::{DateTime, Months, NaiveDate, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 
@@ -14,9 +14,10 @@ pub struct PublicCardDTO {
     pub valid_until: NaiveDate,
 }
 
-/// Cards stay valid through the end of the next calendar year.
-pub fn card_valid_until() -> NaiveDate {
-    NaiveDate::from_ymd_opt(Utc::now().year() + 1, 12, 31).expect("valid calendar date")
+/// A card is valid for one year from the day the membership was created.
+pub fn card_valid_until(joined_at: DateTime<Utc>) -> NaiveDate {
+    let created = joined_at.date_naive();
+    created.checked_add_months(Months::new(12)).unwrap_or(created)
 }
 
 /// Public (NO auth) membership-card lookup by code. This is what the card QR
@@ -44,7 +45,7 @@ async fn public_card_handler(
                 .to_string(),
             membership_tier: r.membership_tier,
             member_since: r.joined_at,
-            valid_until: card_valid_until(),
+            valid_until: card_valid_until(r.joined_at),
         })),
         None => Err(ApiError::new("Card not found", 404)),
     }
@@ -52,4 +53,19 @@ async fn public_card_handler(
 
 pub fn cards_routes(cfg: &mut ServiceConfig) {
     cfg.service(web::scope("/cards").route("/{code}", web::get().to(public_card_handler)));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    #[test]
+    fn card_is_valid_for_one_year_from_creation() {
+        let day = |y, m, d| Utc.with_ymd_and_hms(y, m, d, 10, 30, 0).unwrap();
+        assert_eq!(card_valid_until(day(2026, 10, 20)), NaiveDate::from_ymd_opt(2027, 10, 20).unwrap());
+        assert_eq!(card_valid_until(day(2027, 1, 1)), NaiveDate::from_ymd_opt(2028, 1, 1).unwrap());
+        // 29 February rolls to the last day of February the next year.
+        assert_eq!(card_valid_until(day(2028, 2, 29)), NaiveDate::from_ymd_opt(2029, 2, 28).unwrap());
+    }
 }

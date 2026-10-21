@@ -56,7 +56,7 @@ export function DeskJoin({ name, setName, phone, setPhone, pin, setPin, pin2, se
     [Ticket, 'Get your member code instantly', 'Your unique Bright Wings member code is created as soon as you join.'],
     [IdCard, 'Receive your digital membership card', 'A beautiful digital card, ready to use immediately.'],
     [Wallet, 'Your personal Wings wallet', 'Track and use your Wings for flights, holidays and more.'],
-    [ChartNoAxesColumn, welcome ? <>Start at Silver tier with <em>{fmtNum(welcome)} welcome Wings</em></> : 'Start at Silver tier with welcome Wings', welcome ? `You’ll be a Silver member from day one with ${fmtNum(welcome)} welcome Wings in your wallet.` : 'You’ll be a Silver member from day one.'],
+    [ChartNoAxesColumn, welcome ? <>Start earning with <em>{fmtNum(welcome)} welcome Wings</em></> : 'Start earning with welcome Wings', welcome ? `Join as a Member with ${fmtNum(welcome)} welcome Wings in your wallet and move up to Silver at 10,000 points.` : 'Join as a Member and move up to Silver at 10,000 points.'],
   ];
   return (
     <div className="pt-app da2-join" style={{ backgroundImage: `url(${PHOTO.santorini})` }}>
@@ -79,7 +79,7 @@ export function DeskJoin({ name, setName, phone, setPhone, pin, setPin, pin2, se
               <Field label="Confirm PIN" error={errors.pin2}><PwdBox value={pin2} onChange={setPin2} placeholder="Re-enter 4-digit PIN" show={showPin} label="Confirm PIN" error={errors.pin2} /></Field>
             </div>
             <label className="pt-check" style={{ marginTop: -6 }}><input type="checkbox" checked={showPin} onChange={(e) => setShowPin(e.target.checked)} /><span className="box">{showPin ? '✓' : ''}</span><span>Show PIN</span></label>
-            <Field label="Referral code" optional error={errors.referral}><div className={`da2-pwd ${errors.referral ? 'err' : ''}`}><Gift size={20} /><input value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} placeholder="Enter a friend’s code" aria-label="Referral code" /></div></Field>
+            <Field label="Referral or staff code" optional error={errors.referral}><div className={`da2-pwd ${errors.referral ? 'err' : ''}`}><Gift size={20} /><input value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} placeholder="Friend’s or advisor’s code" aria-label="Referral or staff code" /></div></Field>
             <div style={{ display: 'grid', gap: 6 }}>
               <label className="pt-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span className="box">{agree ? '✓' : ''}</span><span>I agree to the Bright Wings <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Terms &amp; Conditions</button> and acknowledge the <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Privacy Policy</button>.</span></label>
               {errors.agree && <span className="pt-err-text"><CircleAlert size={13} /> {errors.agree}</span>}

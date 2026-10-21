@@ -3,10 +3,10 @@ use rand::Rng;
 
 fn tier_code(tier: &str) -> &'static str {
     match tier {
+        "Silver" => "SLV",
         "Gold" => "GLD",
-        "Platinum" => "PLT",
-        "Titanium" => "TTN",
-        _ => "SLV",
+        "Platinum" | "Titanium" => "PLT",
+        _ => "MBR",
     }
 }
 

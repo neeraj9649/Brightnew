@@ -19,6 +19,9 @@ import BookingWorkspace from './portal/staff/BookingWorkspace';
 import Customers, { CustomerDetail } from './portal/staff/Customers';
 import Employees from './portal/staff/Employees';
 import { RewardCatalogAdmin, Redemptions } from './portal/staff/Rewards';
+import StaffOffers from './portal/staff/Offers';
+import WingsApprovals from './portal/staff/WingsApprovals';
+import CustomerOffers from './portal/customer/Offers';
 import Crm from './portal/staff/Crm';
 import { LoyaltySettings, Analytics } from './portal/staff/Loyalty';
 import { ConfirmRedemption, RedemptionStatus, RedemptionHistory } from './portal/customer/Rewards';
@@ -141,6 +144,7 @@ const AppRoutes = () => {
       <Route path="/tier-benefits" element={<ProtectedRoute><TierBenefits /></ProtectedRoute>} />
       <Route path="/membership" element={<ProtectedRoute><ToAccountOnDesktop><MembershipCardPage /></ToAccountOnDesktop></ProtectedRoute>} />
       <Route path="/security" element={<ProtectedRoute><ToAccountOnDesktop><Security /></ToAccountOnDesktop></ProtectedRoute>} />
+      <Route path="/offers" element={<ProtectedRoute><CustomerOffers /></ProtectedRoute>} />
       <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
 
       {/* Staff routes (employee or admin). Admin-only screens redirect employees. */}
@@ -153,6 +157,8 @@ const AppRoutes = () => {
       <Route path="/admin/crm" element={<ProtectedRoute staffOnly><Crm /></ProtectedRoute>} />
       <Route path="/admin/redemptions" element={<ProtectedRoute staffOnly><Redemptions /></ProtectedRoute>} />
       <Route path="/admin/rewards" element={<ProtectedRoute adminOnly><RewardCatalogAdmin /></ProtectedRoute>} />
+      <Route path="/admin/offers" element={<ProtectedRoute staffOnly><StaffOffers /></ProtectedRoute>} />
+      <Route path="/admin/wings-approvals" element={<ProtectedRoute adminOnly><WingsApprovals /></ProtectedRoute>} />
       <Route path="/admin/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
       <Route path="/admin/analytics" element={<ProtectedRoute adminOnly><Analytics /></ProtectedRoute>} />
       <Route path="/admin/loyalty" element={<ProtectedRoute adminOnly><LoyaltySettings /></ProtectedRoute>} />

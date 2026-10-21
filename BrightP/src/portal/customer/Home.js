@@ -1,3 +1,4 @@
+import { OffersStrip } from './Offers';
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ChevronRight, Gift, Info, Plane, Users } from 'lucide-react';
@@ -25,7 +26,7 @@ export function MobileHome() {
 
   const name = memberName(userData);
   const balance = Number(summary?.balance ?? userData?.tokens ?? 0);
-  const tier = summary?.tier || { current: userData?.membershipTier || 'Silver', lifetime_wings: userData?.lifetimePointsEarned || 0, next_tier: null, next_threshold: null, progress_percent: 0 };
+  const tier = summary?.tier || { current: userData?.membershipTier || 'Member', lifetime_wings: userData?.lifetimePointsEarned || 0, next_tier: null, next_threshold: null, progress_percent: 0 };
   const lifetime = Number(tier.lifetime_wings || 0);
   const remaining = tier.next_threshold ? Math.max(0, tier.next_threshold - lifetime) : 0;
 
@@ -59,12 +60,15 @@ export function MobileHome() {
         <button type="button" className="pt-link gold" onClick={() => navigate('/bookings')}>View all {wide ? '→' : <ChevronRight size={14} style={{ verticalAlign: -3 }} />}</button>
       </div>
       {bookingsLoading && !upcoming ? <Skeleton h={92} r={14} /> : upcoming ? (
-        <BookingCard booking={upcoming} onClick={() => navigate(`/bookings/${upcoming.docId}`)} />
+        <>
+          <BookingCard booking={upcoming} onClick={() => navigate(`/bookings/${upcoming.docId}`)} />
+          <button type="button" className="pt-btn full" style={{ marginTop: 12 }} onClick={() => navigate('/bookings/new')}><Plane size={17} /> Request new travel</button>
+        </>
       ) : (
         <div className="pt-notice plain" style={{ alignItems: 'center' }}>
           <Plane size={18} />
           <div style={{ flex: 1 }}>No trips planned yet. Request your first quote in a minute.</div>
-          <button type="button" className="pt-btn xs" onClick={() => navigate('/bookings/new')}>Start booking</button>
+          <button type="button" className="pt-btn xs" onClick={() => navigate('/bookings/new')}>Request new travel</button>
         </div>
       )}
     </Card>
@@ -72,7 +76,7 @@ export function MobileHome() {
 
   const ExtraWings = (
     <div className="pt-banner" style={{ backgroundImage: bg(IMG.chairs), minHeight: 150, justifyContent: 'flex-end' }}>
-      <div className="kicker">TRAVEL MORE. EARN MORE.</div>
+      <div className="kicker">YOUR JOURNEY, OUR WINGS</div>
       <h2>Extra Wings<br />for unforgettable<br />journeys</h2>
       <button type="button" className="pt-btn xs" style={{ position: 'absolute', right: 14, bottom: 16, background: '#fff', color: 'var(--pt-navy)', borderColor: '#fff', boxShadow: 'none', zIndex: 2 }} onClick={() => navigate('/tier-benefits')}>Explore benefits <ArrowRight size={14} /></button>
     </div>
@@ -97,6 +101,7 @@ export function MobileHome() {
               <button type="button" className="pt-tile" onClick={() => navigate('/rewards/catalog')}><Gift size={26} strokeWidth={1.5} />Redeem</button>
             </div>
             {UpcomingCard}
+            <OffersStrip limit={2} />
             {ExtraWings}
           </div>
         </Page>

@@ -1,21 +1,22 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, ChevronRight, Coins, Crown, Gem, Gift, ListChecks, Medal, Plane, Star, Ticket, UserRound, Users, Zap } from 'lucide-react';
+import { ChevronRight, Coins, Crown, Gem, Gift, ListChecks, Medal, Plane, Star, Users, Zap } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBooking } from '../../contexts/BookingContext';
 import { api } from '../../services/api';
-import { Badge, Page, Progress, Shell, Skeleton, bg, fmtDate, fmtNum, memberName, useAsync } from '../ui';
+import { Badge, Page, Progress, Shell, Skeleton, bg, fmtDate, fmtNum, memberName, useAsync, tierTitle } from '../ui';
 import { PHOTO, photoFor } from '../photos';
-import { bookingDate, bookingTitle, isPast, serviceOf, statusMeta } from '../booking';
-import { MemberCardFace } from '../customer/parts';
-import { fmtRange, milestoneDates, nightsBetween } from './common';
+import { bookingTitle, isPast, serviceOf, statusMeta } from '../booking';
+import { FlippableMemberCard } from '../customer/parts';
+import { OffersStrip } from '../customer/Offers';
+import { fmtRange } from './common';
 
 const greeting = () => {
   const h = new Date().getHours();
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 };
 
-const TIER_ICON = { Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
+const TIER_ICON = { Member: Users, Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
 
 const REASON_ICON = { booking: Plane, first_booking: Gift, welcome_bonus: Gift, referral: Users, manual: Star, redemption: Gift };
 const REASON_TITLE = { booking: 'Trip completed', first_booking: 'First booking bonus', welcome_bonus: 'Welcome bonus', referral: 'Referral bonus', manual: 'Wings adjustment', redemption: 'Reward redemption' };
@@ -30,7 +31,7 @@ export default function DeskHome() {
   const name = memberName(userData);
   const first = name.split(' ')[0];
   const balance = Number(summary?.balance ?? userData?.tokens ?? 0);
-  const tier = summary?.tier || { current: userData?.membershipTier || 'Silver', lifetime_wings: userData?.lifetimePointsEarned || 0, progress_percent: 0 };
+  const tier = summary?.tier || { current: userData?.membershipTier || 'Member', lifetime_wings: userData?.lifetimePointsEarned || 0, progress_percent: 0 };
   const lifetime = Number(tier.lifetime_wings || 0);
   const TierIcon = TIER_ICON[tier.current] || Medal;
   const remaining = tier.next_threshold ? Math.max(0, tier.next_threshold - lifetime) : 0;
@@ -38,26 +39,10 @@ export default function DeskHome() {
   const ledger = (summary?.ledger || []).slice(0, 4);
   const rewards = (summary?.catalog || []).slice(0, 2);
 
-  // "Current trip": the booking nearest in time that is still active, else the latest.
-  const trip = useMemo(() => {
-    const dated = (b) => { const d = new Date(bookingDate(b)); return Number.isNaN(d.getTime()) ? Infinity : d.getTime(); };
-    const active = (bookings || []).filter((b) => !isPast(b)).sort((a, b) => dated(a) - dated(b));
-    return active[0] || [...(bookings || [])].sort((a, b) => b.createdAt - a.createdAt)[0] || null;
-  }, [bookings]);
-  const tripEvents = trip ? feed?.[trip.docId]?.events || [] : [];
-  const dates = trip ? milestoneDates(tripEvents, trip) : {};
-  const svc = trip ? serviceOf(trip.type) : null;
-  const start = trip && svc.date_of(trip);
-  const end = trip && (trip.returnDate || trip.checkOut || trip.endDate || trip.dropoffAt);
-  const nights = nightsBetween(start, end);
-  const meta = trip ? statusMeta(trip.status) : null;
-
-  const steps = trip ? [
-    ['Request received', dates.created, Plane, true],
-    ['Advisor assigned', dates.assigned, UserRound, !!dates.assigned],
-    ['Quotation ready', dates.quote, Ticket, !!dates.quote],
-    ['Booking confirmed', dates.confirmed, Building2, !!dates.confirmed],
-  ] : [];
+  // Every request the member has made (cancelled ones aside): open ones first, newest first.
+  const trips = useMemo(() => (bookings || [])
+    .filter((b) => b.status !== 'cancelled')
+    .sort((a, b) => Number(isPast(a)) - Number(isPast(b)) || b.createdAt - a.createdAt), [bookings]);
 
   return (
     <Shell active="home">
@@ -87,41 +72,48 @@ export default function DeskHome() {
 
           <div className="pt-card dh-tier">
             <div className="pt-row between" style={{ gap: 12 }}>
-              <span className="pt-row" style={{ gap: 12, minWidth: 0 }}><span className="dh-crown"><TierIcon size={34} strokeWidth={1.3} /></span><strong className="dh-gold-title">{tier.current} Member</strong></span>
-              <button type="button" className="pt-link" style={{ textDecoration: 'none', color: 'var(--pt-muted)', fontWeight: 600 }} onClick={() => navigate('/tier-benefits')}>View benefits <ChevronRight size={14} style={{ verticalAlign: -3 }} /></button>
+              <span className="pt-row" style={{ gap: 12, minWidth: 0 }}><span className="dh-crown"><TierIcon size={34} strokeWidth={1.3} /></span><strong className="dh-gold-title">{tierTitle(tier.current)}</strong></span>
+              <button type="button" className="pt-link" style={{ textDecoration: 'none', color: 'var(--pt-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => navigate('/tier-benefits')}>View benefits <ChevronRight size={14} /></button>
             </div>
             <div><p className="dh-away">{tier.next_tier ? <>You’re <b>{fmtNum(remaining)} Wings</b> away from {tier.next_tier}</> : 'You’ve reached our highest tier'}</p>
-            <Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} />
-            <div className="pt-row between pt-small" style={{ marginTop: 10, color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)} Wings</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)} Wings</span>}</div></div>
+              <Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} />
+              <div className="pt-row between pt-small" style={{ marginTop: 10, color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)} Wings</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)} Wings</span>}</div></div>
           </div>
 
-          <button type="button" className="dh-card-link" onClick={() => navigate('/membership')} aria-label="Open membership card">
-            <MemberCardFace name={name} code={userData?.membershipCode} tier={tier.current} qr={false} compact />
-          </button>
+          <div className="dh-card-link">
+            <FlippableMemberCard name={summary?.card?.name || name} code={summary?.card?.membership_code || userData?.membershipCode} tier={tier.current} validUntil={summary?.card?.valid_until} onOpen={() => navigate('/membership')} />
+          </div>
         </section>
 
         <section className="dh-row2">
           <div className="pt-card dh-trip">
-            <div className="pt-row between"><h2 className="dh-sec"><Plane size={20} /> {trip ? 'Your current trip' : 'Your next trip'}</h2>{trip && <button type="button" className="dh-more" onClick={() => navigate(`/bookings/${trip.docId}`)}>View booking <ChevronRight size={14} /></button>}</div>
-            {trip ? (
-              <div className="dh-trip-body">
-                <div className="dh-trip-photo" style={{ backgroundImage: `url(${photoFor(trip.type, trip.destination, trip.to, trip.hotel, trip.region)})` }} />
-                <div>
-                  <h3>{bookingTitle(trip)}</h3>
-                  <p className="pt-small" style={{ fontSize: 14, marginTop: 4 }}>{fmtRange(start, end) || 'Dates to be confirmed'}{nights ? ` · ${nights} nights` : ''}</p>
-                  <Badge tone={meta.tone} style={{ marginTop: 10 }}><span style={{ fontWeight: 700 }}>✓</span> {meta.label}</Badge>
-                  <ol className="dh-steps">
-                    {steps.map(([label, at, Icon, done]) => (
-                      <li key={label} className={done ? 'done' : ''}>
-                        <span className="dh-step-ic"><Icon size={16} /></span>
-                        <span><b>{label}</b><small>{done && at ? fmtDate(at) : 'Pending'}</small></span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
+            <div className="pt-row between"><h2 className="dh-sec"><Plane size={20} /> {trips.length ? 'Your trips' : 'Your next trip'}</h2>{trips.length > 0 && <span className="pt-row" style={{ gap: 14 }}><button type="button" className="dh-more" onClick={() => navigate('/bookings')}>View all bookings <ChevronRight size={14} /></button><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Request new travel</button></span>}</div>
+            {trips.length ? (
+              <ul className="dh-trips">
+                {trips.map((b) => {
+                  const svc = serviceOf(b.type);
+                  const meta = statusMeta(b.status);
+                  const start = svc.date_of(b);
+                  const end = b.returnDate || b.checkOut || b.endDate || b.dropoffAt;
+                  const advisor = feed?.[b.docId]?.advisor?.name;
+                  return (
+                    <li key={b.docId}>
+                      <button type="button" className="dh-trip-row" onClick={() => navigate(`/bookings/${b.docId}`)}>
+                        <span className="dh-trip-thumb" style={{ backgroundImage: `url(${photoFor(b.type, b.destination, b.to, b.hotel, b.region, b.country, b.destinations)})` }} />
+                        <span className="dh-trip-info">
+                          <small><svc.Icon size={13} /> {svc.label} · Ref. {b.id}</small>
+                          <b>{bookingTitle(b)}</b>
+                          <span>{start ? (end ? fmtRange(start, end) : /^\d{4}-/.test(String(start)) ? fmtDate(start) : String(start)) : 'Dates to be confirmed'}</span>
+                          <span>{advisor ? `Advisor: ${advisor}` : 'Advisor will be assigned soon'}</span>
+                        </span>
+                        <span className="dh-trip-end"><Badge tone={meta.tone}>{meta.label}</Badge><ChevronRight size={18} /></span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             ) : (
-              <div className="dh-empty"><p>No trips yet. Request your first quote in a couple of minutes.</p><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Book travel</button></div>
+              <div className="dh-empty"><p>No trips yet. Request your first quote in a couple of minutes.</p><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Request new travel</button></div>
             )}
           </div>
 
@@ -141,6 +133,8 @@ export default function DeskHome() {
             ))}
           </div>
         </section>
+
+        <OffersStrip />
 
         <section className="dh-row2 last">
           <div className="pt-card dh-activity">

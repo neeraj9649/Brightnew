@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
-import { ChevronRight, Crown, Gem, Medal, Star } from 'lucide-react';
+import React from 'react';
+import { ChevronRight, Crown, Gem, Medal, Star, Users } from 'lucide-react';
 import { fileUrl } from '../../services/storage';
-import { Badge, fmtNum, IMG, WingsIcon } from '../ui';
+import { Badge, fmtNum } from '../ui';
+import { CardFront, FlippableCard } from '../MembershipCard';
 import { PHOTO, SERVICE_PHOTO, photoFor } from '../photos';
 import { bookingSubtitle, bookingTitle, serviceOf, statusMeta, TIERS } from '../booking';
 
-export const TIER_ICON = { Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
+export const TIER_ICON = { Member: Users, Silver: Medal, Gold: Crown, Platinum: Star, Titanium: Gem };
 export const TierIcon = ({ tier, size = 18 }) => {
   const Ico = TIER_ICON[tier] || Medal;
   return <Ico size={size} />;
@@ -67,50 +67,17 @@ export function BookingCard({ booking, onClick, showId = true }) {
 }
 
 /** Dark membership card with QR (Membership card screen & home). */
-export function MemberCardFace({ name, code, tier = 'Silver', validUntil, qr = true, compact = false, memberLabel }) {
-  const [src, setSrc] = useState('');
-  useEffect(() => {
-    if (!qr || !code) return;
-    QRCode.toDataURL(`${window.location.origin}/card/${code}`, { margin: 1, width: 240 }).then(setSrc).catch(() => {});
-  }, [code, qr]);
-
-  if (compact) {
-    // Dark navy "Gold Member" card used on the desktop home screen.
-    return (
-      <div className="bw-card-dark">
-        <div className="bw-card-dark-top">
-          <span className="pt-row" style={{ gap: 8 }}><WingsIcon size={26} color="#e0b25a" /><span className="pt-serif" style={{ fontSize: 19 }}>Bright Wings</span></span>
-          <span className="bw-card-tier"><b>{tier.toUpperCase()}</b><small>{memberLabel || 'MEMBER'}</small></span>
-        </div>
-        <WingsIcon size={190} color="#c9963e" strokeWidth={0.9} />
-        <div className="bw-card-dark-bottom"><div className="pt-serif" style={{ fontSize: 24, fontWeight: 600 }}>{name}</div><div className="bw-card-code">{code}</div></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pt-member-card" style={{ backgroundImage: IMG.palace, minHeight: 220 }}>
-      <div className="pt-row between top">
-        <span className="pt-brand" style={{ color: '#fff' }}><WingsIcon size={26} color="#e6b865" /><span className="pt-brand-name" style={{ fontSize: 18 }}>Bright Wings</span></span>
-      </div>
-      <div>
-        <div className="pt-serif" style={{ fontSize: 24, fontWeight: 700 }}>{name}</div>
-        <div className="pt-row between" style={{ alignItems: 'flex-end', marginTop: 14 }}>
-          <div style={{ display: 'grid', gap: 12 }}>
-            <div><div style={{ fontSize: 11, opacity: 0.75 }}>Member No.</div><strong style={{ fontSize: 18 }}>{code}</strong></div>
-            {validUntil && <div><div style={{ fontSize: 11, opacity: 0.75 }}>Valid until</div><strong style={{ fontSize: 15 }}>{validUntil}</strong></div>}
-          </div>
-          <div style={{ display: 'grid', justifyItems: 'end', gap: 10 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#f0c76e', fontWeight: 800, fontSize: 16 }}><TierIcon tier={tier} size={18} /> {tier}</span>
-            {qr && <div style={{ background: '#fff', borderRadius: 10, padding: 6, width: 86, height: 86 }}>{src ? <img src={src} alt="Membership QR code" width="74" height="74" /> : null}</div>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+/** The membership card front (see MembershipCard.js). `validUntil` is the card's ISO date from the API. */
+/** The card with a flip button (Home page). */
+export function FlippableMemberCard({ name, code, tier = 'Member', validUntil, onOpen }) {
+  return <FlippableCard name={name} code={code} tier={tier} validUntil={validUntil} onOpen={onOpen} />;
 }
 
-export function TierRail({ current = 'Silver' }) {
+export function MemberCardFace({ name, code, tier = 'Member', validUntil }) {
+  return <CardFront name={name} code={code} tier={tier} validUntil={validUntil} />;
+}
+
+export function TierRail({ current = 'Member' }) {
   const idx = Math.max(0, TIERS.findIndex(([name]) => name === current));
   return (
     <div className="pt-tier-rail">

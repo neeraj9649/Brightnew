@@ -641,7 +641,7 @@ pub struct CreateQuoteDTO {
 }
 
 /// Admins may work any booking; employees only the ones assigned to them.
-async fn ensure_staff_access(
+pub(super) async fn ensure_staff_access(
     pool: &PgPool,
     claims: &JwtClaims,
     booking_id: Uuid,
@@ -1023,32 +1023,43 @@ pub struct StaffCustomerDTO {
     pub is_active: bool,
     pub bookings: i64,
     pub next_followup: Option<DateTime<Utc>>,
+    pub staff_id: Option<Uuid>,
+    pub staff_name: Option<String>,
+    pub association_source: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct StaffCustomerQuery {
     #[serde(default)]
     pub q: Option<String>,
+    /// "search" = look up any customer by name/phone/member code (needs at least 3 characters).
+    #[serde(default)]
+    pub scope: Option<String>,
 }
 
-/// Admins see every customer; employees only the customers whose bookings are
-/// assigned to them.
+/// Admins see every customer; employees the customers associated with them or whose bookings are
+/// assigned to them (plus any customer they look up with `scope=search`).
 async fn staff_customers_handler(
     pool: web::Data<PgPool>,
     claims: JwtClaims,
     query: web::Query<StaffCustomerQuery>,
 ) -> Result<ApiResponse<Vec<StaffCustomerDTO>>, ApiError> {
     let q = query.q.as_deref().map(str::trim).filter(|v| !v.is_empty()).map(|v| format!("%{}%", v.to_lowercase()));
+    // Recording a booking for someone: staff may look up any customer, but only with a real search term.
+    let search_all = query.scope.as_deref() == Some("search") && q.as_deref().is_some_and(|v| v.len() >= 5);
     let rows = sqlx::query_as::<_, StaffCustomerDTO>(
         r#"SELECT u.id, TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS name, u.phone, u.membership_code,
                   u.membership_tier, u.tokens, u.lifetime_points_earned AS lifetime_wings, u.joined_at, u.is_active,
                   (SELECT COUNT(*) FROM bookings b WHERE b.user_id = u.id) AS bookings,
                   (SELECT MIN(t.due_at) FROM tasks t WHERE t.status IN ('pending', 'in_progress')
                        AND (t.customer_id = u.id OR t.booking_id IN (SELECT id FROM bookings WHERE user_id = u.id))
-                       AND ($2 OR t.assigned_to = $1)) AS next_followup
+                       AND ($2 OR t.assigned_to = $1)) AS next_followup,
+                  u.associated_staff_id AS staff_id,
+                  (SELECT TRIM(s.first_name || ' ' || COALESCE(s.last_name, '')) FROM users s WHERE s.id = u.associated_staff_id) AS staff_name,
+                  u.association_source
            FROM users u
            WHERE u.role = 'customer'
-             AND ($2 OR EXISTS (SELECT 1 FROM bookings b WHERE b.user_id = u.id AND b.assigned_employee_id = $1))
+             AND ($2 OR $4 OR u.associated_staff_id = $1 OR EXISTS (SELECT 1 FROM bookings b WHERE b.user_id = u.id AND b.assigned_employee_id = $1))
              AND ($3::text IS NULL OR LOWER(u.first_name || ' ' || COALESCE(u.last_name, '')) LIKE $3
                   OR u.phone LIKE $3 OR LOWER(u.membership_code) LIKE $3)
            ORDER BY u.joined_at DESC LIMIT 300"#,
@@ -1056,6 +1067,7 @@ async fn staff_customers_handler(
     .bind(claims.sub)
     .bind(role::is_admin(&claims.role))
     .bind(q)
+    .bind(search_all)
     .fetch_all(pool.get_ref())
     .await
     .map_err(db_err)?;
@@ -1089,7 +1101,9 @@ async fn public_program_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<V
 }
 
 pub fn portal_routes(cfg: &mut ServiceConfig) {
-    cfg.route("/public/program", web::get().to(public_program_handler)).service(
+    cfg.route("/public/program", web::get().to(public_program_handler))
+        .route("/public/offers", web::get().to(super::workflow::public_offers_handler))
+        .service(
         web::scope("/pin-reset")
             .route("/request", web::post().to(pin_reset_request_handler))
             .route("/verify", web::post().to(pin_reset_verify_handler))
@@ -1120,7 +1134,8 @@ pub fn portal_routes(cfg: &mut ServiceConfig) {
             .route("/{id}/messages", web::get().to(super::member::customer_messages_handler))
             .route("/{id}/messages", web::post().to(super::member::customer_send_message_handler))
             .route("/{id}/quote/accept", web::post().to(accept_quote_handler))
-            .route("/{id}/quote/change", web::post().to(request_quote_change_handler)),
+            .route("/{id}/quote/change", web::post().to(request_quote_change_handler))
+            .route("/{id}/steps", web::get().to(super::workflow::customer_steps_handler)),
     )
     .service(
         web::scope("/portal/staff/bookings")
@@ -1131,7 +1146,13 @@ pub fn portal_routes(cfg: &mut ServiceConfig) {
             .route("/{id}/quotes", web::post().to(staff_create_quote_handler))
             .route("/{id}/events", web::get().to(staff_events_handler))
             .route("/{id}/messages", web::get().to(super::member::staff_messages_handler))
-            .route("/{id}/messages", web::post().to(super::member::staff_send_message_handler)),
+            .route("/{id}/messages", web::post().to(super::member::staff_send_message_handler))
+            .route("/{id}/steps", web::get().to(super::workflow::staff_steps_handler))
+            .route("/{id}/steps", web::post().to(super::workflow::staff_add_step_handler))
+            .route("/{id}/steps/defaults", web::post().to(super::workflow::staff_default_steps_handler))
+            .route("/{id}/steps/{step_id}", web::patch().to(super::workflow::staff_update_step_handler))
+            .route("/{id}/steps/{step_id}", web::delete().to(super::workflow::staff_delete_step_handler))
+            .route("/{id}/wings", web::get().to(super::workflow::staff_booking_wings_handler)),
     )
     .service(
         web::scope("/portal/staff")
@@ -1141,6 +1162,13 @@ pub fn portal_routes(cfg: &mut ServiceConfig) {
             .route("/tasks", web::get().to(staff_tasks_handler))
             .route("/tasks", web::post().to(staff_create_task_handler))
             .route("/tasks/{id}", web::patch().to(staff_update_task_handler))
-            .route("/customers", web::get().to(staff_customers_handler)),
+            .route("/customers", web::get().to(staff_customers_handler))
+            .route("/customers/{id}/association", web::get().to(super::workflow::staff_customer_association_handler))
+            .route("/wings-requests", web::get().to(super::workflow::staff_list_wings_requests_handler))
+            .route("/wings-requests", web::post().to(super::workflow::staff_create_wings_request_handler))
+            .route("/offers", web::get().to(super::workflow::staff_list_offers_handler))
+            .route("/offers", web::post().to(super::workflow::staff_create_offer_handler))
+            .route("/offers/{id}", web::put().to(super::workflow::staff_update_offer_handler))
+            .route("/offers/{id}", web::delete().to(super::workflow::staff_delete_offer_handler)),
     );
 }

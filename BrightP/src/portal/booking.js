@@ -246,9 +246,16 @@ export const bookingSubtitle = (b) => {
 };
 
 export const TIER_BENEFITS = {
-  Silver: ['Earn Wings on all bookings', 'Member-only support', 'Birthday greeting'],
-  Gold: ['Earn Wings on all bookings', 'Exclusive member fares', 'Priority support', 'Early access to offers', 'Birthday surprise'],
-  Platinum: ['Everything in Gold', 'Enhanced travel support', 'Preferred partner offers', 'Complimentary itinerary reviews'],
-  Titanium: ['Everything in Platinum', 'Dedicated travel assistance', 'Highest-tier recognition', 'First access to new experiences'],
+  Member: ['200 welcome Wings on joining', 'Earn Wings on every booking', 'Redeem Wings for travel rewards'],
+  Silver: ['Free Musandam Tour', 'Priority Customer Support', 'Exclusive Travel Offers'],
+  Gold: ['Free Air Ticket', 'Priority Booking Assistance', 'Special Discounts on Selected Packages', 'All Silver Benefits'],
+  Platinum: ['Free Family Holiday Package', 'VIP Customer Support', 'Premium Travel Benefits', 'Exclusive Seasonal Promotions', 'All Gold & Silver Benefits'],
 };
-export const TIERS = [['Silver', 0], ['Gold', 1000], ['Platinum', 5000], ['Titanium', 20000]];
+export const TIERS = [['Member', 0], ['Silver', 10000], ['Gold', 20000], ['Platinum', 50000]];
+
+/** How each earning rate (points_config key) is named in the Bonus Card Program. */
+export const EARN_LABEL = {
+  flight: 'Air ticket booking', visa: 'Visa service', activity: 'Activity ticket booking', airport_transfer: 'Airport pickup / drop service',
+  tour: 'Tour package booking', holiday_package: 'Holiday package booking', office_visit: 'Office visit', car_rental: 'Car hire',
+  hotel: 'Hotel booking', cruise: 'Cruise booking', insurance: 'Insurance', custom: 'Customized travel',
+};

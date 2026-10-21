@@ -1,3 +1,4 @@
+import { MessagesCard, StepsCard } from './BookingExtras';
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, Check, Clock, Copy, Download, EllipsisVertical, FileText, Info, MessageSquare, Phone, Plane, X, CircleCheck, CircleX, CalendarClock } from 'lucide-react';
@@ -173,6 +174,8 @@ export function MobileBookingDetail() {
               <Info size={18} />
             </div>
 
+            <StepsCard bookingId={booking.docId} />
+            <MessagesCard bookingId={booking.docId} advisorName={portal.advisor?.name} />
             <button type="button" className="pt-btn ghost full" onClick={() => setDocsOpen(true)}><Download size={18} /> Download documents{docs.length ? ` (${docs.length})` : ''}</button>
             {wide ? null : cancellable && <button type="button" className="pt-btn danger full" onClick={() => setCancelOpen(true)}>Cancel request</button>}
           </div>

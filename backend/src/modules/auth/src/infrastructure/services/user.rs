@@ -56,15 +56,21 @@ impl UserService for UserServiceImpl {
             return Err(UserError::UserAlreadyExists);
         }
 
-        let referrer_id = match referred_by_code {
-            Some(code) => Some(
-                self.repository
+        // The code can be another member's referral code or a staff member's code.
+        let referrer = match referred_by_code {
+            Some(code) => {
+                let found = self
+                    .repository
                     .get_by_referral_code(&code)
                     .await
                     .map_err(UserError::InternalServerError)?
-                    .ok_or(UserError::InvalidReferralCode)?
-                    .id,
-            ),
+                    .ok_or(UserError::InvalidReferralCode)?;
+                // A deactivated staff member's code is no longer valid.
+                if base::role::STAFF.contains(&found.role.as_str()) && !found.is_active {
+                    return Err(UserError::InvalidReferralCode);
+                }
+                Some(found)
+            }
             None => None,
         };
 
@@ -99,15 +105,35 @@ impl UserService for UserServiceImpl {
                         user.tokens = welcome_points;
                     }
 
-                    if let Some(referrer_id) = referrer_id {
-                        self.referral_service
-                            .record_referral(referrer_id, user.id)
-                            .await
-                            .map_err(|err| {
-                                UserError::InternalServerError(RepositoryError::new(
-                                    err.to_string(),
-                                ))
-                            })?;
+                    if let Some(referrer) = &referrer {
+                        if base::role::STAFF.contains(&referrer.role.as_str()) {
+                            // A staff code: the new member is associated with that staff member.
+                            self.repository
+                                .set_associated_staff(user.id, Some(referrer.id), "staff_code")
+                                .await
+                                .map_err(UserError::InternalServerError)?;
+                        } else {
+                            self.referral_service
+                                .record_referral(referrer.id, user.id)
+                                .await
+                                .map_err(|err| {
+                                    UserError::InternalServerError(RepositoryError::new(
+                                        err.to_string(),
+                                    ))
+                                })?;
+                            // Referred members join the staff member of the member who referred them.
+                            if let Some(staff_id) = self
+                                .repository
+                                .get_associated_staff(referrer.id)
+                                .await
+                                .map_err(UserError::InternalServerError)?
+                            {
+                                self.repository
+                                    .set_associated_staff(user.id, Some(staff_id), "referral")
+                                    .await
+                                    .map_err(UserError::InternalServerError)?;
+                            }
+                        }
                     }
 
                     return Ok(user);
@@ -194,5 +220,17 @@ impl UserService for UserServiceImpl {
             Ok(None) => Err(UserError::UserDoesNotExist),
             Err(err) => Err(UserError::InternalServerError(err)),
         }
+    }
+
+    async fn associate_staff(
+        &self,
+        user_id: Uuid,
+        staff_id: Option<Uuid>,
+        source: &str,
+    ) -> Result<(), UserError> {
+        self.repository
+            .set_associated_staff(user_id, staff_id, source)
+            .await
+            .map_err(UserError::InternalServerError)
     }
 }
