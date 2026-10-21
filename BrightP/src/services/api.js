@@ -5,8 +5,25 @@ const API_BASE_URL = (
 let accessToken = null;
 let refreshPromise = null;
 
+let refreshTimer = null;
+
+// Renew the access token shortly before it expires so the user never hits a 401 mid-click.
+const scheduleRefresh = () => {
+  clearTimeout(refreshTimer);
+  refreshTimer = null;
+  if (!accessToken) return;
+  try {
+    const payload = JSON.parse(atob(accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const delay = Math.max(payload.exp * 1000 - Date.now() - 60_000, 5_000);
+    refreshTimer = setTimeout(() => { tryRefresh(); }, Math.min(delay, 2_147_000_000));
+  } catch {
+    /* unreadable token: the 401 handler still refreshes on demand */
+  }
+};
+
 export const setAccessToken = (token) => {
   accessToken = token;
+  scheduleRefresh();
 };
 
 export const getAccessToken = () => accessToken;
@@ -50,12 +67,17 @@ async function tryRefresh() {
   // the result instead of racing the single-use refresh-token endpoint.
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const { response, body } = await rawRequest('/auth/refresh', { method: 'POST' });
-      if (response.ok && body?.data?.access_token) {
-        setAccessToken(body.data.access_token);
-        return true;
+      try {
+        const { response, body } = await rawRequest('/auth/refresh', { method: 'POST' });
+        if (response.ok && body?.data?.access_token) {
+          setAccessToken(body.data.access_token);
+          return true;
+        }
+        // Only a definite rejection ends the session; a 5xx or proxy hiccup must not log the user out.
+        if (response.status === 401 || response.status === 403) setAccessToken(null);
+      } catch {
+        /* offline: keep the current token and try again later */
       }
-      setAccessToken(null);
       return false;
     })().finally(() => {
       refreshPromise = null;
@@ -95,6 +117,13 @@ export async function apiRequest(path, options = {}) {
   }
 
   return body.data;
+}
+
+// Refresh again when a backgrounded tab wakes up (timers are throttled while hidden).
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && accessToken) scheduleRefresh();
+  });
 }
 
 export const api = {

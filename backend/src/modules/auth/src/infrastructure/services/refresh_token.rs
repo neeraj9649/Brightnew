@@ -24,6 +24,27 @@ use base::constants;
 /// A second request carrying a token that was swapped this recently is a race, not a replay.
 const ROTATION_GRACE_SECONDS: i64 = 10;
 
+/// The refresh cookie, with Secure/SameSite/Domain taken from config. Logout uses the same
+/// attributes (it must, or the browser keeps the original cookie).
+fn refresh_cookie(value: String, max_age: CookieDuration) -> Cookie<'static> {
+    let same_site = match constants::COOKIE_SAMESITE.as_str() {
+        "none" => SameSite::None,
+        "strict" => SameSite::Strict,
+        _ => SameSite::Lax,
+    };
+    let mut builder = Cookie::build((*constants::REFRESH_TOKEN_COOKIE_NAME).clone(), value)
+        .http_only(true)
+        // Browsers reject SameSite=None without Secure, so never send one without the other.
+        .secure(*constants::COOKIE_SECURE || same_site == SameSite::None)
+        .same_site(same_site)
+        .path("/")
+        .max_age(max_age);
+    if let Some(domain) = constants::COOKIE_DOMAIN.as_ref() {
+        builder = builder.domain(domain.clone());
+    }
+    builder.finish()
+}
+
 #[derive(Clone)]
 pub struct RefreshTokenServiceImpl {
     pub repository: Arc<dyn RefreshTokenRepository>,
@@ -159,31 +180,11 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
         &self,
         raw_token: String,
     ) -> Cookie<'static> {
-        let secure = !cfg!(debug_assertions);
-        Cookie::build(
-            (*constants::REFRESH_TOKEN_COOKIE_NAME).clone(),
-            raw_token,
-        )
-        .http_only(true)
-        // SameSite=None is required for a cross-site production portal/API
-        // pair and browsers require Secure with it. Local HTTP previews use
-        // Lax so the refresh cookie is not silently rejected.
-        .secure(secure)
-        .same_site(if secure { SameSite::None } else { SameSite::Lax })
-        .path("/")
-        .max_age(CookieDuration::days(*constants::REFRESH_TOKEN_EXP_DAYS))
-        .finish()
+        refresh_cookie(raw_token, CookieDuration::days(*constants::REFRESH_TOKEN_EXP_DAYS))
     }
 
     fn build_expired_refresh_token_cookie(&self) -> Cookie<'static> {
-        let secure = !cfg!(debug_assertions);
-        Cookie::build((*constants::REFRESH_TOKEN_COOKIE_NAME).clone(), "")
-            .http_only(true)
-            .secure(secure)
-            .same_site(if secure { SameSite::None } else { SameSite::Lax })
-            .path("/")
-            .max_age(CookieDuration::seconds(0))
-            .finish()
+        refresh_cookie(String::new(), CookieDuration::seconds(0))
     }
 
     fn verify_jwt(&self, token: &str) -> Result<JwtClaims, RefreshTokenError> {

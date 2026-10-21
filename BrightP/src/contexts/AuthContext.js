@@ -167,18 +167,26 @@ export const AuthProvider = ({ children }) => {
   // Restore the session on page load using the httpOnly refresh-token cookie.
   useEffect(() => {
     (async () => {
-      try {
-        // Refresh tokens are single-use. React 18 StrictMode (dev) runs this
-        // effect twice, so share one in-flight request instead of racing two.
-        restorePromise = restorePromise || api.post("/auth/refresh").finally(() => { setTimeout(() => { restorePromise = null; }, 0); });
-        const data = await restorePromise;
-        setAccessToken(data.access_token);
-        applyUserDTO(data.user);
-      } catch {
-        setAccessToken(null);
-      } finally {
-        setLoading(false);
+      // Only a definite 401 means "no session". Network errors and 5xx get a few retries
+      // so a server hiccup does not sign the user out.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          // Refresh tokens are single-use. React 18 StrictMode (dev) runs this
+          // effect twice, so share one in-flight request instead of racing two.
+          restorePromise = restorePromise || api.post("/auth/refresh").finally(() => { setTimeout(() => { restorePromise = null; }, 0); });
+          const data = await restorePromise;
+          setAccessToken(data.access_token);
+          applyUserDTO(data.user);
+          break;
+        } catch (error) {
+          if (error.status === 401 || error.status === 403) {
+            setAccessToken(null);
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+        }
       }
+      setLoading(false);
     })();
   }, []);
 

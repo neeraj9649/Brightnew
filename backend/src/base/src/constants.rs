@@ -13,6 +13,45 @@ lazy_static! {
     pub static ref REFRESH_TOKEN_EXP_DAYS: i64 = set_refresh_token_exp_days();
     pub static ref JWT_TOKEN_EXP_MINUTES: i64 = set_jwt_token_exp_minutes();
     pub static ref CORS_ALLOWED_ORIGIN: String = set_cors_allowed_origin();
+    /// `Secure` flag of the refresh cookie. Defaults to on for release builds, off for debug.
+    pub static ref COOKIE_SECURE: bool = set_cookie_secure();
+    /// `SameSite` of the refresh cookie: `none` (cross-site portal/API), `lax` or `strict`.
+    pub static ref COOKIE_SAMESITE: String = set_cookie_samesite();
+    /// Optional `Domain` (e.g. `.brightwingstravel.com`) so a portal and an API on sibling subdomains share the cookie.
+    pub static ref COOKIE_DOMAIN: Option<String> = set_cookie_domain();
+    /// Adds the `Partitioned` (CHIPS) attribute so a cross-site cookie survives browsers that block third-party cookies.
+    pub static ref COOKIE_PARTITIONED: bool = set_cookie_partitioned();
+}
+
+fn env_flag(name: &str) -> Option<bool> {
+    dotenv::dotenv().ok();
+    env::var(name).ok().map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "true" | "1" | "yes" | "on"))
+}
+
+fn set_cookie_secure() -> bool {
+    env_flag("COOKIE_SECURE").unwrap_or(!cfg!(debug_assertions))
+}
+
+fn set_cookie_samesite() -> String {
+    dotenv::dotenv().ok();
+    let value = env::var("COOKIE_SAMESITE").unwrap_or_default().trim().to_ascii_lowercase();
+    match value.as_str() {
+        "none" | "lax" | "strict" => value,
+        // SameSite=None is only valid together with Secure.
+        _ if set_cookie_secure() => "none".to_string(),
+        _ => "lax".to_string(),
+    }
+}
+
+fn set_cookie_domain() -> Option<String> {
+    dotenv::dotenv().ok();
+    env::var("COOKIE_DOMAIN").ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
+}
+
+fn set_cookie_partitioned() -> bool {
+    // Partitioned requires Secure and is only meaningful for cross-site cookies.
+    let default = set_cookie_secure() && set_cookie_samesite() == "none" && set_cookie_domain().is_none();
+    env_flag("COOKIE_PARTITIONED").unwrap_or(default) && set_cookie_secure()
 }
 
 fn set_cors_allowed_origin() -> String {
@@ -73,7 +112,7 @@ fn set_refresh_token_exp_days() -> i64 {
 fn set_jwt_token_exp_minutes() -> i64 {
     dotenv::dotenv().ok();
     env::var("JWT_TOKEN_EXP_MINUTES")
-        .unwrap_or_else(|_| "1440".to_string())
+        .unwrap_or_else(|_| "15".to_string())
         .parse::<i64>()
         .expect("can't parse JWT_TOKEN_EXP_MINUTES")
 }

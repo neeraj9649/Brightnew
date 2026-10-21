@@ -1,4 +1,6 @@
+use actix_web::cookie::Cookie;
 use actix_web::{HttpRequest, HttpResponse, web};
+use base::constants;
 use base::error::ApiError;
 use base::jwt_claims::JwtClaims;
 use base::rate_limit::LIMITER;
@@ -20,6 +22,15 @@ const LOGIN_IP_MAX_FAILURES: u32 = 40;
 const LOGIN_WINDOW: Duration = Duration::from_secs(15 * 60);
 const REGISTER_MAX_PER_IP: u32 = 30;
 const REGISTER_WINDOW: Duration = Duration::from_secs(60 * 60);
+
+/// Serialises the refresh cookie as a `Set-Cookie` value, adding `Partitioned` when configured.
+fn set_cookie_header(cookie: &Cookie<'static>) -> (&'static str, String) {
+    let mut value = cookie.to_string();
+    if *constants::COOKIE_PARTITIONED {
+        value.push_str("; Partitioned");
+    }
+    ("Set-Cookie", value)
+}
 
 fn client_ip(req: &HttpRequest) -> String {
     req.connection_info().realip_remote_addr().unwrap_or("unknown").to_string()
@@ -50,7 +61,7 @@ async fn issue_session(
         refresh_token_service.build_refresh_token_cookie(raw_refresh_token);
 
     let body = AuthResponseDTO { access_token, user: UserDTO::from(user) };
-    Ok(HttpResponse::Ok().cookie(cookie).json(json!({
+    Ok(HttpResponse::Ok().append_header(set_cookie_header(&cookie)).json(json!({
         "data": body,
         "msg": "",
         "success": true,
@@ -151,7 +162,9 @@ pub async fn refresh_token_handler(
     let mut response = HttpResponse::Ok();
     // No new cookie for a duplicate request: the browser already holds the one the first request set.
     if let Some(new_raw_token) = renewed.new_raw_token {
-        response.cookie(refresh_token_service.build_refresh_token_cookie(new_raw_token));
+        response.append_header(set_cookie_header(
+            &refresh_token_service.build_refresh_token_cookie(new_raw_token),
+        ));
     }
     Ok(response.json(json!({
         "data": body,
@@ -171,7 +184,7 @@ pub async fn logout_handler(
 
     let expired_cookie =
         refresh_token_service.build_expired_refresh_token_cookie();
-    Ok(HttpResponse::NoContent().cookie(expired_cookie).finish())
+    Ok(HttpResponse::NoContent().append_header(set_cookie_header(&expired_cookie)).finish())
 }
 
 pub async fn get_me_handler(

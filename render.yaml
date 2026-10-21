@@ -34,7 +34,13 @@ services:
       - key: REFRESH_TOKEN_EXP_DAYS
         value: "30"
       - key: JWT_TOKEN_EXP_MINUTES
-        value: "1440"
+        value: "15"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: COOKIE_PARTITIONED
+        value: "true"
       - key: PHP_UPLOADER_BASE_URL
         value: https://resource.brightwingstravel.in
       - key: PHP_UPLOADER_TOKEN
