@@ -8,6 +8,9 @@ const nextConfig = {
   // 👇 Change output directory (optional)
   distDir: "build",
 
+  // Emit /page/index.html so any static host serves each route (no SPA fallback to the home page).
+  trailingSlash: true,
+
   // Static export can't use the default image loader.
   images: { unoptimized: true },
 
