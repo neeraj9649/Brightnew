@@ -282,8 +282,8 @@ const tourDetailsOneData = [
       "/images/gallery/listing-list-g-1-5.jpg",
     ],
     images: [
-      "/images/resources/jumeirah-beachsuggestion-1.png",
-      "/images/resources/jumeirah-beachsuggestion-2.png",
+      "/images/resources/jumeirah-beach-suggestion-1.png",
+      "/images/resources/jumeirah-beach-suggestion-2.png",
     ],
     highlightList: [
       "Dubai Aquarium & Underwater Zoo",
