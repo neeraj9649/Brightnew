@@ -8,11 +8,11 @@ use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::role::{ADMIN_ONLY, STAFF};
 
-const MAX_FILE_SIZE: usize = 10 * 1024 * 1024;
 use futures_util::TryStreamExt;
 use serde::Serialize;
 
 const MAX_UPLOAD_BYTES: usize = 10 * 1024 * 1024;
+const MAX_FILE_SIZE: usize = MAX_UPLOAD_BYTES;
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
 const DOCUMENT_EXTENSIONS: &[&str] = &[
     "jpg", "jpeg", "png", "webp", "gif", "pdf", "doc", "docx", "xls", "xlsx", "csv", "txt",
@@ -65,11 +65,15 @@ async fn upload_to_namespace(
         ));
     }
 
-    let filename = field
-        .content_disposition()
-        .get_filename()
-        .unwrap_or("file.bin")
-        .to_string();
+    let original = field.content_disposition().get_filename().unwrap_or("").to_string();
+    let Some(ext) = allowed_extension(&original, allowed_extensions) else {
+        return Err(ApiError::new(
+            format!("This file type is not allowed. Allowed: {}", allowed_extensions.join(", ")),
+            400,
+        ));
+    };
+    // Only the vetted extension is forwarded; the client's own file name is not.
+    let filename = format!("upload.{ext}");
     let content_type = field.content_type().map(|m| m.to_string());
 
     let mut bytes = web::BytesMut::new();
@@ -147,7 +151,7 @@ async fn upload_quotation_handler(
     claims: JwtClaims,
 ) -> Result<ApiResponse<UploadedFileDTO>, ApiError> {
     require_role(&claims, STAFF)?;
-    upload_to_namespace(payload, claims, "quotations").await
+    upload_to_namespace(payload, claims, "quotations", DOCUMENT_EXTENSIONS).await
 }
 
 async fn upload_expense_receipt_handler(
@@ -155,14 +159,14 @@ async fn upload_expense_receipt_handler(
     claims: JwtClaims,
 ) -> Result<ApiResponse<UploadedFileDTO>, ApiError> {
     require_role(&claims, STAFF)?;
-    upload_to_namespace(payload, claims, "expense-receipts").await
+    upload_to_namespace(payload, claims, "expense-receipts", DOCUMENT_EXTENSIONS).await
 }
 
 async fn upload_support_attachment_handler(
     payload: Multipart,
     claims: JwtClaims,
 ) -> Result<ApiResponse<UploadedFileDTO>, ApiError> {
-    upload_to_namespace(payload, claims, "support-attachments").await
+    upload_to_namespace(payload, claims, "support-attachments", DOCUMENT_EXTENSIONS).await
 }
 
 async fn upload_reward_image_handler(
@@ -170,7 +174,7 @@ async fn upload_reward_image_handler(
     claims: JwtClaims,
 ) -> Result<ApiResponse<UploadedFileDTO>, ApiError> {
     require_role(&claims, ADMIN_ONLY)?;
-    upload_to_namespace(payload, claims, "reward-images").await
+    upload_to_namespace(payload, claims, "reward-images", IMAGE_EXTENSIONS).await
 }
 
 fn require_role(claims: &JwtClaims, roles: &[&str]) -> Result<(), ApiError> {
@@ -218,8 +222,12 @@ mod tests {
     use std::io::{Read, Write};
     use uuid::Uuid;
 
+    fn multipart_with(name: &str, filename: &str, content_type: &str, data: &str) -> String {
+        format!("--boundary\r\nContent-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\nContent-Type: {content_type}\r\n\r\n{data}\r\n--boundary--\r\n")
+    }
+
     fn multipart(name: &str, data: &str) -> String {
-        format!("--boundary\r\nContent-Disposition: form-data; name=\"{name}\"; filename=\"receipt.pdf\"\r\nContent-Type: application/pdf\r\n\r\n{data}\r\n--boundary--\r\n")
+        multipart_with(name, "receipt.pdf", "application/pdf", data)
     }
 
     #[actix_web::test]
@@ -248,6 +256,7 @@ mod tests {
                 role: role.to_string(),
                 exp: usize::MAX,
                 iat: 0,
+                sid: None,
             });
             req
         };
@@ -322,8 +331,13 @@ mod tests {
                     .contains("x-upload-token: test-upload-token"));
                 assert!(request.contains(namespace));
                 assert!(request.contains(&owner.to_string()));
-                assert!(request.contains("application/pdf"));
-                assert!(request.contains("%PDF-test"));
+                if namespace == "reward-images" {
+                    assert!(request.contains("image/gif"));
+                    assert!(request.contains("GIF89a-test"));
+                } else {
+                    assert!(request.contains("application/pdf"));
+                    assert!(request.contains("%PDF-test"));
+                }
                 let response = format!(r#"{{"success":true,"id":"{expected_id}"}}"#);
                 write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", response.len(), response).unwrap();
             }
@@ -335,8 +349,13 @@ mod tests {
             ("/support", "customer"),
             ("/reward", "super_admin"),
         ] {
+            let body = if path == "/reward" {
+                multipart_with("file", "reward.gif", "image/gif", "GIF89a-test")
+            } else {
+                multipart("file", "%PDF-test")
+            };
             let response =
-                test::call_service(&app, send(path, multipart("file", "%PDF-test"), role)).await;
+                test::call_service(&app, send(path, body, role)).await;
             assert_eq!(response.status(), StatusCode::OK);
             let json: serde_json::Value = test::read_body_json(response).await;
             assert_eq!(json["data"]["file_id"], file_id);
