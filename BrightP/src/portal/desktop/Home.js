@@ -7,7 +7,7 @@ import { api } from '../../services/api';
 import { Badge, Page, Progress, Shell, Skeleton, bg, fmtDate, fmtNum, memberName, useAsync, tierTitle } from '../ui';
 import { PHOTO, photoFor } from '../photos';
 import { bookingTitle, isPast, serviceOf, statusMeta } from '../booking';
-import { MemberCardFace } from '../customer/parts';
+import { FlippableMemberCard } from '../customer/parts';
 import { OffersStrip } from '../customer/Offers';
 import { fmtRange } from './common';
 
@@ -76,18 +76,18 @@ export default function DeskHome() {
               <button type="button" className="pt-link" style={{ textDecoration: 'none', color: 'var(--pt-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => navigate('/tier-benefits')}>View benefits <ChevronRight size={14} /></button>
             </div>
             <div><p className="dh-away">{tier.next_tier ? <>You’re <b>{fmtNum(remaining)} Wings</b> away from {tier.next_tier}</> : 'You’ve reached our highest tier'}</p>
-            <Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} />
-            <div className="pt-row between pt-small" style={{ marginTop: 10, color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)} Wings</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)} Wings</span>}</div></div>
+              <Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} />
+              <div className="pt-row between pt-small" style={{ marginTop: 10, color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)} Wings</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)} Wings</span>}</div></div>
           </div>
 
-          <button type="button" className="dh-card-link" onClick={() => navigate('/membership')} aria-label="Open membership card">
-            <MemberCardFace name={summary?.card?.name || name} code={summary?.card?.membership_code || userData?.membershipCode} tier={tier.current} validUntil={summary?.card?.valid_until} />
-          </button>
+          <div className="dh-card-link">
+            <FlippableMemberCard name={summary?.card?.name || name} code={summary?.card?.membership_code || userData?.membershipCode} tier={tier.current} validUntil={summary?.card?.valid_until} onOpen={() => navigate('/membership')} />
+          </div>
         </section>
 
         <section className="dh-row2">
           <div className="pt-card dh-trip">
-            <div className="pt-row between"><h2 className="dh-sec"><Plane size={20} /> {trips.length ? 'Your trips' : 'Your next trip'}</h2>{trips.length > 0 && <button type="button" className="dh-more" onClick={() => navigate('/bookings')}>View all bookings <ChevronRight size={14} /></button>}</div>
+            <div className="pt-row between"><h2 className="dh-sec"><Plane size={20} /> {trips.length ? 'Your trips' : 'Your next trip'}</h2>{trips.length > 0 && <span className="pt-row" style={{ gap: 14 }}><button type="button" className="dh-more" onClick={() => navigate('/bookings')}>View all bookings <ChevronRight size={14} /></button><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Request new travel</button></span>}</div>
             {trips.length ? (
               <ul className="dh-trips">
                 {trips.map((b) => {
@@ -113,7 +113,7 @@ export default function DeskHome() {
                 })}
               </ul>
             ) : (
-              <div className="dh-empty"><p>No trips yet. Request your first quote in a couple of minutes.</p><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Book travel</button></div>
+              <div className="dh-empty"><p>No trips yet. Request your first quote in a couple of minutes.</p><button type="button" className="pt-gold-btn sm" onClick={() => navigate('/bookings/new')}>Request new travel</button></div>
             )}
           </div>
 

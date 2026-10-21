@@ -18,7 +18,7 @@ use base::{
     jwt_claims::JwtClaims,
     role::{self, EMPLOYEE},
 };
-use bookings::api::dto::booking::{BookingDTO, StaffCreateBookingDTO};
+use bookings::api::dto::booking::{BookingDTO, CreateBookingDTO, StaffCreateBookingDTO};
 use bookings::domain::services::booking::BookingService;
 use rewards::domain::models::reward_transaction::RewardReason;
 use rewards::domain::services::rewards::RewardsService;
@@ -34,9 +34,59 @@ fn db_err(e: sqlx::Error) -> ApiError {
 // Recording a booking for a customer
 // ---------------------------------------------------------------------------
 
+/// The active staff member a customer is associated with, if any.
+async fn associated_staff_of(pool: &PgPool, customer_id: Uuid) -> Result<Option<Uuid>, ApiError> {
+    sqlx::query_scalar::<_, Uuid>(
+        "SELECT s.id FROM users c JOIN users s ON s.id = c.associated_staff_id
+         WHERE c.id = $1 AND s.is_active AND s.role IN ('employee', 'admin', 'super_admin')",
+    )
+    .bind(customer_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_err)
+}
+
+/// Hands a booking that has no owner yet to the customer's associated staff member (and moves it from
+/// `new` to `assigned`). Returns who it was assigned to.
+async fn assign_to_associated_staff(pool: &PgPool, booking: &mut BookingDTO) -> Result<(), ApiError> {
+    if booking.assigned_employee_id.is_some() {
+        return Ok(());
+    }
+    let Some(staff) = associated_staff_of(pool, booking.user_id).await? else {
+        return Ok(());
+    };
+    let status: Option<String> = sqlx::query_scalar(
+        "UPDATE bookings SET assigned_employee_id = $2, status = CASE WHEN status = 'new' THEN 'assigned' ELSE status END
+         WHERE id = $1 AND assigned_employee_id IS NULL RETURNING status",
+    )
+    .bind(booking.id)
+    .bind(staff)
+    .fetch_optional(pool)
+    .await
+    .map_err(db_err)?;
+    if let Some(status) = status {
+        booking.assigned_employee_id = Some(staff);
+        booking.status = status;
+    }
+    Ok(())
+}
+
+/// A customer's own booking request goes straight to the staff member they are associated with.
+pub async fn customer_create_booking_handler(
+    booking_service: web::Data<dyn BookingService>,
+    pool: web::Data<PgPool>,
+    claims: JwtClaims,
+    body: web::Json<CreateBookingDTO>,
+) -> Result<ApiResponse<BookingDTO>, ApiError> {
+    let booking = booking_service.create(body.into_inner().into_entity(claims.sub)).await?;
+    let mut dto: BookingDTO = booking.into();
+    assign_to_associated_staff(pool.get_ref(), &mut dto).await?;
+    Ok(ApiResponse(dto))
+}
+
 /// Staff create a booking for a customer. The staff member is stored as the one who recorded it, and an
 /// employee who records a booking is also assigned to it, so it shows up in their pipeline and the
-/// customer's messages reach them.
+/// customer's messages reach them. When an admin records it, it goes to the customer's associated staff member.
 pub async fn staff_record_booking_handler(
     booking_service: web::Data<dyn BookingService>,
     pool: web::Data<PgPool>,
@@ -58,6 +108,8 @@ pub async fn staff_record_booking_handler(
     .map_err(db_err)?;
     if assign {
         dto.assigned_employee_id = Some(claims.sub);
+    } else {
+        assign_to_associated_staff(pool.get_ref(), &mut dto).await?;
     }
     Ok(ApiResponse(dto))
 }
@@ -708,6 +760,140 @@ pub async fn staff_delete_offer_handler(pool: web::Data<PgPool>, path: web::Path
         .await
         .map_err(db_err)?;
     Ok(ApiResponse(json!({ "deleted": true })))
+}
+
+// ---------------------------------------------------------------------------
+// Staff association (admin)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct StaffMemberDTO {
+    pub id: Uuid,
+    pub name: String,
+    pub role: String,
+    pub staff_code: Option<String>,
+    pub customers: i64,
+}
+
+/// Active staff, for the "assign to" pickers.
+pub async fn admin_list_staff_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<Vec<StaffMemberDTO>>, ApiError> {
+    let rows = sqlx::query_as::<_, StaffMemberDTO>(
+        "SELECT s.id, TRIM(s.first_name || ' ' || COALESCE(s.last_name, '')) AS name, s.role, s.referral_code AS staff_code,
+                (SELECT COUNT(*) FROM users c WHERE c.associated_staff_id = s.id AND c.role = 'customer') AS customers
+         FROM users s WHERE s.role IN ('employee', 'admin', 'super_admin') AND s.is_active
+         ORDER BY s.first_name, s.last_name",
+    )
+    .fetch_all(pool.get_ref())
+    .await
+    .map_err(db_err)?;
+    Ok(ApiResponse(rows))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AssignStaffDTO {
+    /// `null` removes the association.
+    #[serde(default)]
+    pub staff_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkAssignStaffDTO {
+    pub customer_ids: Vec<Uuid>,
+    pub staff_id: Uuid,
+    /// Leave customers that already have a staff member alone (default).
+    #[serde(default = "default_true")]
+    pub only_unassigned: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+async fn ensure_active_staff(pool: &PgPool, staff_id: Uuid) -> Result<(), ApiError> {
+    let ok: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND is_active AND role IN ('employee', 'admin', 'super_admin'))",
+    )
+    .bind(staff_id)
+    .fetch_one(pool)
+    .await
+    .map_err(db_err)?;
+    if ok {
+        Ok(())
+    } else {
+        Err(ApiError::new("Choose an active staff member", 400))
+    }
+}
+
+/// Admin: set, change or clear the staff member a customer is associated with.
+pub async fn admin_assign_staff_handler(
+    pool: web::Data<PgPool>,
+    path: web::Path<Uuid>,
+    body: web::Json<AssignStaffDTO>,
+) -> Result<ApiResponse<Value>, ApiError> {
+    let customer_id = path.into_inner();
+    let staff_id = body.into_inner().staff_id;
+    if let Some(staff) = staff_id {
+        ensure_active_staff(&pool, staff).await?;
+    }
+    let done = sqlx::query(
+        "UPDATE users SET associated_staff_id = $2,
+                association_source = CASE WHEN $2::uuid IS NULL THEN NULL ELSE 'admin' END,
+                associated_at = CASE WHEN $2::uuid IS NULL THEN NULL ELSE NOW() END
+         WHERE id = $1 AND role = 'customer'",
+    )
+    .bind(customer_id)
+    .bind(staff_id)
+    .execute(pool.get_ref())
+    .await
+    .map_err(db_err)?;
+    if done.rows_affected() == 0 {
+        return Err(ApiError::new("Customer not found", 404));
+    }
+    Ok(ApiResponse(json!({ "customer_id": customer_id, "staff_id": staff_id })))
+}
+
+/// Admin: associate many customers with one staff member at once.
+pub async fn admin_bulk_assign_staff_handler(
+    pool: web::Data<PgPool>,
+    body: web::Json<BulkAssignStaffDTO>,
+) -> Result<ApiResponse<Value>, ApiError> {
+    let body = body.into_inner();
+    if body.customer_ids.is_empty() || body.customer_ids.len() > 500 {
+        return Err(ApiError::new("Select between 1 and 500 customers", 400));
+    }
+    ensure_active_staff(&pool, body.staff_id).await?;
+    let done = sqlx::query(
+        "UPDATE users SET associated_staff_id = $2, association_source = 'admin', associated_at = NOW()
+         WHERE id = ANY($1) AND role = 'customer' AND ($3 = FALSE OR associated_staff_id IS NULL)",
+    )
+    .bind(&body.customer_ids)
+    .bind(body.staff_id)
+    .bind(body.only_unassigned)
+    .execute(pool.get_ref())
+    .await
+    .map_err(db_err)?;
+    Ok(ApiResponse(json!({ "assigned": done.rows_affected() })))
+}
+
+/// Staff: who a customer is associated with and how that came about.
+pub async fn staff_customer_association_handler(
+    pool: web::Data<PgPool>,
+    path: web::Path<Uuid>,
+) -> Result<ApiResponse<Value>, ApiError> {
+    let row: Option<(Option<Uuid>, Option<String>, Option<String>, Option<DateTime<Utc>>)> = sqlx::query_as(
+        "SELECT c.associated_staff_id,
+                (SELECT TRIM(s.first_name || ' ' || COALESCE(s.last_name, '')) FROM users s WHERE s.id = c.associated_staff_id),
+                c.association_source, c.associated_at
+         FROM users c WHERE c.id = $1 AND c.role = 'customer'",
+    )
+    .bind(path.into_inner())
+    .fetch_optional(pool.get_ref())
+    .await
+    .map_err(db_err)?;
+    let Some((staff_id, staff_name, source, at)) = row else {
+        return Err(ApiError::new("Customer not found", 404));
+    };
+    Ok(ApiResponse(json!({ "staff_id": staff_id, "staff_name": staff_name, "source": source, "associated_at": at })))
 }
 
 /// Scopes that don't collide with the ones already registered in `portal.rs` / `admin_portal.rs`

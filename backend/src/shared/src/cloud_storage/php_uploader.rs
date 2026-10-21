@@ -5,6 +5,16 @@ use reqwest::multipart::{Form, Part};
 use serde::Deserialize;
 use uuid::Uuid;
 
+fn http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .http1_only()
+        .user_agent("curl/8.0")
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))
+}
+
 fn env_required_any(keys: &[&str]) -> Result<String, String> {
     keys.iter()
         .find_map(|key| std::env::var(key).ok())
@@ -36,7 +46,10 @@ fn upload_url() -> Result<String, String> {
 
 pub fn file_url(file_id: &str) -> Result<String, String> {
     let base_url = env_required_any(&["PHP_UPLOADER_BASE_URL"])?;
-    Ok(format!("{}/file.php?id={}", base_url, file_id))
+    let mut url = reqwest::Url::parse(&format!("{}/file.php", base_url))
+        .map_err(|error| format!("Invalid PHP uploader base URL: {}", error))?;
+    url.query_pairs_mut().append_pair("id", file_id);
+    Ok(url.to_string())
 }
 
 fn is_http_url(value: &str) -> bool {
@@ -94,13 +107,12 @@ pub async fn upload_external_file_to_php_uploader_if_needed(
         return Ok(file_url.to_string());
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|error| error.to_string())?;
-    let response = client.get(input_url).send().await.map_err(|error| {
-        format!("Failed to fetch file URL '{}': {}", input_url, error)
-    })?;
+    let client = http_client()?;
+    let response = client
+        .get(input_url)
+        .send()
+        .await
+        .map_err(|error| format!("Failed to fetch file URL '{}': {}", input_url, error))?;
 
     if !response.status().is_success() {
         return Err(format!(
@@ -115,9 +127,10 @@ pub async fn upload_external_file_to_php_uploader_if_needed(
         .get(CONTENT_TYPE)
         .and_then(|header| header.to_str().ok())
         .map(|value| value.to_string());
-    let body = response.bytes().await.map_err(|error| {
-        format!("Failed to read file bytes from '{}': {}", input_url, error)
-    })?;
+    let body = response
+        .bytes()
+        .await
+        .map_err(|error| format!("Failed to read file bytes from '{}': {}", input_url, error))?;
     let source_filename = original_filename_from_url(input_url);
 
     upload_file_bytes_to_php_uploader(
@@ -158,11 +171,12 @@ pub async fn upload_file_bytes_to_php_uploader(
         .text("owner_id", owner_id.to_string())
         .part("file", part);
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|error| error.to_string())?;
-    let mut request = client.post(upload_url()?).multipart(form);
+    let client = http_client()?;
+
+    let mut request = client
+        .post(upload_url()?)
+        .header("Expect", "")
+        .multipart(form);
     if let Some(token) = env_optional("PHP_UPLOADER_TOKEN") {
         request = request.header("X-Upload-Token", token);
     }
@@ -175,18 +189,17 @@ pub async fn upload_file_bytes_to_php_uploader(
         )
     })?;
     let status = response.status();
-    let body = response.text().await.map_err(|error| {
-        format!("Failed to read PHP uploader response: {}", error)
-    })?;
+    let body = response
+        .text()
+        .await
+        .map_err(|error| format!("Failed to read PHP uploader response: {}", error))?;
 
     if !status.is_success() {
         return Err(format!("PHP uploader returned HTTP {}: {}", status, body));
     }
 
-    let parsed: PhpUploadResponse =
-        serde_json::from_str(&body).map_err(|error| {
-            format!("Invalid PHP uploader JSON response: {} ({})", error, body)
-        })?;
+    let parsed: PhpUploadResponse = serde_json::from_str(&body)
+        .map_err(|error| format!("Invalid PHP uploader JSON response: {} ({})", error, body))?;
 
     if !parsed.success {
         return Err(parsed
@@ -194,7 +207,8 @@ pub async fn upload_file_bytes_to_php_uploader(
             .unwrap_or_else(|| "PHP uploader rejected the file".to_string()));
     }
 
-    parsed.id.filter(|id| !id.trim().is_empty()).ok_or_else(|| {
-        "PHP uploader response did not include file id".to_string()
-    })
+    parsed
+        .id
+        .filter(|id| !id.trim().is_empty())
+        .ok_or_else(|| "PHP uploader response did not include file id".to_string())
 }

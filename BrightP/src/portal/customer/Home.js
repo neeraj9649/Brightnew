@@ -60,12 +60,15 @@ export function MobileHome() {
         <button type="button" className="pt-link gold" onClick={() => navigate('/bookings')}>View all {wide ? '→' : <ChevronRight size={14} style={{ verticalAlign: -3 }} />}</button>
       </div>
       {bookingsLoading && !upcoming ? <Skeleton h={92} r={14} /> : upcoming ? (
-        <BookingCard booking={upcoming} onClick={() => navigate(`/bookings/${upcoming.docId}`)} />
+        <>
+          <BookingCard booking={upcoming} onClick={() => navigate(`/bookings/${upcoming.docId}`)} />
+          <button type="button" className="pt-btn full" style={{ marginTop: 12 }} onClick={() => navigate('/bookings/new')}><Plane size={17} /> Request new travel</button>
+        </>
       ) : (
         <div className="pt-notice plain" style={{ alignItems: 'center' }}>
           <Plane size={18} />
           <div style={{ flex: 1 }}>No trips planned yet. Request your first quote in a minute.</div>
-          <button type="button" className="pt-btn xs" onClick={() => navigate('/bookings/new')}>Start booking</button>
+          <button type="button" className="pt-btn xs" onClick={() => navigate('/bookings/new')}>Request new travel</button>
         </div>
       )}
     </Card>

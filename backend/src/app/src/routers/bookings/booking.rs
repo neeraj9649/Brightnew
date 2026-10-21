@@ -10,7 +10,7 @@ use base::jwt_claims::JwtClaims;
 use base::role::STAFF;
 use bookings::api::controllers::booking_handler::{
     admin_list_bookings_handler, admin_update_booking_handler,
-    cancel_booking_handler, create_booking_handler, get_booking_handler,
+    cancel_booking_handler, get_booking_handler,
     list_my_bookings_handler,
 };
 use crm::api::dto::document::BookingDocumentDTO;
@@ -37,7 +37,7 @@ pub fn booking_config(cfg: &mut ServiceConfig) {
             }))
             .service(
                 web::resource("")
-                    .route(web::post().to(create_booking_handler))
+                    .route(web::post().to(crate::routers::workflow::customer_create_booking_handler))
                     .route(web::get().to(list_my_bookings_handler)),
             )
             .service(

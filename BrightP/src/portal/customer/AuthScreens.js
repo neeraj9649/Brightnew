@@ -113,7 +113,7 @@ export default function AuthPage() {
     } catch (error) {
       sessionStorage.removeItem('bw_welcome');
       const message = error.status === 409 ? 'This phone number is already registered. Try signing in instead.' : error.message || 'We could not create your membership. Please try again.';
-      setErrors(error.message?.toLowerCase().includes('referral') ? { referral: 'That referral code is not valid' } : { form: message });
+      setErrors(error.message?.toLowerCase().includes('referral') ? { referral: 'That code is not valid — check it and try again' } : { form: message });
     } finally {
       setBusy(false);
     }
@@ -151,8 +151,8 @@ export default function AuthPage() {
                 <PinField label="Confirm PIN" value={pin2} onChange={setPin2} error={errors.pin2} show={showPin} size="sm" />
               </div>
               <Check2 checked={showPin} onChange={setShowPin}>Show PIN</Check2>
-              <Field label="Referral code" optional error={errors.referral}>
-                <Input value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} placeholder="BW2024" error={errors.referral} />
+              <Field label="Referral or staff code" optional hint="From a friend or your travel advisor." error={errors.referral}>
+                <Input value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} placeholder="Enter code" error={errors.referral} />
               </Field>
               <div style={{ display: 'grid', gap: 6 }}>
                 <Check2 checked={agree} onChange={setAgree}>I agree to the <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); setTerms(true); }}>Terms &amp; Conditions</button></Check2>

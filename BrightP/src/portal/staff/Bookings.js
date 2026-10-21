@@ -183,13 +183,13 @@ function AssignModal({ open, bookings, employees, onClose, onDone, update }) {
   );
 }
 
-function CreateBookingModal({ open, onClose }) {
+export function CreateBookingModal({ open, onClose, customer: preset }) {
   const navigate = useNavigate();
   const { staffCreateBooking } = useAdminBooking();
   const [q, setQ] = useState('');
   const [found, setFound] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [customer, setCustomer] = useState(null);
+  const [customer, setCustomer] = useState(preset || null);
   const [adding, setAdding] = useState(false);
   const [fresh, setFresh] = useState({ name: '', phone: '', pin: '' });
   const [freshErr, setFreshErr] = useState({});
@@ -199,6 +199,9 @@ function CreateBookingModal({ open, onClose }) {
   const [busy, setBusy] = useState(false);
   const svc = SERVICES[service];
   const f = form || initialForm(svc, new URLSearchParams(), null);
+
+  // Opened from a customer's page: that customer is already chosen.
+  useEffect(() => { if (open) setCustomer(preset || null); }, [open, preset?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Look customers up by name, phone or member code (any customer, once there are 3+ characters).
   useEffect(() => {
@@ -242,10 +245,10 @@ function CreateBookingModal({ open, onClose }) {
 
   return (
     <Modal open={open} onClose={onClose} side label="New booking">
-      <ModalHead title="Record a booking" sub="Create a booking on behalf of a customer. It is saved under your name and the customer can follow it in their portal." onClose={onClose} />
+      <ModalHead title="Record a booking" sub={preset ? `Create a booking for ${preset.name}. It appears under Bookings and in their portal.` : 'Create a booking on behalf of a customer. It is saved under your name and the customer can follow it in their portal.'} onClose={onClose} />
       <div className="pt-stack">
         {customer ? (
-          <div className="pt-notice green" style={{ alignItems: 'center' }}><Users size={20} /><div><strong>{customer.name}</strong>{formatPhone(customer.phone)} · {customer.membership_code}</div><button type="button" className="pt-link" onClick={() => { setCustomer(null); setQ(''); }}>Change</button></div>
+          <div className="pt-notice green" style={{ alignItems: 'center' }}><Users size={20} /><div><strong>{customer.name}</strong>{formatPhone(customer.phone)} · {customer.membership_code}</div>{!preset && <button type="button" className="pt-link" onClick={() => { setCustomer(null); setQ(''); }}>Change</button>}</div>
         ) : (
           <>
             <Field label="Customer" hint="Search by name, phone number or member code (3+ characters)."><SearchBox value={q} onChange={setQ} placeholder="Search name, phone or member ID" /></Field>

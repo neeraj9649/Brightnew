@@ -1,13 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { toPng } from 'html-to-image';
-import { Database, Plane, Star } from 'lucide-react';
+import { Database, Plane, RefreshCw, Star } from 'lucide-react';
 import BrightLogo from '../assets/BrightLogo.png';
 import frontArt from '../assets/card-front.jpg';
 import backArt from '../assets/card-back.jpg';
 
 /*
- * Bright Wings membership card, front and back. Everything on it comes from the member record
+ * Bright Wings membership car, front and back. Everything on it comes from the member record
  * (/loyalty/summary → card): name, membership code, tier and validity; the QR code points at the
  * public verification page (/card/<code>). Sizes are in em with 1 unit (--u) = 1/93.8 of the card width, so the
  * card scales to any container (and downloadCardImage captures it exactly as shown).
@@ -28,12 +28,6 @@ function useCardFontSize(ref) {
     return () => ro.disconnect();
   }, [ref]);
   return size;
-}
-
-/** "AA0SLV1752" → "AA0 SLV 1752" (initials+age, tier code, 4-digit number). */
-export function formatMemberCode(code = '') {
-  const m = /^(.*?)([A-Z]{3})(\d{4})$/.exec(code);
-  return m && m[1] ? `${m[1]} ${m[2]} ${m[3]}` : code;
 }
 
 export const formatValidThru = (date) => {
@@ -60,10 +54,10 @@ export function CardFront({ name, code, tier = 'Member', validUntil }) {
       <small className="bwc-label bwc-l-name">MEMBER NAME</small>
       <div className="bwc-name">{name || '—'}</div>
       <small className="bwc-label bwc-l-code">MEMBERSHIP CODE</small>
-      <div className="bwc-code">{formatMemberCode(code) || '—'}</div>
+      <div className="bwc-code">{code || '—'}</div>
       <i className="bwc-rule" />
       <div className="bwc-tier">{tier === 'Member' ? 'MEMBER' : `${String(tier).toUpperCase()} MEMBER`}</div>
-      <small className="bwc-label bwc-l-valid">VALID THRU</small>
+      <small className="bwc-label bwc-l-valid">VALID TO</small>
       <div className="bwc-valid">{formatValidThru(validUntil)}</div>
     </div>
   );
@@ -87,14 +81,15 @@ export function CardBack({ code }) {
     <div ref={ref} className="bwc bwc-back" style={{ backgroundImage: `url(${backArt})`, '--u': size ? `${size}px` : undefined }} role="img" aria-label="Bright Wings membership benefits and verification QR code">
       <Brand className="back" />
       <h3 className="bwc-heading">MEMBERSHIP BENEFITS</h3>
-      {BENEFITS.map(([Icon, title, sub], i) => (
-        <div key={title} className={`bwc-ben b${i}`}>
-          <span><Icon size="100%" strokeWidth={1.35} /></span>
-          <b>{title}</b>
-          <small>{sub}</small>
-        </div>
-      ))}
-      <i className="bwc-div d1" /><i className="bwc-div d2" />
+      <div className="bwc-bens">
+        {BENEFITS.map(([Icon, title, sub]) => (
+          <div key={title} className="bwc-ben">
+            <span><Icon size="100%" strokeWidth={1.35} /></span>
+            <b>{title}</b>
+            <small>{sub}</small>
+          </div>
+        ))}
+      </div>
       <div className="bwc-qr">{qr ? <img src={qr} alt="Membership QR code" /> : null}</div>
       <small className="bwc-scan">Scan to verify membership</small>
       <i className="bwc-dash" />
@@ -123,4 +118,21 @@ export async function downloadCardImage(node, filename) {
   a.href = url;
   a.download = filename;
   a.click();
+}
+
+/** Front and back of the card in one place, with a button that turns it over (used on the Home page). */
+export function FlippableCard({ name, code, tier, validUntil, onOpen }) {
+  const [flipped, setFlipped] = useState(false);
+  return (
+    <div className={`bwc-flip ${flipped ? 'flipped' : ''}`}>
+      <div className="bwc-flip-inner" onClick={onOpen} role={onOpen ? 'link' : undefined} tabIndex={onOpen ? 0 : undefined}
+        onKeyDown={onOpen ? (e) => { if (e.key === 'Enter') onOpen(); } : undefined} aria-label={onOpen ? 'Open membership card' : undefined}>
+        <div className="bwc-flip-face" aria-hidden={flipped}><CardFront name={name} code={code} tier={tier} validUntil={validUntil} /></div>
+        <div className="bwc-flip-face bwc-flip-back" aria-hidden={!flipped}><CardBack code={code} /></div>
+      </div>
+      <button type="button" className="bwc-flip-btn" aria-pressed={flipped} onClick={(e) => { e.stopPropagation(); setFlipped((f) => !f); }}>
+        <RefreshCw size={15} /> {flipped ? 'Show front' : 'Flip card'}
+      </button>
+    </div>
+  );
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronRight, Crown, Gem, Medal, Star, Users } from 'lucide-react';
 import { fileUrl } from '../../services/storage';
 import { Badge, fmtNum } from '../ui';
-import { CardFront } from '../MembershipCard';
+import { CardFront, FlippableCard } from '../MembershipCard';
 import { PHOTO, SERVICE_PHOTO, photoFor } from '../photos';
 import { bookingSubtitle, bookingTitle, serviceOf, statusMeta, TIERS } from '../booking';
 
@@ -68,6 +68,11 @@ export function BookingCard({ booking, onClick, showId = true }) {
 
 /** Dark membership card with QR (Membership card screen & home). */
 /** The membership card front (see MembershipCard.js). `validUntil` is the card's ISO date from the API. */
+/** The card with a flip button (Home page). */
+export function FlippableMemberCard({ name, code, tier = 'Member', validUntil, onOpen }) {
+  return <FlippableCard name={name} code={code} tier={tier} validUntil={validUntil} onOpen={onOpen} />;
+}
+
 export function MemberCardFace({ name, code, tier = 'Member', validUntil }) {
   return <CardFront name={name} code={code} tier={tier} validUntil={validUntil} />;
 }

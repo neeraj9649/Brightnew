@@ -1027,6 +1027,9 @@ pub struct StaffCustomerDTO {
     pub is_active: bool,
     pub bookings: i64,
     pub next_followup: Option<DateTime<Utc>>,
+    pub staff_id: Option<Uuid>,
+    pub staff_name: Option<String>,
+    pub association_source: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1038,8 +1041,8 @@ pub struct StaffCustomerQuery {
     pub scope: Option<String>,
 }
 
-/// Admins see every customer; employees only the customers whose bookings are
-/// assigned to them.
+/// Admins see every customer; employees the customers associated with them or whose bookings are
+/// assigned to them (plus any customer they look up with `scope=search`).
 async fn staff_customers_handler(
     pool: web::Data<PgPool>,
     claims: JwtClaims,
@@ -1059,10 +1062,13 @@ async fn staff_customers_handler(
                   (SELECT COUNT(*) FROM bookings b WHERE b.user_id = u.id) AS bookings,
                   (SELECT MIN(t.due_at) FROM tasks t WHERE t.status IN ('pending', 'in_progress')
                        AND (t.customer_id = u.id OR t.booking_id IN (SELECT id FROM bookings WHERE user_id = u.id))
-                       AND ($2 OR t.assigned_to = $1)) AS next_followup
+                       AND ($2 OR t.assigned_to = $1)) AS next_followup,
+                  u.associated_staff_id AS staff_id,
+                  (SELECT TRIM(s.first_name || ' ' || COALESCE(s.last_name, '')) FROM users s WHERE s.id = u.associated_staff_id) AS staff_name,
+                  u.association_source
            FROM users u
            WHERE u.role = 'customer'
-             AND ($2 OR $4 OR EXISTS (SELECT 1 FROM bookings b WHERE b.user_id = u.id AND b.assigned_employee_id = $1))
+             AND ($2 OR $4 OR u.associated_staff_id = $1 OR EXISTS (SELECT 1 FROM bookings b WHERE b.user_id = u.id AND b.assigned_employee_id = $1))
              AND ($3::text IS NULL OR LOWER(u.first_name || ' ' || COALESCE(u.last_name, '')) LIKE $3
                   OR u.phone LIKE $3 OR LOWER(u.membership_code) LIKE $3)
            ORDER BY u.joined_at DESC LIMIT 300"#,
@@ -1166,6 +1172,7 @@ pub fn portal_routes(cfg: &mut ServiceConfig) {
             .route("/tasks", web::post().to(staff_create_task_handler))
             .route("/tasks/{id}", web::patch().to(staff_update_task_handler))
             .route("/customers", web::get().to(staff_customers_handler))
+            .route("/customers/{id}/association", web::get().to(super::workflow::staff_customer_association_handler))
             .route("/wings-requests", web::get().to(super::workflow::staff_list_wings_requests_handler))
             .route("/wings-requests", web::post().to(super::workflow::staff_create_wings_request_handler))
             .route("/offers", web::get().to(super::workflow::staff_list_offers_handler))

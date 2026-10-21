@@ -17,4 +17,14 @@ pub trait UserRepository: Send + Sync {
         &self,
         referral_code: &str,
     ) -> RepositoryResult<Option<User>>;
+    /// The staff member a customer is associated with, if any.
+    async fn get_associated_staff(&self, user_id: Uuid) -> RepositoryResult<Option<Uuid>>;
+    /// Associate a customer with a staff member (`None` clears it). `source` is one of
+    /// staff_added / staff_code / referral / admin.
+    async fn set_associated_staff(
+        &self,
+        user_id: Uuid,
+        staff_id: Option<Uuid>,
+        source: &str,
+    ) -> RepositoryResult<()>;
 }

@@ -143,7 +143,7 @@ fn card_from(member: &MemberRow) -> LoyaltyCardDTO {
         name: member.name.clone(),
         membership_tier: member.membership_tier.clone(),
         member_since: member.joined_at,
-        valid_until: super::cards::card_valid_until(),
+        valid_until: super::cards::card_valid_until(member.joined_at),
         verification_path: format!("/cards/{}", member.membership_code),
     }
 }

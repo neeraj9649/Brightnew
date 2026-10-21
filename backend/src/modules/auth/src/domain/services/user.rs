@@ -26,4 +26,12 @@ pub trait UserService: 'static + Sync + Send {
     ) -> Result<User, UserError>;
     async fn list(&self) -> Result<ResultPaging<User>, UserError>;
     async fn get(&self, user_id: Uuid) -> Result<User, UserError>;
+    /// Associate a customer with a staff member (`None` clears it). `source` is one of
+    /// staff_added / staff_code / referral / admin.
+    async fn associate_staff(
+        &self,
+        user_id: Uuid,
+        staff_id: Option<Uuid>,
+        source: &str,
+    ) -> Result<(), UserError>;
 }
