@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Select, { StylesConfig } from 'react-select';
 import './custom-select-two.css';
 
@@ -20,6 +20,9 @@ const CustomReactSelectTwo: React.FC<CustomReactSelectProps> = ({
   onChange,
   placeholder = 'Select an option',
 }) => {
+  // react-select renders a different aria-activedescendant on server vs client; render it client-side only.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const selectedOption = options.find((opt) => opt.value === value) || null;
 
   const customStyles: StylesConfig<OptionType, false> = {
@@ -79,6 +82,7 @@ const CustomReactSelectTwo: React.FC<CustomReactSelectProps> = ({
 
   return (
     <div className="listing-from__control react-select-wrapper">
+      {mounted && (
       <Select
         options={options}
         value={selectedOption}
@@ -88,6 +92,7 @@ const CustomReactSelectTwo: React.FC<CustomReactSelectProps> = ({
         isSearchable
         isClearable={false}
       />
+      )}
     </div>
   );
 };

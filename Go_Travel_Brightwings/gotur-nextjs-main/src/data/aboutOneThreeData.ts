@@ -35,7 +35,7 @@ export const aboutOneThreeData = {
   },
   button: {
     text: "Discover More",
-    link: "blog-details-left",
+    link: "/blog-details-left",
     callIcon: "icon-telephone",
     callText: "Call Us Now",
     phone: "+208-555-0112",

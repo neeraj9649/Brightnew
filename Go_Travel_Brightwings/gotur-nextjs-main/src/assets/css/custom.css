@@ -35,23 +35,66 @@
   display: none;
 }
 
-/* Keep the header login hover animation inside the button bounds. */
+/* Header login: starts orange, green panels sweep in on hover and it ends solid green. */
 .main-header--one .main-header__login-btn {
   overflow: hidden;
   clip-path: inset(0 round 100px);
   border: 0;
   transform: none;
+  background-color: var(--gotur-primary, #f7921e);
+  transition: color 0.3s;
 }
 
 .main-header--one .main-header__login-btn::before,
 .main-header--one .main-header__login-btn::after {
   border-radius: inherit;
+  height: 51%;
+  background-color: var(--gotur-base, #63ab45);
 }
 
 .main-header--one .main-header__login-btn:hover,
 .main-header--one .main-header__login-btn:focus-visible {
   border: 0;
   transform: none;
+  color: var(--gotur-white, #fff);
+  background-color: var(--gotur-base, #63ab45);
+  transition: background-color 0s linear 0.5s, color 0.3s;
+}
+
+/* Header two "Get in touch": same fix, orange -> white sweep that ends solid white with no seam tips. */
+.main-header--two .main-header__btn {
+  overflow: hidden;
+  clip-path: inset(0 round 100px);
+  border: 0;
+  transform: none;
+  background-color: var(--gotur-primary, #f7921e);
+  transition: color 0.3s;
+}
+
+.main-header--two .main-header__btn::before,
+.main-header--two .main-header__btn::after {
+  border-radius: inherit;
+  height: 51%;
+  background-color: var(--gotur-white, #fff);
+}
+
+.main-header--two .main-header__btn:hover,
+.main-header--two .main-header__btn:focus-visible {
+  border: 0;
+  transform: none;
+  color: var(--gotur-primary, #f7921e);
+  background-color: var(--gotur-white, #fff);
+  transition: background-color 0s linear 0.5s, color 0.3s;
+}
+
+/* Hide the cart button in every navbar (the /cart page and cart logic stay intact). */
+.main-header__info__item:has(> .icon-shopping-carts) {
+  display: none !important;
+}
+
+/* Hide the side-drawer (hamburger) button in every navbar. */
+.main-header__btn-popup {
+  display: none !important;
 }
 
 body.rtl .main-slider-one__destinations__hover {

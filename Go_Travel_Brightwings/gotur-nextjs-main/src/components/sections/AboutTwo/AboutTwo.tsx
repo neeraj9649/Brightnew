@@ -162,7 +162,7 @@ const AboutTwo: React.FC<AboutTwoProps> = ({ cta, extraClass }) => {
                 data-wow-delay='300ms'
               >
                 <Link
-                  href='blog-details-left'
+                  href='/blog-details-left'
                   className='gotur-btn gotur-btn--primary'
                 >
                   Discover More{" "}

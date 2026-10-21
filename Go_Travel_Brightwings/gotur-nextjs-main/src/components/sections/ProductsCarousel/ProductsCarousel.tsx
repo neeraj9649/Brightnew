@@ -49,7 +49,7 @@ const ProductsCarousel: React.FC = () => {
                 <div className="item" key={product.id}>
                 <div className="product__item wow fadeInUp animated" data-wow-duration="1500ms" data-wow-delay={`${index * 200}ms`}>
                   <div className="product__item__image">
-                    <Image src={product.image} alt={product.name} className="img-fluid" />
+                    <Image src={product.image} alt={product.name} width={270} height={270} className="img-fluid" />
                   </div>
                   <div className="product__item__content">
                     <div className="product__item__star">

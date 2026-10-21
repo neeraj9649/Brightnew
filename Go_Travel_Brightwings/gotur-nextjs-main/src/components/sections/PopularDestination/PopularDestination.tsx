@@ -54,7 +54,7 @@ const PopularDestinations: React.FC = () => {
                   </div>
                 </div>
                 <h4 className='destinations-card__title'>
-                  <Link href='destination-details'>{dest.title}</Link>
+                  <Link href='/destination-details'>{dest.title}</Link>
                 </h4>
               </div>
             </div>

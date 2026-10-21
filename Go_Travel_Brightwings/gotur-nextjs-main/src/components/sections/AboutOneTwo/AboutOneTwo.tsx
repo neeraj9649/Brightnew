@@ -107,7 +107,7 @@ const AboutOneTwo: React.FC = () => {
                 data-wow-delay='300ms'
               >
                 <Link
-                  href='blog-details-left'
+                  href='/blog-details-left'
                   className='gotur-btn gotur-btn--base'
                 >
                   Discover More{" "}

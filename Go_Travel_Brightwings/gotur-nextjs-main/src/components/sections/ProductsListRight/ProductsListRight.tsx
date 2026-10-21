@@ -65,6 +65,8 @@ const ProductsListRight: React.FC = () => {
                           <Image
                             src={product.image}
                             alt={product.name}
+                            width={270}
+                            height={270}
                             className="img-fluid"
                           />
                         </div>

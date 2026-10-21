@@ -81,37 +81,6 @@ export const navItems = [
     // ],
   },
   {
-    id: 45,
-    title: "Events",
-    link: "#",
-    // subMenu: [
-    //   {
-    //     id: 46,
-    //     title: "Products",
-    //     link: "#",
-    //     subMenu: [
-    //       { id: 47, title: "No sidebar", link: "/products" },
-    //       { id: 48, title: "Left sidebar", link: "/products-left" },
-    //       { id: 49, title: "Right sidebar", link: "/products-right" },
-    //     ],
-    //   },
-    //   {
-    //     id: 50,
-    //     title: "Products list",
-    //     link: "#",
-    //     subMenu: [
-    //       { id: 51, title: "No sidebar", link: "/products-list" },
-    //       { id: 52, title: "Left sidebar", link: "/products-list-left" },
-    //       { id: 53, title: "Right sidebar", link: "/products-list-right" },
-    //     ],
-    //   },
-    //   { id: 54, title: "Products carousel", link: "/products-carousel" },
-    //   { id: 55, title: "Product details", link: "/product-details" },
-    //   { id: 56, title: "Cart", link: "/cart" },
-    //   { id: 57, title: "Checkout", link: "/checkout" },
-    // ],
-  },
-  {
     id: 6,
     title: "Blog",
     link: "/blog-grid",

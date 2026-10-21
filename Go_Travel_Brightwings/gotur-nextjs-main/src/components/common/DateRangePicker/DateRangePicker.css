@@ -30,3 +30,22 @@
     background: var(--gotur-base, #63AB45)
 }
   
+/* Keep both dates fully visible inside the banner form. */
+.banner-form__control--date .ant-space {
+  width: 100%;
+}
+.banner-form__control--date .custom-range-picker.ant-picker {
+  width: 100%;
+  padding-right: 0 !important;
+}
+.banner-form__control--date .custom-range-picker .ant-picker-input > input {
+  padding: 0;
+  text-overflow: clip;
+  min-width: 56px;
+}
+.banner-form__control--date .custom-range-picker .ant-picker-range-separator {
+  padding: 0 4px;
+}
+.banner-form__control--date::after {
+  right: 12px !important;
+}

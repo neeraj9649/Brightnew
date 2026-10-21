@@ -106,7 +106,7 @@ const CartSection: React.FC = () => {
                   <td>${item.total.toFixed(2)}</td>
                   <td>
                     <Link
-                      href='cart'
+                      href='/cart'
                       className='table cart-page__table__remove'
                     >
                       <span className='fas fa-times'></span>
@@ -133,7 +133,7 @@ const CartSection: React.FC = () => {
                   </button>
                 </form>
                 <Link
-                  href='cart'
+                  href='/cart'
                   className='cart-page__coupone__box__btn gotur-btn'
                 >
                   update cart

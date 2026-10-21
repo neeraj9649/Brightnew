@@ -60,11 +60,11 @@ export const footerOneData: FooterDataType = {
     ],
   },
   destinations: [
-    { title: "Dubai", href: "/destination-details/dubai" },
-    { title: "Thailand", href: "/destination-details/thailand" },
-    { title: "San Franc Rica", href: "/destination-details/san-franc-rica" },
-    { title: "New York", href: "/destination-details/new-york" },
-    { title: "Tokyo", href: "/destination-details/tokyo" },
+    { title: "Dubai", href: "/allDestionation/destination-dubai" },
+    { title: "Thailand", href: "/allDestionation/destination-thailand" },
+    { title: "San Franc Rica", href: "/destination-one" },
+    { title: "New York", href: "/destination-one" },
+    { title: "Tokyo", href: "/destination-one" },
   ],
   usefulLinks: [
     { title: "About Us", href: "/about" },

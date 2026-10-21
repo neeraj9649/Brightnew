@@ -2,7 +2,7 @@ import TopbarOne from "@/components/common/TopbarOne/TopbarOne";
 import FooterOne from "@/components/layout/FooterOne/FooterOne";
 import Layout from "@/components/layout/Layout/Layout";
 import PageHeader from "@/components/sections/PageHeader/PageHeader";
-import DestinationDetails from "@/app/(home)/allDestionation/[DestinationID]/page";
+import DestinationDetails from "@/app/(home)/allDestionation/[DestinationID]/DestinationDetail";
 import HeaderInner from "@/components/layout/HeaderInner/HeaderInner";
 import HeaderInnerCloned from "@/components/layout/HeaderInnerCloned/HeaderInnerCloned";
 import destinationDetailsData from "@/data/destinationDetailsData";

@@ -105,7 +105,7 @@ const DestinationThree: React.FC = () => {
                   }}
                 >
                   <Link
-                    href='tour-listing-details-1'
+                    href='/tour-listing-details-1'
                     className='gotur-btn gotur-btn--primary'
                   >
                     Start Booking{" "}
@@ -160,7 +160,7 @@ const DestinationThree: React.FC = () => {
                                     </p>
                                   </div>
                                   <Link
-                                    href='destination-details'
+                                    href='/destination-details'
                                     className='destination-three__carousel__item__btn'
                                   >
                                     <i className='icon-right'></i>

@@ -79,7 +79,7 @@ const PricingOne: React.FC = () => {
                 <div className='pricing-one__row row'>
                   <div className='pricing-one__col-image'>
                     <div className='pricing-one__image'>
-                      <Image src={monthlyPlans.image} alt='pricing' />
+                      <Image src={monthlyPlans.image} alt='pricing' width={214} height={355} />
                     </div>
                   </div>
                   <div className='pricing-one__col-card'>
@@ -104,7 +104,7 @@ const PricingOne: React.FC = () => {
                         ))}
                       </ul>
                       <Link
-                        href='contact'
+                        href='/contact'
                         className='gotur-btn gotur-btn--base pricing-one__card__btn'
                       >
                         Choose plan
@@ -138,7 +138,7 @@ const PricingOne: React.FC = () => {
                         )}
                       </ul>
                       <Link
-                        href='contact'
+                        href='/contact'
                         className='gotur-btn gotur-btn--base pricing-one__card__btn'
                       >
                         Choose plan
@@ -170,7 +170,7 @@ const PricingOne: React.FC = () => {
                         ))}
                       </ul>
                       <Link
-                        href='contact'
+                        href='/contact'
                         className='gotur-btn gotur-btn--base pricing-one__card__btn'
                       >
                         Choose plan
@@ -191,7 +191,7 @@ const PricingOne: React.FC = () => {
                 <div className='pricing-one__row row'>
                   <div className='pricing-one__col-image'>
                     <div className='pricing-one__image'>
-                      <Image src={yearlyPlans.image} alt='pricing' />
+                      <Image src={yearlyPlans.image} alt='pricing' width={214} height={355} />
                     </div>
                   </div>
                   <div className='pricing-one__col-card'>
@@ -216,7 +216,7 @@ const PricingOne: React.FC = () => {
                         ))}
                       </ul>
                       <Link
-                        href='contact'
+                        href='/contact'
                         className='gotur-btn gotur-btn--base pricing-one__card__btn'
                       >
                         Choose plan
@@ -250,7 +250,7 @@ const PricingOne: React.FC = () => {
                         )}
                       </ul>
                       <Link
-                        href='contact'
+                        href='/contact'
                         className='gotur-btn gotur-btn--base pricing-one__card__btn'
                       >
                         Choose plan
@@ -282,7 +282,7 @@ const PricingOne: React.FC = () => {
                         ))}
                       </ul>
                       <Link
-                        href='contact'
+                        href='/contact'
                         className='gotur-btn gotur-btn--base pricing-one__card__btn'
                       >
                         Choose plan

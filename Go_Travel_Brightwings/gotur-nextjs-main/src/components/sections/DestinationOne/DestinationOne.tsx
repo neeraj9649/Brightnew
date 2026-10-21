@@ -7,7 +7,10 @@ import React from "react";
 
 import destinationOneData from "@/data/destinationOneData";
 import Link from "next/link";
-import Pagination from "@/components/common/Pagination/Pagination";
+
+// Absolute links are used as-is; bare ids open the destination detail route.
+const destinationHref = (link: string) =>
+  link.startsWith("/") ? link : `/allDestionation/${link}`;
 
 const DestinationOne = () => {
   interface DestinationItem {
@@ -42,22 +45,19 @@ const DestinationOne = () => {
                       height={'100%'}
                     />
                     <Link
-                      href={destination.link}
+                      href={destinationHref(destination.link)}
                       className='destination-card-one__overly'
                     />
                   </div>
                   <div className='destination-card-one__content'>
                     <h3 className='destination-card-one__title'>
-                      <Link href={`/allDestionation/${destination.link}`}>{destination.name}</Link>
+                      <Link href={destinationHref(destination.link)}>{destination.name}</Link>
                     </h3>
                   </div>
                 </div>
               </Col>
             )
           )}
-          <Col xs={12}>
-            <Pagination />
-          </Col>
         </Row>
       </Container>
     </section>

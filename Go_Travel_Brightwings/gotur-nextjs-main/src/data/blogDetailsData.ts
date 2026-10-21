@@ -23,7 +23,7 @@ export const blogDetail = {
   author: "Admin",
   category: "Travel",
   comment: "2",
-  link: "blog-details",
+  link: "/blog-details",
   tags: ["Travel", "Services", "Agency"],
   comments: [
     {

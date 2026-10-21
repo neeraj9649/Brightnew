@@ -75,7 +75,7 @@
 //                 ></i>
 //                 <span className='sr-only'>Search</span>
 //               </Link>
-//               <Link href='cart' className='main-header__info__item'>
+//               <Link href='/cart' className='main-header__info__item'>
 //                 <i className='icon-shopping-carts' aria-hidden='true'></i>
 //                 <span className='sr-only'>Cart</span>
 //               </Link>

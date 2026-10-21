@@ -64,7 +64,7 @@ const ProductDetails: React.FC = () => {
                 data-wow-duration='1500ms'
                 data-wow-delay='500ms'
               >
-                <Image src={image} alt={name} layout='responsive' />
+                <Image src={image} alt={name} width={522} height={522} layout='responsive' />
                 <div className='product-details__img-search'>
                   <Item
                     original={image}
@@ -110,7 +110,7 @@ const ProductDetails: React.FC = () => {
                 <span className='fa fa-star'></span>
                 <span className='fa fa-star'></span>
                 <span className='fa fa-star'></span>
-                <Link href='product-details'>
+                <Link href='/product-details'>
                   ({reviews.length} customer reviews)
                 </Link>
               </div>
@@ -149,13 +149,13 @@ const ProductDetails: React.FC = () => {
                 data-wow-duration='1500ms'
                 data-wow-delay='500ms'
               >
-                <Link href='cart' className='gotur-btn gotur-btn--base'>
+                <Link href='/cart' className='gotur-btn gotur-btn--base'>
                   ADD TO CART{" "}
                   <span className='product-details__buttons__icon'>
                     <i className='icon-shopping-carts'></i>
                   </span>
                 </Link>
-                <Link href='cart' className='gotur-btn'>
+                <Link href='/cart' className='gotur-btn'>
                   ADD TO WISHLIST
                 </Link>
               </div>
@@ -231,7 +231,7 @@ const ProductDetails: React.FC = () => {
                 key={index}
               >
                 <div className='product-details__comment__card__image'>
-                  <Image src={review.image} alt={review.name} />
+                  <Image src={review.image} alt={review.name} width={96} height={96} />
                 </div>
                 <div className='product-details__comment__card__content'>
                   <div className='product-details__comment__card__top'>

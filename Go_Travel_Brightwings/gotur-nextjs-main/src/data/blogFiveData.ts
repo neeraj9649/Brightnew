@@ -20,7 +20,7 @@ export const blogData = {
       image: '/images/blog/blog-2-7.jpg', 
 
       title: "The Surfing Man Will Blow Your Mind",
-      link: "blog-details-right",
+      link: "/blog-details-right",
       date: "17 Mar",
       day: "17",
       month: "Mar",
@@ -32,7 +32,7 @@ export const blogData = {
       image: '/images/blog/blog-2-8.jpg',
      
       title: "The Surfing Man Will Blow Your Mind",
-      link: "blog-details-right",
+      link: "/blog-details-right",
       date: "15 Dec",
       day: "15",
       month: "Dec",
@@ -44,7 +44,7 @@ export const blogData = {
       image: '/images/blog/blog-2-9.jpg',
 
       title: "The Surfing Man Will Blow Your Mind",
-      link: "blog-details-right",
+      link: "/blog-details-right",
       date: "20 Feb",
       day: "20",
       month: "Feb",
@@ -56,7 +56,7 @@ export const blogData = {
       image: '/images/blog/blog-2-10.jpg',
      
       title: "The Surfing Man Will Blow Your Mind",
-      link: "blog-details-right",
+      link: "/blog-details-right",
       date: "27 Feb",
       day: "27",
       month: "Fab",

@@ -73,7 +73,7 @@ const FaqSection: React.FC = () => {
                   data-wow-delay='500ms'
                 >
                   <div className='faq-page__sidebar__cta'>
-                    <Image src={faqData.image} alt='sidebar' />
+                    <Image src={faqData.image} alt='sidebar' width={370} height={472} />
                     <div className='faq-page__sidebar__cta__content'>
                       <span className='faq-page__sidebar__sub-title'>
                         {faqData.subTitle}
@@ -82,7 +82,7 @@ const FaqSection: React.FC = () => {
                         {faqData.title}
                       </h3>
                       <Link
-                        href='/tour-listing-details-2'
+                        href='/contact'
                         className='gotur-btn'
                       >
                         Book Now{" "}

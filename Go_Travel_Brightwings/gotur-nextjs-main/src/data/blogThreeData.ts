@@ -24,7 +24,7 @@ const blogThreeData = {
        authorName: 'Cody Fisher',
        authorDesc: 'Admin',
        authorImage: '/images/blog/blog-author-1-1.png', 
-       link: 'blog-details-right',
+       link: '/blog-details-right',
      },
      {
        id: 2,
@@ -36,7 +36,7 @@ const blogThreeData = {
        authorName: 'Robert Fox',
        authorDesc: 'Admin',
        authorImage: '/images/blog/blog-author-1-2.png', 
-       link: 'blog-details-right',
+       link: '/blog-details-right',
      },
      {
        id: 3,
@@ -48,7 +48,7 @@ const blogThreeData = {
        authorName: 'Devon Lane',
        authorDesc: 'Admin',
        authorImage: '/images/blog/blog-author-1-3.png', 
-       link: 'blog-details-right',
+       link: '/blog-details-right',
      },
    ]
 }

@@ -57,7 +57,7 @@ const ProductsList: React.FC = () => {
                       <Row className='align-items-center gutter-y-30'>
                         <Col md={4}>
                         <div className="product-list__item__image">
-                        <Image src={product.image} alt={product.name} className="img-fluid" />
+                        <Image src={product.image} alt={product.name} width={270} height={270} className="img-fluid" />
                       </div>
                         </Col>
                         <Col md={8}>

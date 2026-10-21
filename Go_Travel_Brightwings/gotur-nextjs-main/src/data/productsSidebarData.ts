@@ -1,10 +1,10 @@
 export const productSidebarData = {
     categories: [
-      { name: "Kitchen Faucet", link: "products-right" },
-      { name: "Toilet Bowl", link: "products-right" },
-      { name: "Pipe Elbows", link: "products-right" },
-      { name: "Pressure Reducing", link: "products-right" },
-      { name: "Pain Management", link: "products-right" },
+      { name: "Kitchen Faucet", link: "/products-right" },
+      { name: "Toilet Bowl", link: "/products-right" },
+      { name: "Pipe Elbows", link: "/products-right" },
+      { name: "Pressure Reducing", link: "/products-right" },
+      { name: "Pain Management", link: "/products-right" },
     ],
     colorFilters: [
       { color: "Black", count: 15 },
@@ -27,8 +27,8 @@ export const productSidebarData = {
       max: "$100",
     },
     statusFilters: [
-      { name: "In stock", link: "products-right" },
-      { name: "On sale", link: "products-right" },
+      { name: "In stock", link: "/products-right" },
+      { name: "On sale", link: "/products-right" },
     ],
   };
   

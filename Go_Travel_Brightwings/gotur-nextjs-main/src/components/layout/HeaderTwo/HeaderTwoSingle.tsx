@@ -58,7 +58,7 @@ const HeaderTwoSingle: React.FC = () => {
             <ul className='main-menu__list one-page-scroll-menu'>
               {/* Render Home menu with showcase */}
               <li className='dropdown megamenu scrollToLink'>
-                <Link href='home'>Home</Link>
+                <Link href='/'>Home</Link>
                 <DemoPages />
               </li>
 
@@ -83,13 +83,13 @@ const HeaderTwoSingle: React.FC = () => {
                 ></i>
                 <span className='sr-only'>Search</span>
               </Link>
-              <Link href='cart' className='main-header__info__item'>
+              <Link href='/cart' className='main-header__info__item'>
                 <i className='icon-shopping-carts' aria-hidden='true'></i>
                 <span className='sr-only'>Cart</span>
               </Link>
             </div>
 
-            <Link href='contact' className='gotur-btn main-header__btn'>
+            <Link href='/contact' className='gotur-btn main-header__btn'>
               Get in touch <i className='icon-paper-plane'></i>
             </Link>
             <div className='main-header__call'>
@@ -116,7 +116,7 @@ const HeaderTwoSingle: React.FC = () => {
                <i className="icon-menu-bar"></i>
              </div>
  
-             <Link href="contact" className="gotur-btn main-header__btn">
+             <Link href="/contact" className="gotur-btn main-header__btn">
                Get in touch <i className="icon-paper-plane"></i>
              </Link> */}
         </div>

@@ -112,13 +112,13 @@ const HeaderInnerCloned: React.FC = () => {
                 ></i>
                 <span className='sr-only'>Search</span>
               </Link>
-              <Link href='cart' className='main-header__info__item'>
+              <Link href='/cart' className='main-header__info__item'>
                 <i className='icon-shopping-carts' aria-hidden='true'></i>
                 <span className='sr-only'>Cart</span>
               </Link>
             </div>
 
-            <Link href='contact' className='gotur-btn main-header__btn'>
+            <Link href='/contact' className='gotur-btn main-header__btn'>
               Get in touch <i className='icon-paper-plane'></i>
             </Link>
             <div className='main-header__call'>
@@ -145,7 +145,7 @@ const HeaderInnerCloned: React.FC = () => {
                <i className="icon-menu-bar"></i>
              </div>
  
-             <Link href="contact" className="gotur-btn main-header__btn">
+             <Link href="/contact" className="gotur-btn main-header__btn">
                Get in touch <i className="icon-paper-plane"></i>
              </Link> */}
         </div>

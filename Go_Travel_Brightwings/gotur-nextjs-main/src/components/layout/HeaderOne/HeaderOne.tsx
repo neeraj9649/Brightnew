@@ -90,7 +90,7 @@ const HeaderOne: React.FC = () => {
                 ></i>
                 <span className='sr-only'>Search</span>
               </Link>
-              <Link href='cart' className='main-header__info__item'>
+              <Link href='/cart' className='main-header__info__item'>
                 <i className='icon-shopping-carts' aria-hidden='true'></i>
                 <span className='sr-only'>Cart</span>
               </Link>
@@ -103,7 +103,7 @@ const HeaderOne: React.FC = () => {
               <i className='icon-menu-bar'></i>
             </div>
 
-            <Link href='https://brightwingstravel.com/' className='gotur-btn main-header__btn main-header__login-btn'>
+            <Link href='https://portal.brightwingstravel.com/auth' className='gotur-btn main-header__btn main-header__login-btn'>
              Log In <i className='icon-paper-plane'></i>
             </Link>
 

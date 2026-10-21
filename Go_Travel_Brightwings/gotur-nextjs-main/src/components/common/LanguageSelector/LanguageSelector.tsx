@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import './langusgeSelect.css'
 
@@ -12,9 +12,13 @@ const options = [
 
 const LanguageSelector: React.FC = () => {
   const [selectedOption, setSelectedOption] = useState(options[0]);
+  // react-select renders a different aria-activedescendant on server vs client; render it client-side only.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <div className="top-one__language-sort">
+      {mounted && (
       <Select
         classNamePrefix="custom-select"
         value={selectedOption}
@@ -26,6 +30,7 @@ const LanguageSelector: React.FC = () => {
         }}
         
       />
+      )}
     </div>
   );
 };

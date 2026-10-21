@@ -58,7 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <html lang="en">
-      <body className={jakartaSans.variable}>
+      <body suppressHydrationWarning className={jakartaSans.variable}>
         {status !== "auth" ? (
           <div style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
             Loading…

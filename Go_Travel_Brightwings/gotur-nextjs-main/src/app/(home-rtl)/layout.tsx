@@ -60,7 +60,7 @@ export default function RootLayout({
   useWow();
   return (
     <html lang='en'>
-      <body className={`${jakartaSans.variable} ${justAnotherHand.variable}`}>
+      <body suppressHydrationWarning className={`${jakartaSans.variable} ${justAnotherHand.variable}`}>
         <DarkModeProvider>
           <RtlModeProvider>
             {showPreloader && <Preloader />}

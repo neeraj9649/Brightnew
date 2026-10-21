@@ -13,7 +13,7 @@ export const blogListData = {
 
       title: "Get Best Advertiser Your Side Pocket",
       text: "Pellentesque egestas rutrum nibh facilisis ultrices. Phasellus in magna ut orci malesuada the sollicitudin. Aenean faucibus scelerisque convallis. Quisque interdum mauris id nunc molestie tincidunt erat gravida. Nullam dui libero, mollis ac quam et, venenatis.",
-      link: "blog-details-right",
+      link: "/blog-details-right",
       date: "17 Mar",
       day: "17",
       month: "Mar",
@@ -26,7 +26,7 @@ export const blogListData = {
 
       title: "Supervisor Disapproved of Latest Work.",
       text: "Pellentesque egestas rutrum nibh facilisis ultrices. Phasellus in magna ut orci malesuada the sollicitudin. Aenean faucibus scelerisque convallis. Quisque interdum mauris id nunc molestie tincidunt erat gravida. Nullam dui libero, mollis ac quam et, venenatis.",
-      link: "blog-details-right",
+      link: "/blog-details-right",
       date: "15 Dec",
       day: "15",
       month: "Dec",
@@ -39,7 +39,7 @@ export const blogListData = {
 
       title: "Sakura Dreams and Samurai Tales.",
       text: "Pellentesque egestas rutrum nibh facilisis ultrices. Phasellus in magna ut orci malesuada the sollicitudin. Aenean faucibus scelerisque convallis. Quisque interdum mauris id nunc molestie tincidunt erat gravida. Nullam dui libero, mollis ac quam et, venenatis.",
-      link: "blog-details-right",
+      link: "/blog-details-right",
       date: "20 Feb",
       day: "20",
       month: "Feb",

@@ -59,7 +59,7 @@ const ProductRight: React.FC = () => {
                 <Col xl={4} lg={4} sm={6} key={product.id}>
                   <div className="product__item wow fadeInUp" data-wow-duration="1500ms" data-wow-delay={`${index * 200}ms`}>
                     <div className="product__item__image">
-                      <Image src={product.image} alt={product.name} className="img-fluid" />
+                      <Image src={product.image} alt={product.name} width={270} height={270} className="img-fluid" />
                     </div>
                     <div className="product__item__content">
                       <div className="product__item__star">

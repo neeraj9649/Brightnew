@@ -116,7 +116,7 @@ const TourListingOneLeft: React.FC = () => {
                             <ul className='listing-card-four__meta list-unstyled'>
                               {item.meta.map((meta: Metadata) => (
                                 <li key={meta.id}>
-                                  <Link href='tour-listing-details-2'>
+                                  <Link href={`/tour/${item.link}`}>
                                     {" "}
                                     <span className='listing-card-four__meta__icon'>
                                       {" "}
@@ -136,7 +136,7 @@ const TourListingOneLeft: React.FC = () => {
                               ))}
                             </div>
                             <h3 className='listing-card-four__title'>
-                              <Link href={item.link}>{item.title}</Link>
+                              <Link href={`/tour/${item.link}`}>{item.title}</Link>
                             </h3>
 
                             <div className='listing-card-four__content__btn'>
