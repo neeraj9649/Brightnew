@@ -10,4 +10,5 @@ coverage/
 !.env.example
 !.env.sample
 !.env.template
+!BrightP/.env.production
 *.tsbuildinfo
