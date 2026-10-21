@@ -14,12 +14,15 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::errors::refresh_token_errors::RefreshTokenError;
-use crate::domain::models::refresh_token::CreateRefreshToken;
+use crate::domain::models::refresh_token::{CreateRefreshToken, RenewedSession, Rotation};
 use crate::domain::repositories::refresh_token::RefreshTokenRepository;
 use crate::domain::repositories::user::UserRepository;
 use crate::domain::services::refresh_token::RefreshTokenService;
 use crate::infrastructure::repositories::refresh_token::RefreshTokenSqlxRepository;
 use base::constants;
+
+/// A second request carrying a token that was swapped this recently is a race, not a replay.
+const ROTATION_GRACE_SECONDS: i64 = 10;
 
 #[derive(Clone)]
 pub struct RefreshTokenServiceImpl {
@@ -63,56 +66,60 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
     async fn create_new_user_refresh_token(
         &self,
         user_id: Uuid,
-    ) -> Result<String, RefreshTokenError> {
-        self.create_refresh_token(user_id, Uuid::new_v4()).await
+    ) -> Result<(String, Uuid), RefreshTokenError> {
+        let family_id = Uuid::new_v4();
+        let raw = self.create_refresh_token(user_id, family_id).await?;
+        Ok((raw, family_id))
     }
 
     async fn renew_refresh_token(
         &self,
         raw_token: String,
-    ) -> Result<(String, Uuid), RefreshTokenError> {
-        let token_hash = self.hash_token(&raw_token);
-        let refresh_token = self
+    ) -> Result<RenewedSession, RefreshTokenError> {
+        let now = chrono::Utc::now();
+        let new_raw_token = Uuid::new_v4().to_string();
+        let outcome = self
             .repository
-            .get_from_hash(token_hash)
-            .await
-            .map_err(RefreshTokenError::InternalServerError)?
-            .ok_or(RefreshTokenError::RefreshTokenDoesNotExist)?;
-
-        if refresh_token.is_revoked
-            || refresh_token.expires_at < chrono::Utc::now()
-        {
-            self.repository
-                .revoke_family_id(refresh_token.family_id)
-                .await
-                .map_err(RefreshTokenError::InternalServerError)?;
-            return Err(RefreshTokenError::InvalidToken);
-        }
-
-        let user = self
-            .user_repository
-            .get(refresh_token.user_id)
-            .await
-            .map_err(RefreshTokenError::InternalServerError)?
-            .ok_or(RefreshTokenError::InvalidToken)?;
-        if !user.is_active {
-            self.repository
-                .revoke_family_id(refresh_token.family_id)
-                .await
-                .map_err(RefreshTokenError::InternalServerError)?;
-            return Err(RefreshTokenError::InvalidToken);
-        }
-
-        self.repository
-            .revoke_token(refresh_token.id)
+            .rotate(
+                &self.hash_token(&raw_token),
+                &self.hash_token(&new_raw_token),
+                now,
+                now + chrono::Duration::days(*constants::REFRESH_TOKEN_EXP_DAYS),
+                ROTATION_GRACE_SECONDS,
+            )
             .await
             .map_err(RefreshTokenError::InternalServerError)?;
 
-        let new_raw_token = self
-            .create_refresh_token(refresh_token.user_id, refresh_token.family_id)
-            .await?;
+        let (user_id, family_id, new_raw_token) = match outcome {
+            Rotation::Rotated { user_id, family_id } => (user_id, family_id, Some(new_raw_token)),
+            Rotation::Duplicate { user_id, family_id } => (user_id, family_id, None),
+            Rotation::NotFound => return Err(RefreshTokenError::RefreshTokenDoesNotExist),
+            Rotation::Expired | Rotation::Reused => return Err(RefreshTokenError::InvalidToken),
+        };
 
-        Ok((new_raw_token, refresh_token.user_id))
+        // A deactivated account must not keep renewing its session.
+        let active = self
+            .user_repository
+            .get(user_id)
+            .await
+            .map_err(RefreshTokenError::InternalServerError)?
+            .is_some_and(|user| user.is_active);
+        if !active {
+            self.repository
+                .revoke_family_id(family_id)
+                .await
+                .map_err(RefreshTokenError::InternalServerError)?;
+            return Err(RefreshTokenError::InvalidToken);
+        }
+
+        Ok(RenewedSession { user_id, family_id, new_raw_token })
+    }
+
+    async fn session_is_active(&self, session_id: Uuid) -> Result<bool, RefreshTokenError> {
+        self.repository
+            .family_is_active(session_id)
+            .await
+            .map_err(RefreshTokenError::InternalServerError)
     }
 
     async fn revoke_refresh_token(
@@ -137,8 +144,9 @@ impl RefreshTokenService for RefreshTokenServiceImpl {
         &self,
         user_id: Uuid,
         role: String,
+        session_id: Option<Uuid>,
     ) -> Result<String, RefreshTokenError> {
-        let claims = JwtClaims::new(user_id, role);
+        let claims = JwtClaims::new(user_id, role, session_id);
         encode(
             &Header::default(),
             &claims,

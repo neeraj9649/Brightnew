@@ -1,7 +1,9 @@
 use actix_web::{HttpRequest, HttpResponse, web};
 use base::error::ApiError;
 use base::jwt_claims::JwtClaims;
+use base::rate_limit::LIMITER;
 use serde_json::json;
+use std::time::Duration;
 
 use crate::api::dto::auth::{AuthResponseDTO, LoginRequestDTO, RegisterRequestDTO};
 use crate::api::dto::user::UserDTO;
@@ -13,16 +15,36 @@ use crate::domain::services::refresh_token::RefreshTokenService;
 use crate::domain::models::user::CreateUser;
 use crate::domain::services::user::UserService;
 
+const LOGIN_MAX_FAILURES: u32 = 8;
+const LOGIN_IP_MAX_FAILURES: u32 = 40;
+const LOGIN_WINDOW: Duration = Duration::from_secs(15 * 60);
+const REGISTER_MAX_PER_IP: u32 = 30;
+const REGISTER_WINDOW: Duration = Duration::from_secs(60 * 60);
+
+fn client_ip(req: &HttpRequest) -> String {
+    req.connection_info().realip_remote_addr().unwrap_or("unknown").to_string()
+}
+
+fn validate_names(first_name: &str, last_name: Option<&str>) -> Result<(), ApiError> {
+    if first_name.trim().is_empty() || first_name.chars().count() > 80 {
+        return Err(ApiError::new("First name must be 1 to 80 characters", 400));
+    }
+    if last_name.is_some_and(|name| name.chars().count() > 80) {
+        return Err(ApiError::new("Last name must be at most 80 characters", 400));
+    }
+    Ok(())
+}
+
 async fn issue_session(
     refresh_token_service: &dyn RefreshTokenService,
     user: User,
 ) -> Result<HttpResponse, ApiError> {
-    let access_token = refresh_token_service
-        .create_access_token(user.id, user.role.clone())
-        .map_err(ApiError::from)?;
-    let raw_refresh_token = refresh_token_service
+    let (raw_refresh_token, session_id) = refresh_token_service
         .create_new_user_refresh_token(user.id)
         .await
+        .map_err(ApiError::from)?;
+    let access_token = refresh_token_service
+        .create_access_token(user.id, user.role.clone(), Some(session_id))
         .map_err(ApiError::from)?;
     let cookie =
         refresh_token_service.build_refresh_token_cookie(raw_refresh_token);
@@ -40,8 +62,11 @@ pub async fn register_handler(
     user_service: web::Data<dyn UserService>,
     refresh_token_service: web::Data<dyn RefreshTokenService>,
     body: web::Json<RegisterRequestDTO>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, ApiError> {
     let body = body.into_inner();
+    LIMITER.hit(&format!("register:{}", client_ip(&req)), REGISTER_MAX_PER_IP, REGISTER_WINDOW)?;
+    validate_names(&body.first_name, body.last_name.as_deref())?;
     if !is_valid_phone(&body.phone) {
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
     }
@@ -78,12 +103,27 @@ pub async fn login_handler(
     user_service: web::Data<dyn UserService>,
     refresh_token_service: web::Data<dyn RefreshTokenService>,
     body: web::Json<LoginRequestDTO>,
+    req: HttpRequest,
 ) -> Result<HttpResponse, ApiError> {
     let phone = normalize_phone(&body.phone);
-    let user = user_service
-        .authenticate(&phone, &body.pin)
-        .await
-        .map_err(ApiError::from)?;
+    // A 4-digit PIN has only 10,000 values, so failed sign-ins are throttled per
+    // phone number (stops guessing one account) and per address (stops spraying).
+    let phone_key = format!("login:{phone}");
+    let ip_key = format!("login-ip:{}", client_ip(&req));
+    LIMITER.check(&phone_key, LOGIN_MAX_FAILURES, LOGIN_WINDOW)?;
+    LIMITER.check(&ip_key, LOGIN_IP_MAX_FAILURES, LOGIN_WINDOW)?;
+
+    let user = match user_service.authenticate(&phone, &body.pin).await {
+        Ok(user) => user,
+        Err(err) => {
+            if matches!(err, UserError::InvalidCredentials) {
+                LIMITER.record(&phone_key, LOGIN_WINDOW);
+                LIMITER.record(&ip_key, LOGIN_WINDOW);
+            }
+            return Err(ApiError::from(err));
+        }
+    };
+    LIMITER.clear(&phone_key);
 
     issue_session(refresh_token_service.get_ref(), user).await
 }
@@ -97,20 +137,23 @@ pub async fn refresh_token_handler(
         .extract_refresh_token(&req)
         .map_err(ApiError::from)?;
 
-    let (new_raw_token, user_id) = refresh_token_service
+    let renewed = refresh_token_service
         .renew_refresh_token(raw_token)
         .await
         .map_err(ApiError::from)?;
 
-    let user = user_service.get(user_id).await.map_err(ApiError::from)?;
+    let user = user_service.get(renewed.user_id).await.map_err(ApiError::from)?;
     let access_token = refresh_token_service
-        .create_access_token(user.id, user.role.clone())
+        .create_access_token(user.id, user.role.clone(), Some(renewed.family_id))
         .map_err(ApiError::from)?;
-    let cookie =
-        refresh_token_service.build_refresh_token_cookie(new_raw_token);
 
     let body = AuthResponseDTO { access_token, user: UserDTO::from(user) };
-    Ok(HttpResponse::Ok().cookie(cookie).json(json!({
+    let mut response = HttpResponse::Ok();
+    // No new cookie for a duplicate request: the browser already holds the one the first request set.
+    if let Some(new_raw_token) = renewed.new_raw_token {
+        response.cookie(refresh_token_service.build_refresh_token_cookie(new_raw_token));
+    }
+    Ok(response.json(json!({
         "data": body,
         "msg": "",
         "success": true,

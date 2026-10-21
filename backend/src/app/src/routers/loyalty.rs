@@ -120,7 +120,7 @@ async fn member(pool: &PgPool, user_id: Uuid) -> Result<MemberRow, ApiError> {
     )
     .fetch_optional(pool)
     .await
-    .map_err(|e| ApiError::new(e.to_string(), 500))?
+    .map_err(|e| base::error::internal(e))?
     .ok_or_else(|| ApiError::new("Member not found", 404))?;
 
     Ok(MemberRow {
@@ -192,7 +192,7 @@ async fn catalog(pool: &PgPool) -> Result<Vec<LoyaltyCatalogItemDTO>, ApiError> 
     )
     .fetch_all(pool)
     .await
-    .map_err(|e| ApiError::new(e.to_string(), 500))?;
+    .map_err(|e| base::error::internal(e))?;
 
     Ok(rows
         .into_iter()
@@ -217,7 +217,7 @@ async fn redemptions(pool: &PgPool, user_id: Uuid) -> Result<Vec<LoyaltyRedempti
     )
     .fetch_all(pool)
     .await
-    .map_err(|e| ApiError::new(e.to_string(), 500))?;
+    .map_err(|e| base::error::internal(e))?;
 
     Ok(rows
         .into_iter()

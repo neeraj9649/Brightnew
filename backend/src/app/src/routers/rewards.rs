@@ -20,12 +20,22 @@ pub fn rewards_routes(cfg: &mut ServiceConfig) {
             .route("/me", web::get().to(my_reward_history_handler))
             .route("/points-config", web::get().to(points_config_handler)),
     )
+    // Registered before `/admin/rewards`: Actix matches scopes by prefix in order and
+    // does not fall through, so the more specific scope has to come first.
+    // Directly crediting or debiting Wings is admin-only; employees request Wings
+    // through the approval flow (`/portal/staff/wings-requests`).
+    .service(
+        web::scope("/admin/rewards/award")
+            .wrap(from_fn(|req, next| async move {
+                check_permission_middleware(req, next, ADMIN_ONLY).await
+            }))
+            .route("", web::post().to(admin_award_points_handler)),
+    )
     .service(
         web::scope("/admin/rewards")
             .wrap(from_fn(|req, next| async move {
                 check_permission_middleware(req, next, STAFF).await
             }))
-            .route("/award", web::post().to(admin_award_points_handler))
             .route(
                 "/users/{id}",
                 web::get().to(admin_user_reward_history_handler),

@@ -26,7 +26,13 @@ pub fn send_plain_email(to: &str, subject: &str, body: &str) -> Result<(), Strin
         .body(body.to_string())
         .map_err(|e| e.to_string())?;
 
-    let mailer = SmtpTransport::relay(&host)
+    // Port 465 uses TLS from the first byte; 587 (and others) upgrade with STARTTLS.
+    let builder = if port == 465 {
+        SmtpTransport::relay(&host)
+    } else {
+        SmtpTransport::starttls_relay(&host)
+    };
+    let mailer = builder
         .map_err(|e| e.to_string())?
         .port(port)
         .credentials(Credentials::new(username, password))

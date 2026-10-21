@@ -34,7 +34,7 @@ const OTP_MAX_ATTEMPTS: i32 = 5;
 const OTP_RESEND_SECONDS: i64 = 60;
 
 fn db_err(e: sqlx::Error) -> ApiError {
-    ApiError::new(e.to_string(), 500)
+    base::error::internal(e)
 }
 
 fn sha256_hex(parts: &[&str]) -> String {
@@ -169,8 +169,8 @@ async fn pin_reset_verify_handler(
         return Err(invalid());
     }
 
-    let request: Option<(Uuid, String, i32)> = sqlx::query_as(
-        r#"SELECT id, code_hash, attempts FROM pin_reset_requests
+    let request: Option<(Uuid, String)> = sqlx::query_as(
+        r#"SELECT id, code_hash FROM pin_reset_requests
            WHERE user_id = $1 AND consumed_at IS NULL AND verified_at IS NULL AND expires_at > NOW()
            ORDER BY created_at DESC LIMIT 1"#,
     )
@@ -178,18 +178,22 @@ async fn pin_reset_verify_handler(
     .fetch_optional(pool.get_ref())
     .await
     .map_err(db_err)?;
-    let Some((request_id, code_hash, attempts)) = request else {
+    let Some((request_id, code_hash)) = request else {
         return Err(invalid());
     };
-    if attempts >= OTP_MAX_ATTEMPTS {
+
+    // Claim an attempt atomically: parallel guesses cannot all slip under the limit.
+    let claimed: Option<i32> = sqlx::query_scalar(
+        "UPDATE pin_reset_requests SET attempts = attempts + 1 WHERE id = $1 AND attempts < $2 RETURNING attempts",
+    )
+    .bind(request_id)
+    .bind(OTP_MAX_ATTEMPTS)
+    .fetch_optional(pool.get_ref())
+    .await
+    .map_err(db_err)?;
+    if claimed.is_none() {
         return Err(ApiError::new("Too many attempts. Please request a new code", 429));
     }
-
-    sqlx::query("UPDATE pin_reset_requests SET attempts = attempts + 1 WHERE id = $1")
-        .bind(request_id)
-        .execute(pool.get_ref())
-        .await
-        .map_err(db_err)?;
 
     if sha256_hex(&[body.code.trim(), &user_id.to_string()]) != code_hash {
         return Err(invalid());
@@ -1041,9 +1045,14 @@ async fn staff_customers_handler(
     claims: JwtClaims,
     query: web::Query<StaffCustomerQuery>,
 ) -> Result<ApiResponse<Vec<StaffCustomerDTO>>, ApiError> {
-    let q = query.q.as_deref().map(str::trim).filter(|v| !v.is_empty()).map(|v| format!("%{}%", v.to_lowercase()));
+    let term = query.q.as_deref().map(str::trim).filter(|v| !v.is_empty());
+    // `%` and `_` typed by the user must match literally, not act as wildcards.
+    let q = term.map(|v| {
+        let escaped = v.to_lowercase().replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+        format!("%{escaped}%")
+    });
     // Recording a booking for someone: staff may look up any customer, but only with a real search term.
-    let search_all = query.scope.as_deref() == Some("search") && q.as_deref().is_some_and(|v| v.len() >= 5);
+    let search_all = query.scope.as_deref() == Some("search") && term.is_some_and(|v| v.chars().count() >= 3);
     let rows = sqlx::query_as::<_, StaffCustomerDTO>(
         r#"SELECT u.id, TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS name, u.phone, u.membership_code,
                   u.membership_tier, u.tokens, u.lifetime_points_earned AS lifetime_wings, u.joined_at, u.is_active,

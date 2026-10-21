@@ -92,6 +92,9 @@ pub async fn admin_award_points_handler(
     body: web::Json<AdminAwardPointsDTO>,
 ) -> Result<ApiResponse<RewardTransactionDTO>, ApiError> {
     let body = body.into_inner();
+    if body.points == 0 || !(-100_000..=100_000).contains(&body.points) {
+        return Err(ApiError::new("Wings must be between -100,000 and 100,000 (not 0)", 400));
+    }
     let transaction = rewards_service
         .award(
             body.user_id,

@@ -27,7 +27,7 @@ use super::member::booking_party;
 use super::portal::ensure_staff_access;
 
 fn db_err(e: sqlx::Error) -> ApiError {
-    ApiError::new(e.to_string(), 500)
+    base::error::internal(e)
 }
 
 // ---------------------------------------------------------------------------
@@ -400,13 +400,26 @@ pub async fn staff_create_wings_request_handler(
     .await
     .map_err(db_err)?;
     if role::is_admin(&claims.role) {
-        credit_request(rewards.get_ref(), id, user_id, body.points, &reason, claims.sub).await?;
-        sqlx::query("UPDATE wings_requests SET status = 'approved', reviewed_by = $2, reviewed_at = NOW() WHERE id = $1")
-            .bind(id)
-            .bind(claims.sub)
-            .execute(pool.get_ref())
-            .await
-            .map_err(db_err)?;
+        // Claim the request before crediting (same order as the approve handler), so a
+        // failure in between can never leave a pending request that is already paid.
+        let claimed = sqlx::query(
+            "UPDATE wings_requests SET status = 'approved', reviewed_by = $2, reviewed_at = NOW() WHERE id = $1 AND status = 'pending'",
+        )
+        .bind(id)
+        .bind(claims.sub)
+        .execute(pool.get_ref())
+        .await
+        .map_err(db_err)?;
+        if claimed.rows_affected() == 1 {
+            if let Err(err) = credit_request(rewards.get_ref(), id, user_id, body.points, &reason, claims.sub).await {
+                sqlx::query("UPDATE wings_requests SET status = 'pending', reviewed_by = NULL, reviewed_at = NULL WHERE id = $1")
+                    .bind(id)
+                    .execute(pool.get_ref())
+                    .await
+                    .map_err(db_err)?;
+                return Err(err);
+            }
+        }
     }
     let dto = sqlx::query_as::<_, WingsRequestDTO>(&format!("{WINGS_SELECT} WHERE w.id = $1"))
         .bind(id)

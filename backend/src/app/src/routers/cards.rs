@@ -34,7 +34,7 @@ async fn public_card_handler(
     )
     .fetch_optional(pool.get_ref())
     .await
-    .map_err(|e| ApiError::new(e.to_string(), 500))?;
+    .map_err(|e| base::error::internal(e))?;
 
     match row {
         Some(r) => Ok(ApiResponse(PublicCardDTO {

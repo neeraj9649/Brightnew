@@ -53,8 +53,13 @@ fn original_filename_from_url(file_url: &str) -> String {
         .to_string()
 }
 
+/// The extension after the last dot, or "bin" when there is none or it is not a
+/// short alphanumeric suffix (so odd names never become part of the stored file name).
 fn filename_extension(filename: &str) -> &str {
-    filename.rsplit('.').next().unwrap_or("bin")
+    match filename.rsplit_once('.') {
+        Some((_, ext)) if !ext.is_empty() && ext.len() <= 8 && ext.chars().all(|c| c.is_ascii_alphanumeric()) => ext,
+        _ => "bin",
+    }
 }
 
 fn uuid_filename(file_id: &str, original_filename: &str) -> String {
@@ -89,7 +94,10 @@ pub async fn upload_external_file_to_php_uploader_if_needed(
         return Ok(file_url.to_string());
     }
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|error| error.to_string())?;
     let response = client.get(input_url).send().await.map_err(|error| {
         format!("Failed to fetch file URL '{}': {}", input_url, error)
     })?;
@@ -150,8 +158,11 @@ pub async fn upload_file_bytes_to_php_uploader(
         .text("owner_id", owner_id.to_string())
         .part("file", part);
 
-    let mut request =
-        reqwest::Client::new().post(upload_url()?).multipart(form);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|error| error.to_string())?;
+    let mut request = client.post(upload_url()?).multipart(form);
     if let Some(token) = env_optional("PHP_UPLOADER_TOKEN") {
         request = request.header("X-Upload-Token", token);
     }

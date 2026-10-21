@@ -41,6 +41,26 @@ the matching public key there. Frontend API URLs are embedded in the build;
 they must be reachable by visitors' browsers. Frontend variables become public
 browser code; never put private API credentials in them.
 
+## Test live accounts from localhost
+
+BrightP should call the live HTTPS API, not PostgreSQL directly. From the
+`BrightP` directory, run:
+
+```sh
+npm run start:live
+```
+
+This starts the portal at `http://localhost:3000` with
+`https://bp.nsiif.in` as its API. A user can then sign in with the phone number
+and 4-digit PIN stored in the live database. The live API must be deployed with
+`ENABLE_APP_CORS=true` and an exact `CORS_ALLOWED_ORIGIN` entry for
+`http://localhost:3000` (the deployment examples include this).
+
+For normal local-only development, keep using `npm start`; it uses
+`http://localhost:9010` and a local database. Restart the API after changing
+its environment variables, and restart the React dev server after changing
+`REACT_APP_API_URL` because CRA embeds that value at startup.
+
 If deployment fails in Configure SSH with `Bad port`, update the
 `SSH_PORT` repository secret to contain only the SSH port shown in hPanel.
 The workflow trims surrounding whitespace and validates the port before using it.

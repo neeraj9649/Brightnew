@@ -3,7 +3,9 @@ use rand::Rng;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::role;
+use base::rate_limit::LIMITER;
 use base::result_paging::ResultPaging;
+use std::time::Duration;
 
 use crate::api::dto::user::{
     AdminCreateUserDTO, AdminUpdateUserDTO, ChangePinDTO, UpdateProfileDTO, UserDTO,
@@ -31,6 +33,12 @@ pub async fn update_me_profile_handler(
     if body.phone.as_deref().is_some_and(|phone| !is_valid_phone(phone)) {
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
     }
+    if body.first_name.as_deref().is_some_and(|n| n.trim().is_empty() || n.chars().count() > 80)
+        || body.last_name.as_deref().is_some_and(|n| n.chars().count() > 80)
+        || body.profile_image_file_id.as_deref().is_some_and(|id| id.len() > 200)
+    {
+        return Err(ApiError::new("Name or photo reference is too long", 400));
+    }
     let user = user_service
         .update(UpdateUser {
             id: claims.sub,
@@ -55,9 +63,14 @@ pub async fn list_users_handler(
 /// the user-detail page without loading the whole admin user list.
 pub async fn staff_get_user_handler(
     user_service: web::Data<dyn UserService>,
+    claims: JwtClaims,
     path: web::Path<uuid::Uuid>,
 ) -> Result<ApiResponse<UserDTO>, ApiError> {
     let user = user_service.get(path.into_inner()).await?;
+    // Employees look up customers only; staff and admin accounts stay admin-only.
+    if !role::is_admin(&claims.role) && user.role != role::CUSTOMER {
+        return Err(ApiError::new("User not found", 404));
+    }
     Ok(ApiResponse(user.into()))
 }
 
@@ -123,9 +136,22 @@ pub async fn change_pin_handler(
     if !is_valid_pin_format(&body.new_pin) {
         return Err(ApiError::from(UserError::InvalidPinFormat));
     }
-    let user = user_service
+    let window = Duration::from_secs(15 * 60);
+    let key = format!("change-pin:{}", claims.sub);
+    LIMITER.check(&key, 8, window)?;
+    let user = match user_service
         .change_pin(claims.sub, &body.current_pin, &body.new_pin)
-        .await?;
+        .await
+    {
+        Ok(user) => user,
+        Err(err) => {
+            if matches!(err, UserError::InvalidCredentials) {
+                LIMITER.record(&key, window);
+            }
+            return Err(err.into());
+        }
+    };
+    LIMITER.clear(&key);
     Ok(ApiResponse(user.into()))
 }
 
@@ -140,6 +166,12 @@ pub async fn admin_create_user_handler(
 
     if !is_valid_phone(&body.phone) {
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
+    }
+    if body.first_name.trim().is_empty()
+        || body.first_name.chars().count() > 80
+        || body.last_name.as_deref().is_some_and(|n| n.chars().count() > 80)
+    {
+        return Err(ApiError::new("Name must be 1 to 80 characters", 400));
     }
     let explicit_pin = body.pin.as_deref().map(str::trim).filter(|p| !p.is_empty());
     if let Some(pin) = explicit_pin {

@@ -11,10 +11,15 @@ pub struct JwtClaims {
     pub role: String,
     pub exp: usize,
     pub iat: usize,
+    /// The sign-in (refresh-token family) this access token belongs to. Lets a logout or
+    /// "sign out other devices" end the session at once instead of when the token expires.
+    /// Tokens issued before this field existed have none and simply expire as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sid: Option<Uuid>,
 }
 
 impl JwtClaims {
-    pub fn new(user_id: Uuid, role: String) -> Self {
+    pub fn new(user_id: Uuid, role: String, sid: Option<Uuid>) -> Self {
         let iat = Utc::now();
         let exp = iat + Duration::minutes(*constants::JWT_TOKEN_EXP_MINUTES);
         Self {
@@ -22,6 +27,7 @@ impl JwtClaims {
             role,
             exp: exp.timestamp() as usize,
             iat: iat.timestamp() as usize,
+            sid,
         }
     }
 }
@@ -51,6 +57,7 @@ impl Clone for JwtClaims {
             role: self.role.clone(),
             exp: self.exp,
             iat: self.iat,
+            sid: self.sid,
         }
     }
 }

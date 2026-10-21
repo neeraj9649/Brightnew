@@ -23,7 +23,7 @@ pub struct PeriodQuery {
 }
 
 fn db_err(e: sqlx::Error) -> ApiError {
-    ApiError::new(e.to_string(), 500)
+    base::error::internal(e)
 }
 
 fn days_of(query: &PeriodQuery) -> i32 {

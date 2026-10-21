@@ -21,7 +21,7 @@ use base::{
 };
 
 fn db_err(e: sqlx::Error) -> ApiError {
-    ApiError::new(e.to_string(), 500)
+    base::error::internal(e)
 }
 
 // ---------------------------------------------------------------------------
@@ -343,6 +343,12 @@ async fn create_invite_handler(
     if !plausible_email(&email) || email.len() > 200 {
         return Err(ApiError::new("Enter a valid e-mail address", 400));
     }
+    // Invites send real e-mail from our address, so cap them per member per day.
+    base::rate_limit::LIMITER.hit(
+        &format!("invite:{}", claims.sub),
+        20,
+        std::time::Duration::from_secs(24 * 60 * 60),
+    )?;
     let (name, code, own_email): (String, Option<String>, Option<String>) = sqlx::query_as(
         "SELECT TRIM(first_name || ' ' || COALESCE(last_name, '')), referral_code, email FROM users WHERE id = $1",
     )

@@ -159,7 +159,7 @@ const REDEMPTION_SELECT: &str = r#"
 "#;
 
 fn db_err(e: sqlx::Error) -> ApiError {
-    ApiError::new(e.to_string(), 500)
+    base::error::internal(e)
 }
 
 fn gen_voucher() -> String {

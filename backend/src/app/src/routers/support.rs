@@ -82,6 +82,30 @@ async fn create_ticket_handler(
         .attachments
         .clone()
         .unwrap_or_else(|| Value::Array(Vec::new()));
+    if attachments.to_string().len() > 20_000 {
+        return Err(ApiError::new("Too many attachments", 400));
+    }
+    // A ticket may only point at the member's own booking or redemption.
+    if let Some(booking_id) = body.booking_id {
+        let owned: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM bookings WHERE id = $1 AND user_id = $2)")
+            .bind(booking_id)
+            .bind(claims.sub)
+            .fetch_one(pool.get_ref())
+            .await?;
+        if !owned {
+            return Err(ApiError::new("Booking not found", 404));
+        }
+    }
+    if let Some(redemption_id) = body.redemption_id {
+        let owned: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM redemptions WHERE id = $1 AND user_id = $2)")
+            .bind(redemption_id)
+            .bind(claims.sub)
+            .fetch_one(pool.get_ref())
+            .await?;
+        if !owned {
+            return Err(ApiError::new("Redemption not found", 404));
+        }
+    }
     let row = sqlx::query(
         "INSERT INTO support_tickets (customer_id, category, booking_id, redemption_id, subject, message, attachments) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, category, booking_id, redemption_id, subject, message, attachments, status, created_at, updated_at",
     )

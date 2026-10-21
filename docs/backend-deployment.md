@@ -4,6 +4,11 @@ The portal at `https://portal.brightwingstravel.com` calls the API configured in
 `REACT_APP_API_URL` in the deployment workflow (`https://bp.nsiif.in`).
 **The portal cannot sign anyone in until that URL serves this backend.**
 
+The API is also configured to accept the local BrightP development origins so
+`npm run start:live` can authenticate against the same live database through
+the API. Set `ENABLE_APP_CORS=true` and use the exact comma-separated origin
+list from `backend/deploy/bp.env.example`, then restart the service.
+
 ## One-time server setup (Ubuntu/Debian VPS)
 
 ```sh
@@ -41,8 +46,9 @@ The deploy user needs passwordless sudo for exactly:
    rolls back if `/health` does not answer. Database migrations run on start-up.
 3. Only then push the portal (the Hostinger workflow publishes it).
 
-Smoke test: `curl https://bp.nsiif.in/health` returns 200 with CORS
-headers for `https://portal.brightwingstravel.com`.
+Smoke test: `curl https://bp.nsiif.in/health` returns 200, and an `OPTIONS`
+request with `Origin: http://localhost:3000` returns the matching credentialed
+CORS headers.
 
 > The workflow and unit files were written without access to the server and have
 > not been run against it. Check them on a staging box first.

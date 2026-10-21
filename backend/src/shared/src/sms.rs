@@ -22,7 +22,11 @@ pub fn sms_configured() -> bool {
 pub async fn send_sms(to: &str, message: &str) -> Result<(), String> {
     let url = env_optional("SMS_WEBHOOK_URL").ok_or("SMS_WEBHOOK_URL not configured")?;
     let payload = serde_json::json!({ "to": to, "message": message }).to_string();
-    let mut request = reqwest::Client::new()
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut request = client
         .post(url)
         .header(CONTENT_TYPE, "application/json")
         .body(payload);

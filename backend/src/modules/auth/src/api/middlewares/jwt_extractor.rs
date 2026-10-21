@@ -25,13 +25,25 @@ pub async fn check_permission_middleware(
     let token_service = get_service::<dyn RefreshTokenService>(&req)?;
 
     let token = token_service.extract_token(&req).map_err(ApiError::from)?;
-    let claims = token_service.verify_jwt(&token).map_err(ApiError::from)?;
+    let mut claims = token_service.verify_jwt(&token).map_err(ApiError::from)?;
+
+    // A logout, "sign out other devices" or PIN reset ends the session immediately, even
+    // though the access token itself is long-lived.
+    if let Some(session_id) = claims.sid {
+        if !token_service.session_is_active(session_id).await.map_err(ApiError::from)? {
+            return Err(ApiError::new("Your session has ended. Please sign in again.", 401).into());
+        }
+    }
 
     let user_service = get_service::<dyn UserService>(&req)?;
     let user = user_service.get(claims.sub).await.map_err(ApiError::from)?;
     if !user.is_active {
         return Err(ApiError::new("Account is inactive", 403).into());
     }
+
+    // Trust the account's current role, not the one baked into the token, so a
+    // demotion takes effect on the next request instead of after the token expires.
+    claims.role = user.role.clone();
 
     if !allowed_roles.is_empty() && !allowed_roles.contains(&claims.role.as_str())
     {

@@ -27,9 +27,16 @@ impl<T: Serialize> Responder for ApiResponse<T> {
     }
 }
 
+/// A 500 whose real cause goes to the log; clients only get a generic message so
+/// database details (table, constraint and column names) never leave the server.
+pub fn internal(err: impl std::fmt::Display) -> ApiError {
+    log::error!("internal error: {err}");
+    ApiError { message: "Something went wrong. Please try again.".to_string(), code: 500 }
+}
+
 impl From<sqlx::Error> for ApiError {
     fn from(value: sqlx::Error) -> Self {
-        Self { message: value.to_string(), code: 500 }
+        internal(value)
     }
 }
 

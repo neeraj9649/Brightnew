@@ -6,17 +6,21 @@ use base::jwt_claims::JwtClaims;
 use uuid::Uuid;
 
 use crate::domain::errors::refresh_token_errors::RefreshTokenError;
+use crate::domain::models::refresh_token::RenewedSession;
 
 #[async_trait]
 pub trait RefreshTokenService: 'static + Sync + Send {
+    /// Starts a sign-in: returns the raw refresh token and the id of its session (family).
     async fn create_new_user_refresh_token(
         &self,
         user_id: Uuid,
-    ) -> Result<String, RefreshTokenError>;
+    ) -> Result<(String, Uuid), RefreshTokenError>;
     async fn renew_refresh_token(
         &self,
         raw_token: String,
-    ) -> Result<(String, Uuid), RefreshTokenError>;
+    ) -> Result<RenewedSession, RefreshTokenError>;
+    /// False once the sign-in has been logged out, revoked or has run out.
+    async fn session_is_active(&self, session_id: Uuid) -> Result<bool, RefreshTokenError>;
     async fn revoke_refresh_token(
         &self,
         raw_token: String,
@@ -25,6 +29,7 @@ pub trait RefreshTokenService: 'static + Sync + Send {
         &self,
         user_id: Uuid,
         role: String,
+        session_id: Option<Uuid>,
     ) -> Result<String, RefreshTokenError>;
     fn build_refresh_token_cookie(
         &self,

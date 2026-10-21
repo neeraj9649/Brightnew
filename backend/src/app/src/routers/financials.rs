@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 use base::error::{ApiError, ApiResponse};
-use base::role::STAFF;
+use base::role::ADMIN_ONLY;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct PnlQuery {
@@ -72,7 +72,7 @@ async fn financials_pnl_handler(
     )
     .fetch_all(pool.get_ref())
     .await
-    .map_err(|e| ApiError::new(&e.to_string(), 500))?;
+    .map_err(|e| base::error::internal(e))?;
 
     let to_f64 = |d: bigdecimal::BigDecimal| d.to_string().parse().unwrap_or(0.0);
     let bookings: Vec<BookingPnlDTO> = rows
@@ -106,7 +106,7 @@ pub fn financials_routes(cfg: &mut ServiceConfig) {
     cfg.service(
         web::scope("/admin/financials")
             .wrap(from_fn(|req, next| async move {
-                check_permission_middleware(req, next, STAFF).await
+                check_permission_middleware(req, next, ADMIN_ONLY).await
             }))
             .route("/pnl", web::get().to(financials_pnl_handler)),
     );

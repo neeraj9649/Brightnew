@@ -26,3 +26,24 @@ pub async fn promote_super_admins(pool: &sqlx::PgPool) {
         }
     }
 }
+
+/// Every few hours, deletes sign-ins that ended more than a week ago (every token in the session
+/// has expired). Live sessions are never touched, so the account's sign-in history stays intact.
+pub fn spawn_refresh_token_cleanup(pool: sqlx::PgPool) {
+    actix_web::rt::spawn(async move {
+        let mut tick = actix_web::rt::time::interval(std::time::Duration::from_secs(6 * 60 * 60));
+        loop {
+            tick.tick().await;
+            let result = sqlx::query(
+                "DELETE FROM refresh_tokens WHERE family_id IN (SELECT family_id FROM refresh_tokens GROUP BY family_id HAVING MAX(expires_at) < NOW() - INTERVAL '7 days')",
+            )
+            .execute(&pool)
+            .await;
+            match result {
+                Ok(done) if done.rows_affected() > 0 => log::info!("removed {} expired refresh tokens", done.rows_affected()),
+                Ok(_) => {}
+                Err(err) => log::warn!("refresh-token cleanup failed: {err}"),
+            }
+        }
+    });
+}
