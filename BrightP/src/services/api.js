@@ -1,6 +1,6 @@
-// A production build must never fall back to localhost: a build made by hand without
-// REACT_APP_API_URL would otherwise ship a portal that calls the visitor's own machine.
-const DEFAULT_API_URL = process.env.NODE_ENV === 'production' ? 'https://bp.nsiif.in' : 'http://localhost:9010';
+// One database: every build (dev and production) talks to the live API unless REACT_APP_API_URL
+// overrides it, so accounts created anywhere exist everywhere and nothing falls back to localhost.
+const DEFAULT_API_URL = 'https://bp.nsiif.in';
 const API_BASE_URL = (process.env.REACT_APP_API_URL || DEFAULT_API_URL).replace(/\/$/, '');
 
 let accessToken = null;

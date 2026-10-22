@@ -56,10 +56,10 @@ and 4-digit PIN stored in the live database. The live API must be deployed with
 `ENABLE_APP_CORS=true` and an exact `CORS_ALLOWED_ORIGIN` entry for
 `http://localhost:3000` (the deployment examples include this).
 
-For normal local-only development, keep using `npm start`; it uses
-`http://localhost:9010` and a local database. Restart the API after changing
-its environment variables, and restart the React dev server after changing
-`REACT_APP_API_URL` because CRA embeds that value at startup.
+`npm start` uses the same live API, so the portal has a single database
+(live) whether it runs on localhost or at portal.brightwingstravel.com. Restart
+the React dev server after changing `REACT_APP_API_URL` because CRA embeds that
+value at startup.
 
 If deployment fails in Configure SSH with `Bad port`, update the
 `SSH_PORT` repository secret to contain only the SSH port shown in hPanel.
