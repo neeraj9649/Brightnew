@@ -72,9 +72,11 @@ export function DeskWings({ initialTab = 'rewards', showAllRewards = false }) {
               const pos = e.points > 0;
               return (
                 <li key={e.id}>
-                  <span className="d">{fmtDate(e.created_at)}</span>
                   <span><b>{title}</b><small>{sub}</small></span>
-                  <strong className={pos ? 'pos' : 'neg'}>{pos ? '+ ' : '− '}{fmtNum(Math.abs(e.points))}</strong>
+                  <span className="amt">
+                    <strong className={pos ? 'pos' : 'neg'}>{pos ? '+ ' : '− '}{fmtNum(Math.abs(e.points))}</strong>
+                    <span className="d">{fmtDate(e.created_at)}</span>
+                  </span>
                 </li>
               );
             })}

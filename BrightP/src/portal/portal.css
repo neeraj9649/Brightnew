@@ -952,9 +952,10 @@
 .dw-split { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 26px; margin-top: 26px; align-items: start; }
 .dw-h { font: 500 30px Georgia, serif; color: var(--pt-navy); letter-spacing: -0.01em; }
 .dw-activity ul { list-style: none; margin: 0; padding: 4px 22px; }
-.dw-activity li { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 20px 0; border-top: 1px solid var(--pt-line); }
+.dw-activity li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 20px 0; border-top: 1px solid var(--pt-line); }
 .dw-activity li:first-child { border-top: 0; }
-.dw-activity .d { font-size: 14px; color: #55657a; }
+.dw-activity .amt { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+.dw-activity .d { font-size: 12px; color: #55657a; }
 .dw-activity b { display: block; font: 600 16px var(--font-family-base, sans-serif); color: var(--pt-navy); }
 .dw-activity small { display: block; margin-top: 3px; font-size: 13.5px; color: var(--pt-muted); }
 .dw-activity strong { font: 500 22px Georgia, serif; }
