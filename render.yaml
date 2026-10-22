@@ -34,7 +34,7 @@ services:
       - key: REFRESH_TOKEN_EXP_DAYS
         value: "30"
       - key: JWT_TOKEN_EXP_MINUTES
-        value: "15"
+        value: "1440"
       - key: COOKIE_SECURE
         value: "true"
       - key: COOKIE_SAMESITE

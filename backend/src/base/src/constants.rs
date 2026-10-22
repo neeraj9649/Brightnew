@@ -117,7 +117,7 @@ fn set_refresh_token_exp_days() -> i64 {
 fn set_jwt_token_exp_minutes() -> i64 {
     dotenv::dotenv().ok();
     env::var("JWT_TOKEN_EXP_MINUTES")
-        .unwrap_or_else(|_| "15".to_string())
+        .unwrap_or_else(|_| "1440".to_string())
         .parse::<i64>()
         .expect("can't parse JWT_TOKEN_EXP_MINUTES")
 }
