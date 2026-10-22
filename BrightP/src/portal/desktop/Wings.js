@@ -101,7 +101,7 @@ export function DeskWings({ initialTab = 'rewards', showAllRewards = false }) {
           <div className="dw-tier">
             <span className="dw-medal"><TierGlyph size={34} strokeWidth={1.3} /></span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="pt-row between top"><div><b className="pt-serif-h" style={{ fontSize: 24 }}>{tierTitle(tier.current)}</b><small>{fmtNum(currentFloor)} Wings{tier.next_threshold ? ` to ${fmtNum(tier.next_threshold)} Wings` : ''}</small></div>{tier.next_tier && <div style={{ textAlign: 'right' }}><small>Next tier: <b style={{ color: 'var(--pt-navy)', fontFamily: 'Georgia, serif', fontSize: 17 }}>{tier.next_tier}</b></small><small>{fmtNum(Math.max(0, tier.next_threshold - lifetime))} Wings to go</small></div>}</div>
+              <div className="pt-row between top"><div><b className="pt-serif-h" style={{ fontSize: 24 }}>{tierTitle(tier.current)}</b><small>{fmtNum(currentFloor)} Wings{tier.next_threshold ? ` to ${fmtNum(tier.next_threshold)} Wings` : ''}</small></div>{tier.next_tier && <div className="dw-next"><small>Next tier</small><b>{tier.next_tier}</b><small>{fmtNum(Math.max(0, tier.next_threshold - lifetime))} Wings to go</small></div>}</div>
               <div style={{ margin: '12px 0 6px' }}><Progress value={tier.progress_percent || (tier.next_tier ? 0 : 100)} /></div>
               <div className="pt-row between pt-small" style={{ color: 'var(--pt-navy)', fontWeight: 600 }}><span>{fmtNum(lifetime)}</span>{tier.next_threshold && <span>{fmtNum(tier.next_threshold)}</span>}</div>
             </div>

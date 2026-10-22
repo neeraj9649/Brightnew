@@ -7,7 +7,7 @@ import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { useCrm } from '../../contexts/CrmContext';
 import { api } from '../../services/api';
 import { fileUrl } from '../../services/storage';
-import { Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, Segmented, Select, Skeleton, Spinner, TextArea, fmtDate, fmtDateTime, fmtMoney, humanize, relTime, useAsync } from '../ui';
+import { Badge, Card, Empty, Field, Input, Modal, ModalHead, Notice, Segmented, Select, Skeleton, Spinner, TextArea, VoucherTag, fmtDate, fmtDateTime, fmtMoney, fmtNum, humanize, relTime, useAsync } from '../ui';
 import { STATUS, serviceOf, statusMeta, bookingTitle } from '../booking';
 import StaffShell from './StaffShell';
 import { MessagesTab, StepsTab, WingsTab } from './BookingExtras';
@@ -67,7 +67,7 @@ export default function BookingWorkspace() {
       <Card style={{ marginBottom: 18 }}>
         <div className="pt-row between top" style={{ flexWrap: 'wrap', gap: 14 }}>
           <div>
-            <div className="pt-row" style={{ gap: 12 }}><h1 className="pt-h1" style={{ fontSize: 26 }}>Booking {booking.id}</h1><Badge tone={meta.tone} dot>{meta.label}</Badge></div>
+            <div className="pt-row" style={{ gap: 12 }}><h1 className="pt-h1" style={{ fontSize: 26 }}>Booking {booking.id}</h1><Badge tone={meta.tone} dot>{meta.label}</Badge>{booking.voucherBooking && <VoucherTag />}</div>
             <div className="pt-small" style={{ marginTop: 8 }}>
               <button type="button" className="pt-link" style={{ color: 'var(--pt-navy)', textDecoration: 'none', fontWeight: 800, fontSize: 15 }} onClick={() => navigate(`/admin/customers/${booking.userId}`)}>{booking.userName || customer?.displayName}</button>
               <span style={{ margin: '0 8px' }}>|</span>{booking.membershipCode}<span style={{ margin: '0 8px' }}>|</span>{booking.membershipTier || 'Silver'} Member
@@ -122,7 +122,8 @@ function DetailsTab({ booking, svc, employees, isAdmin, events, quotes, setTab, 
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 18, alignItems: 'start' }}>
       <Card>
         <h2 className="pt-h2" style={{ marginBottom: 6 }}>Booking details</h2>
-        {[['Booking ID', booking.id], ['Service', svc.label], ...svc.summary(booking).filter(([, v]) => v), lead && ['Lead traveler', `${lead.name}${lead.phone ? ` · +91 ${lead.phone}` : ''}`], ['Special requests', booking.specialRequests || booking.travelNotes || 'None'], ['Created on', fmtDateTime(booking.createdAt)]].filter(Boolean).map(([k, v]) => <div className="pt-kv" key={k}><span>{k}</span><strong>{String(v)}</strong></div>)}
+        {booking.voucherBooking && <Notice icon={Gift} tone="green" title="Fully sponsored by reward voucher" style={{ marginBottom: 10 }}>The customer used voucher {booking.voucherCode} (request {booking.voucherRequestCode}, {fmtNum(booking.voucherWings)} Wings). No payment is due from the customer.</Notice>}
+        {[['Booking ID', booking.id], ['Service', svc.label], ...svc.summary(booking).filter(([, v]) => v), booking.pickup && ['Pickup / location', booking.pickup], booking.voucherBooking && ['Paid with voucher', booking.voucherCode], lead && ['Lead traveler', `${lead.name}${lead.phone ? ` · +91 ${lead.phone}` : ''}`], ['Special requests', booking.specialRequests || booking.travelNotes || 'None'], ['Created on', fmtDateTime(booking.createdAt)]].filter(Boolean).map(([k, v]) => <div className="pt-kv" key={k}><span>{k}</span><strong>{String(v)}</strong></div>)}
         <hr className="pt-divider" />
         <div className="pt-stack">
           {isAdmin ? <Field label="Assigned to"><Select value={owner} onChange={(e) => setOwner(e.target.value)}><option value="">Unassigned</option>{employees.map((e) => <option key={e.uid} value={e.uid}>{e.displayName}</option>)}</Select></Field> : <div className="pt-kv"><span>Assigned to</span><strong>You</strong></div>}

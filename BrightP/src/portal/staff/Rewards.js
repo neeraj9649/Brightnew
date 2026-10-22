@@ -122,7 +122,7 @@ export function Redemptions() {
   const rows = useMemo(() => list.data || [], [list.data]);
   const count = (t) => rows.filter((r) => TAB_FILTER[t].includes(r.status)).length;
   const shown = rows.filter((r) => TAB_FILTER[tab].includes(r.status) && `${r.user_name} ${r.display_code} ${r.item_name}`.toLowerCase().includes(q.toLowerCase()));
-  const sel = rows.find((r) => r.id === pick) || shown[0];
+  const sel = rows.find((r) => r.id === pick);
 
   useEffect(() => { const open = rows.find((r) => r.id === params.get('open')); if (open) { setTab(Object.keys(TAB_FILTER).find((t) => TAB_FILTER[t].includes(open.status))); setPick(open.id); } }, [rows, params]);
 
@@ -131,26 +131,27 @@ export function Redemptions() {
       <div className="pt-stack lg">
         <Tabs tabs={[['pending', `Pending (${count('pending')})`], ['approved', `Approved (${count('approved')})`], ['rejected', `Rejected (${count('rejected')})`], ['delivered', `Delivered (${count('delivered')})`]]} value={tab} onChange={(t) => { setTab(t); setPick(null); }} />
         {list.error ? <ErrorState onRetry={list.reload} /> : list.loading && !list.data ? <Skeleton h={300} r={18} /> : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 18, alignItems: 'start' }}>
-            <div className="pt-stack">
-              {shown.map((r) => (
-                <button type="button" key={r.id} className="pt-item" style={{ borderColor: sel?.id === r.id ? '#e1a93e' : undefined, background: sel?.id === r.id ? '#fff8ea' : '#fff' }} onClick={() => setPick(r.id)}>
-                  <Avatar user={{ displayName: r.user_name }} />
-                  <div className="pt-item-body"><div className="pt-tiny">{r.display_code}</div><div className="pt-item-title">{r.user_name}</div><div className="pt-item-sub">{r.item_name}</div></div>
-                  <div style={{ textAlign: 'right' }}><strong style={{ color: 'var(--pt-navy)' }}>{fmtNum(r.wings_cost)} Wings</strong><div><Badge tone={STATUS_TONE[r.status]} dot>{STATUS_LABEL[r.status]}</Badge></div><div className="pt-tiny" style={{ marginTop: 3 }}>{fmtDate(r.created_at)}</div></div>
-                </button>
-              ))}
-              {!shown.length && <Card><Empty icon={Gift} title="Nothing here">No {tab} redemptions right now.</Empty></Card>}
-            </div>
-            {sel && <RedemptionDetail r={sel} onChanged={list.reload} onProfile={() => navigate(`/admin/customers/${sel.user_id}`)} isAdmin={isAdmin} />}
+          <div className="pt-stack">
+            {shown.map((r) => (
+              <div key={r.id} className="pt-item static">
+                <Avatar user={{ displayName: r.user_name }} />
+                <div className="pt-item-body"><div className="pt-tiny">{r.display_code}</div><div className="pt-item-title">{r.user_name}</div><div className="pt-item-sub">{r.item_name}</div></div>
+                <div style={{ textAlign: 'right' }}><strong style={{ color: 'var(--pt-navy)' }}>{fmtNum(r.wings_cost)} Wings</strong><div><Badge tone={STATUS_TONE[r.status]} dot>{STATUS_LABEL[r.status]}</Badge></div><div className="pt-tiny" style={{ marginTop: 3 }}>{fmtDate(r.created_at)}</div></div>
+                <button type="button" className="pt-btn ghost sm" onClick={() => setPick(r.id)}>View</button>
+              </div>
+            ))}
+            {!shown.length && <Card><Empty icon={Gift} title="Nothing here">No {tab} redemptions right now.</Empty></Card>}
           </div>
         )}
       </div>
+      <Modal open={!!sel} onClose={() => setPick(null)} label="Redemption request" className="rd-modal">
+        {sel && <RedemptionDetail r={sel} onClose={() => setPick(null)} onChanged={() => { setPick(null); list.reload(); }} onProfile={() => navigate(`/admin/customers/${sel.user_id}`)} onBooking={() => navigate(`/admin/bookings/${sel.booking_id}`)} isAdmin={isAdmin} />}
+      </Modal>
     </StaffShell>
   );
 }
 
-function RedemptionDetail({ r, onChanged, onProfile, isAdmin }) {
+function RedemptionDetail({ r, onChanged, onClose, onProfile, onBooking, isAdmin }) {
   const [code, setCode] = useState(voucherRef(r));
   const [valid, setValid] = useState('');
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -167,11 +168,11 @@ function RedemptionDetail({ r, onChanged, onProfile, isAdmin }) {
   const timeline = [['Request submitted', r.created_at], ['Approved', r.approved_at], ['Voucher issued', r.issued_at], ['Delivered', r.delivered_at]];
 
   return (
-    <Card>
-      <div className="pt-row between top wrap"><div><div className="pt-row" style={{ gap: 10 }}><h2 className="pt-h1" style={{ fontSize: 22 }}>{r.display_code}</h2><Badge tone={STATUS_TONE[r.status]} dot>{STATUS_LABEL[r.status]}</Badge></div><div className="pt-small" style={{ marginTop: 4 }}>Requested on {fmtDateTime(r.created_at)}</div></div><button type="button" className="pt-btn ghost sm" onClick={onProfile}>View member profile</button></div>
+    <div className="rd-detail">
+      <div className="pt-row between top wrap"><div><div className="pt-row" style={{ gap: 10 }}><h2 className="pt-h1" style={{ fontSize: 22 }}>{r.display_code}</h2><Badge tone={STATUS_TONE[r.status]} dot>{STATUS_LABEL[r.status]}</Badge></div><div className="pt-small" style={{ marginTop: 4 }}>Requested on {fmtDateTime(r.created_at)}</div></div><div className="pt-row" style={{ gap: 8 }}><button type="button" className="pt-btn ghost sm" onClick={onProfile}>View member profile</button><button type="button" className="pt-icon-btn" aria-label="Close" onClick={onClose}><X size={20} /></button></div></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14, margin: '16px 0' }}>
         <div className="pt-card flat pad"><h3 className="pt-h3" style={{ marginBottom: 10 }}>Member details</h3><div className="pt-row"><Avatar user={{ displayName: r.user_name }} /><div><strong style={{ color: 'var(--pt-navy)' }}>{r.user_name}</strong><div className="pt-small">Membership No. {r.membership_code} <Badge tone="gold" style={{ marginLeft: 4 }}><TierIcon tier={r.membership_tier} size={12} /> {r.membership_tier}</Badge></div></div></div><div className="pt-grid2" style={{ marginTop: 12, background: '#f6f3ea', borderRadius: 12, padding: 12 }}><div><div className="pt-tiny">Spendable balance</div><strong style={{ color: 'var(--pt-navy)' }}>{fmtNum(r.balance)} Wings</strong></div><div><div className="pt-tiny">Lifetime earnings</div><strong style={{ color: 'var(--pt-navy)' }}>{fmtNum(r.lifetime_wings)} Wings</strong></div></div></div>
-        <div className="pt-card flat pad"><h3 className="pt-h3" style={{ marginBottom: 10 }}>Reward details</h3><div className="pt-row top"><RewardArt item={r} height={64} style={{ width: 84, borderRadius: 10, flex: 'none' }} /><div style={{ flex: 1 }}><strong style={{ color: 'var(--pt-navy)', fontSize: 14 }}>{r.item_name}</strong><div className="pt-small">{r.reward_value}</div></div><div style={{ textAlign: 'right' }}><div className="pt-serif" style={{ fontWeight: 700, color: 'var(--pt-gold-dark)', fontSize: 18 }}>{fmtNum(r.wings_cost)} Wings</div></div></div><div className="pt-kv" style={{ marginTop: 8 }}><span>Category</span><strong>{r.category || '—'}</strong></div></div>
+        <div className="pt-card flat pad"><h3 className="pt-h3" style={{ marginBottom: 10 }}>Reward details</h3><strong style={{ display: 'block', color: 'var(--pt-navy)', fontSize: 16, lineHeight: 1.3 }}>{r.item_name}</strong><div className="pt-row top" style={{ gap: 12, marginTop: 12 }}><RewardArt item={r} height={64} style={{ width: 84, borderRadius: 10, flex: 'none' }} /><div style={{ flex: 1, minWidth: 0 }}><div className="pt-serif" style={{ fontWeight: 700, color: 'var(--pt-gold-dark)', fontSize: 20 }}>{fmtNum(r.wings_cost)} Wings</div>{r.reward_value && <div className="pt-small" style={{ marginTop: 2 }}>{r.reward_value}</div>}</div></div><div className="pt-kv" style={{ marginTop: 8 }}><span>Category</span><strong>{r.category || '—'}</strong></div></div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
@@ -191,6 +192,7 @@ function RedemptionDetail({ r, onChanged, onProfile, isAdmin }) {
             {open && <><button type="button" className="pt-btn danger full" disabled={busy} onClick={() => setRejectOpen(true)}><X size={16} /> Reject request</button><p className="pt-tiny" style={{ color: 'var(--pt-red)', textAlign: 'center' }}>Rejecting refunds {fmtNum(r.wings_cost)} Wings once.</p></>}
             {r.status === 'voucher_issued' && <button type="button" className="pt-btn gold full" disabled={busy} onClick={() => act({ status: 'delivered' }, 'Marked as delivered')}>Mark as delivered</button>}
             {!open && r.voucher_code && <Notice icon={Check} tone="green" title={`Voucher ${r.voucher_code}`}>Valid till {fmtDate(r.valid_till)}</Notice>}
+            {r.booking_id && <Notice icon={Gift} tone="green" title={`Voucher used for booking ${r.booking_code}`}>Used on {fmtDateTime(r.voucher_used_at)}. The trip is fully paid by this voucher. <button type="button" className="pt-link" onClick={onBooking}>Open booking</button></Notice>}
             {r.admin_note && <Notice icon={CircleAlert}>{r.admin_note}</Notice>}
           </div>
         </div>
@@ -202,7 +204,7 @@ function RedemptionDetail({ r, onChanged, onProfile, isAdmin }) {
         <Field label="Reason (shown to the member)"><TextArea value={note} onChange={(e) => setNote(e.target.value)} max={300} placeholder="e.g. This reward is not available on the requested dates." /></Field>
         <div className="pt-grid2" style={{ marginTop: 16 }}><button type="button" className="pt-btn ghost" onClick={() => setRejectOpen(false)}>Cancel</button><button type="button" className="pt-btn danger" disabled={busy} onClick={async () => { await act({ status: 'rejected', admin_note: note.trim() || undefined }, 'Request rejected and Wings refunded'); setRejectOpen(false); }}>Reject &amp; refund</button></div>
       </Modal>
-    </Card>
+    </div>
   );
 }
 

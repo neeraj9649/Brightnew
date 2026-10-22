@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Bell, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, CircleCheck,
-  Eye, EyeOff, Gift, House, Info, LogOut, Minus, Plus, Search, ShieldCheck, User, Users, X,
+  Eye, EyeOff, Gift, House, Info, LogOut, Minus, Plus, Search, ShieldCheck, Ticket, User, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
@@ -442,6 +442,9 @@ export function Notice({ tone = '', icon, title, children, style }) {
 
 export const Badge = ({ tone = '', dot, children, style }) => <span className={`pt-badge ${tone} ${dot ? 'dot' : ''}`} style={style}>{children}</span>;
 
+/** Marks a booking whose trip was fully paid for with a reward voucher (shown to customers and staff). */
+export const VoucherTag = ({ style }) => <Badge tone="green" style={style}><Ticket size={12} /> Paid by voucher</Badge>;
+
 export function Spinner({ label }) {
   return (
     <div className="pt-empty" role="status">
@@ -626,7 +629,7 @@ export function Progress({ value, dark }) {
   return <div className={`pt-progress ${dark ? 'on-dark' : ''}`}><span style={{ width: `${Math.max(0, Math.min(100, value || 0))}%` }} /></div>;
 }
 
-export function Modal({ open, onClose, children, side = false, label }) {
+export function Modal({ open, onClose, children, side = false, label, className = '' }) {
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => e.key === 'Escape' && onClose?.();
@@ -637,8 +640,8 @@ export function Modal({ open, onClose, children, side = false, label }) {
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className={`pt-overlay ${side ? 'side' : ''}`} role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={side ? 'pt-drawer' : 'pt-modal'} role="dialog" aria-modal="true" aria-label={label}>{children}</div>
+    <div className={`pt-overlay ${side ? 'side' : ''} ${className}`.trim()} role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div className={`${side ? 'pt-drawer' : 'pt-modal'} ${className}`.trim()} role="dialog" aria-modal="true" aria-label={label}>{children}</div>
     </div>
   );
 }

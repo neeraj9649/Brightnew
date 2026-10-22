@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Calendar, Check, Clock, Copy, Plane, Briefcase } from 'lucide-react';
 import { useBooking } from '../../contexts/BookingContext';
 import { api } from '../../services/api';
-import { Avatar, Badge, Empty, ErrorState, Page, Shell, Skeleton, fmtDate, humanize, useAsync, useCopy } from '../ui';
+import { Avatar, Badge, Empty, ErrorState, Page, Shell, Skeleton, VoucherTag, fmtDate, humanize, useAsync, useCopy } from '../ui';
 import { photoFor } from '../photos';
 import { bookingTitle, serviceOf, statusMeta } from '../booking';
 import { fmtRange, milestoneDates } from './common';
@@ -125,6 +125,7 @@ export default function DeskBookings() {
                       <div>
                         <h2>{bookingTitle(b)}</h2>
                         <p className="db-sub">{subline(b)}</p>
+                        {b.voucherBooking && <div style={{ marginTop: 6 }}><VoucherTag /></div>}
                       </div>
                       <Badge tone={meta.tone} style={{ alignSelf: 'flex-start', fontSize: 13, padding: '8px 14px' }}>{b.status === 'awaiting_approval' ? <Clock size={14} /> : ['booking_confirmed', 'completed'].includes(b.status) ? <Check size={14} /> : null} {meta.label}</Badge>
                       <button type="button" className="db-ref" onClick={() => copy(b.id, b.docId)} aria-label={`Copy reference ${b.id}`}>Ref. {b.id} {copied === b.docId ? <Check size={15} /> : <Copy size={15} />}</button>

@@ -935,15 +935,19 @@
 .dw-hero-copy h1 { margin-top: 4px; font: 500 clamp(54px, 6vw, 78px)/1 Georgia, serif; color: var(--pt-navy); }
 .dw-hero-tag { position: absolute; left: 38%; top: 54px; font: 600 12px/1.9 var(--font-family-base, sans-serif); letter-spacing: 0.26em; color: #44556b; }
 .dw-hero-tag span { display: block; width: 36px; height: 2px; margin-top: 10px; background: #c9963e; }
-.dw-stats { position: relative; z-index: 3; display: grid; grid-template-columns: 1fr 1fr 1.7fr; gap: 0; margin-top: -26px; padding: 28px 8px; border-radius: 18px; }
-.dw-stats > div { display: flex; gap: 18px; align-items: center; padding: 0 28px; border-left: 1px solid var(--pt-line); }
+.dw-stats { position: relative; z-index: 3; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.9fr); gap: 0; margin-top: -26px; padding: 28px 8px; border-radius: 18px; }
+.dw-stats > div { display: flex; gap: 16px; align-items: center; min-width: 0; padding: 0 24px; border-left: 1px solid var(--pt-line); }
 .dw-stats > div:first-child { border-left: 0; }
-.dw-stats small { display: block; font-size: 14px; color: #55657a; }
-.dw-stats b { display: block; margin-top: 2px; font: 500 clamp(34px, 3.2vw, 44px)/1.1 Georgia, serif; color: var(--pt-navy); white-space: nowrap; }
+.dw-stats small { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #55657a; white-space: nowrap; }
+.dw-stats small svg { flex: none; }
+.dw-stats > div:not(.dw-tier) b { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; font: 500 clamp(30px, 2.8vw, 40px)/1.1 Georgia, serif; color: var(--pt-navy); white-space: nowrap; }
 .dw-stats b i { font-style: normal; font-size: 0.5em; color: #55657a; }
-.dw-stat-ic { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 16px; background: #fbf1dc; color: #c9963e; flex: none; }
+.dw-stat-ic { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 16px; background: #fbf1dc; color: #c9963e; flex: none; }
 .dw-medal { display: grid; place-items: center; width: 78px; height: 78px; border-radius: 50%; background: linear-gradient(145deg, #9aa3ae, #6c7783); color: #fff; flex: none; }
-.dw-tier small { font-size: 14px; white-space: nowrap; }
+.dw-tier small { display: block; font-size: 14px; white-space: nowrap; }
+.dw-tier .pt-serif-h { display: block; font-weight: 500; line-height: 1.15; color: var(--pt-navy); }
+.dw-tier .dw-next { text-align: right; flex: none; }
+.dw-tier .dw-next b { display: block; margin: 2px 0; font: 600 18px Georgia, serif; color: var(--pt-navy); }
 .dw-tabs { display: flex; gap: 6px; margin-top: 18px; padding: 0 22px; background: #fff; border: 1px solid var(--pt-line); border-radius: 14px; }
 .dw-tabs button { position: relative; padding: 22px 36px; border: 0; background: none; cursor: pointer; font: 500 17px var(--font-family-base, sans-serif); color: #55657a; }
 .dw-tabs button.active { color: var(--pt-navy); font-weight: 600; }
@@ -1268,3 +1272,13 @@
 .bwc-qr { left: calc(var(--u) * 69.3); top: calc(var(--u) * 16); width: calc(var(--u) * 19); height: calc(var(--u) * 19); padding: calc(var(--u) * 1.4); border-radius: calc(var(--u) * 2.6); background: #fff; display: grid; place-items: center; box-shadow: 0 calc(var(--u) * 0.4) calc(var(--u) * 1.6) rgba(0, 0, 0, 0.25); }
 .bwc-qr img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
 .bwc-scan { left: calc(var(--u) * 66.3); width: calc(var(--u) * 25); top: calc(var(--u) * 36.1); text-align: center; white-space: nowrap; font: 400 calc(var(--u) * 1.55)/1.2 'Source Serif 4', Georgia, serif; color: #fff; }
+
+/* Redemption approvals: request details open in a centered pop-up over a slightly blurred page. */
+.pt-overlay.rd-modal { backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); background: rgba(10, 24, 38, 0.38); }
+.pt-modal.rd-modal { max-width: 960px; width: 100%; background: #fff; }
+.rd-detail { min-width: 0; }
+
+/* Voucher facts (reward value / valid till / applicable on): icon, label and value share one centered column. */
+.pt-vstats > div { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; min-width: 0; text-align: center; }
+.pt-vstats svg { flex: none; }
+.pt-vstats strong { line-height: 1.3; overflow-wrap: anywhere; }

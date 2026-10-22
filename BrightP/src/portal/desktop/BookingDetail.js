@@ -129,8 +129,8 @@ export default function DeskBookingDetail() {
       <div className="bd-grid">
         <div className="pt-stack lg" style={{ minWidth: 0 }}>
           <div>
-            <div className="pt-row" style={{ gap: 18, flexWrap: 'wrap' }}><h1 className="pt-title">Booking {booking.id}</h1><span className={`bd-pill ${meta.tone}`}>{meta.label}</span></div>
-            <p className="pt-lede">{LEDE[booking.status]}</p>
+            <div className="pt-row" style={{ gap: 18, flexWrap: 'wrap' }}><h1 className="pt-title">Booking {booking.id}</h1><span className={`bd-pill ${meta.tone}`}>{meta.label}</span>{booking.voucherBooking && <span className="bd-pill green">Paid by voucher</span>}</div>
+            <p className="pt-lede">{booking.voucherBooking ? `Fully paid by your voucher ${booking.voucherCode} — nothing to pay. ` : ''}{LEDE[booking.status]}</p>
           </div>
 
           <section className="bd-banner" style={{ '--bd-photo': `url(${photoFor(booking.type, booking.to, booking.destination, booking.destinations, booking.region, booking.country, booking.hotel)})` }}>

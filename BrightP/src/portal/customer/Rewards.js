@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check, ChevronDown, ChevronRight, Clock, Copy, Download, Gift, HelpCircle, Info, Plane, RotateCcw, Star, Users, X, Building2, Armchair, Hourglass, FileText } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Clock, Copy, Download, Gift, HelpCircle, Info, Plane, RotateCcw, Star, Users, X, Building2, Armchair, Hourglass, FileText, Ticket } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import {
-  AppBar, Badge, BellButton, Card, Check2, Empty, ErrorState, Hero, IMG, Notice, Page, Progress, RupeeCoin, Select, Shell, Skeleton, WingsIcon,
+  AppBar, Badge, BellButton, Card, Check2, Counter, Empty, ErrorState, Field, Hero, IMG, Input, Modal, ModalHead, Notice, Page, Progress, RupeeCoin, Select, Shell, Skeleton, TextArea, WingsIcon,
   Chips, fmtDate, fmtDateTime, fmtNum, humanize, memberName, useAsync, useCopy, useWide, tierTitle } from '../ui';
 import { RewardArt, TierIcon } from './parts';
 
@@ -271,6 +271,45 @@ function downloadVoucher(r) {
   a.href = canvas.toDataURL('image/png'); a.download = `${r.display_code}-voucher.png`; a.click();
 }
 
+/** "Book this trip": the customer only adds a date and a few basics; the trip is already paid by the voucher. */
+function VoucherBookingModal({ open, onClose, r }) {
+  const navigate = useNavigate();
+  const today = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState('');
+  const [guests, setGuests] = useState(2);
+  const [pickup, setPickup] = useState('');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async () => {
+    if (!date || date < today) { setErr('Please choose a travel date from today onwards.'); return; }
+    setBusy(true);
+    setErr('');
+    try {
+      const booking = await api.post(`/redemptions/${r.id}/book`, { travel_date: date, guests, pickup: pickup.trim() || null, notes: notes.trim() || null });
+      toast.success('Trip booked. It is fully paid by your voucher.');
+      navigate(`/bookings/${booking.id}`, { replace: true });
+    } catch (e) {
+      setErr(e.message || 'We could not book this trip. Nothing was changed.');
+    } finally { setBusy(false); }
+  };
+  return (
+    <Modal open={open} onClose={() => !busy && onClose()} label="Book this trip">
+      <ModalHead title="Book your trip" sub={r.item_name} onClose={onClose} />
+      <div className="pt-stack lg">
+        <Notice icon={Check} tone="green" title="Fully paid by your voucher">You won’t be charged anything. Just tell us when you’d like to go.</Notice>
+        <Field label="Travel date *"><Input type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="Number of guests"><Counter value={guests} onChange={setGuests} min={1} max={20} suffix={guests === 1 ? ' guest' : ' guests'} /></Field>
+        <Field label="Pickup location or hotel" optional><Input value={pickup} maxLength={200} onChange={(e) => setPickup(e.target.value)} placeholder="e.g. Hotel name or area" /></Field>
+        <Field label="Anything we should know?" optional><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} max={500} placeholder="Special requests, timing preferences…" /></Field>
+        {err && <Notice icon={Info} tone="red">{err}</Notice>}
+        <button type="button" className="pt-btn gold full" disabled={busy || !date} onClick={submit}>{busy ? 'Booking…' : 'Confirm booking'}</button>
+        <p className="pt-tiny" style={{ textAlign: 'center' }}>Voucher {r.voucher_code} will be marked as used.</p>
+      </div>
+    </Modal>
+  );
+}
+
 export function RedemptionStatus() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -278,6 +317,7 @@ export function RedemptionStatus() {
   const { userData } = useAuth();
   const { copied, copy } = useCopy();
   const [terms, setTerms] = useState(false);
+  const [bookOpen, setBookOpen] = useState(false);
   const { data: all, loading, error, reload } = useAsync(() => api.get('/redemptions/me'), []);
   const r = (all || []).find((x) => x.id === id);
   const frame = (content, title = 'Redemption') => (
@@ -293,6 +333,7 @@ export function RedemptionStatus() {
   const meta = REDEMPTION_STATUS[r.status] || REDEMPTION_STATUS.requested;
   const issued = ['voucher_issued', 'delivered'].includes(r.status);
   const first = memberName(userData).split(' ')[0];
+  const expired = !!r.valid_till && r.valid_till < new Date().toISOString().slice(0, 10);
 
   if (issued || r.status === 'approved') {
     const rows = [
@@ -303,23 +344,32 @@ export function RedemptionStatus() {
     return frame(
       <div className="pt-stack lg">
         <RewardArt item={r} height={wide ? 240 : 170} style={{ borderRadius: 20 }} />
-        <div><h1 className="pt-h1" style={{ fontSize: 26 }}>{r.item_name}</h1><p className="pt-sub" style={{ marginTop: 6 }}>{r.status === 'approved' ? 'Approved — your voucher is being prepared.' : `Use this voucher on eligible ${/hotel/i.test(r.category || '') ? 'hotel bookings' : 'services'} with Bright Wings.`}</p></div>
+        <div><h1 className="pt-h1" style={{ fontSize: 26 }}>{r.item_name}</h1><p className="pt-sub" style={{ marginTop: 6 }}>{r.status === 'approved' ? 'Approved — your voucher is being prepared.' : r.status === 'voucher_issued' && !r.booking_id ? 'Your trip is fully paid by this voucher. Tap “Book this trip” and share a few details.' : `Use this voucher on eligible ${/hotel/i.test(r.category || '') ? 'hotel bookings' : 'services'} with Bright Wings.`}</p></div>
         <div className="pt-vtl">{rows.map(([t, at, s]) => { const done = !!at && (r.status !== 'approved' || t === 'Approved'); return <div key={t} className={`pt-vtl-row ${done ? 'done' : ''}`}><span className="pt-vtl-dot">{done && <Check size={12} strokeWidth={3} />}</span><div className="pt-vtl-body"><strong>{t}</strong>{done ? <><span style={{ fontSize: 11 }}>{fmtDateTime(at)}</span><span>{s}</span></> : <span>Pending</span>}</div></div>; })}</div>
         {issued && r.voucher_code && (
           <>
             <div className="pt-code"><div><div className="pt-small">Voucher code</div><strong>{r.voucher_code}</strong></div><button type="button" className="pt-btn ghost sm" onClick={() => copy(r.voucher_code, 'code')}>{copied === 'code' ? <Check size={15} /> : <Copy size={15} />} {copied === 'code' ? 'Copied' : 'Copy code'}</button></div>
-            <div className="pt-grid3" style={{ textAlign: 'center' }}>
+            <div className="pt-grid3 pt-vstats" style={{ textAlign: 'center' }}>
               <div><Gift size={22} style={{ color: 'var(--pt-navy)' }} /><div className="pt-tiny">Reward value</div><strong style={{ fontSize: 13, color: 'var(--pt-navy)' }}>{r.reward_value || r.item_name}</strong></div>
               <div><Clock size={22} style={{ color: 'var(--pt-navy)' }} /><div className="pt-tiny">Valid till</div><strong style={{ fontSize: 13, color: 'var(--pt-navy)' }}>{fmtDate(r.valid_till)}</strong></div>
               <div><Building2 size={22} style={{ color: 'var(--pt-navy)' }} /><div className="pt-tiny">Applicable on</div><strong style={{ fontSize: 13, color: 'var(--pt-navy)' }}>{r.category || 'Bright Wings services'}</strong></div>
             </div>
+            {r.booking_id ? (
+              <Notice icon={Check} tone="green" title="Voucher used">Booked as {r.booking_code}. This voucher can’t be used again.</Notice>
+            ) : expired ? (
+              <Notice icon={Clock} tone="red" title="Voucher expired">This voucher expired on {fmtDate(r.valid_till)}. Please contact support if you need help.</Notice>
+            ) : r.status === 'voucher_issued' ? (
+              <button type="button" className="pt-btn gold full" onClick={() => setBookOpen(true)}><Ticket size={18} /> Book this trip</button>
+            ) : null}
           </>
         )}
+        {r.booking_id && <button type="button" className="pt-btn full" onClick={() => navigate(`/bookings/${r.booking_id}`)}>View my booking</button>}
         <button type="button" className="pt-menu-list" style={{ textAlign: 'left', cursor: 'pointer', width: '100%', display: 'block' }} onClick={() => setTerms(!terms)}>
           <div className="pt-row between" style={{ padding: '14px 16px', background: '#eaf3fb' }}><span className="pt-row"><FileText size={18} /> <strong style={{ fontSize: 13 }}>Terms &amp; conditions</strong></span><ChevronDown size={18} style={{ transform: terms ? 'rotate(180deg)' : undefined }} /></div>
           {terms && <ul className="pt-sub" style={{ margin: 0, padding: '12px 16px 14px 36px', display: 'grid', gap: 5, background: '#fff' }}>{termLines(r.terms).map((t) => <li key={t}>{t}</li>)}</ul>}
         </button>
         {issued && r.voucher_code && <button type="button" className="pt-btn full" onClick={() => downloadVoucher(r)}><Download size={18} /> Download voucher</button>}
+        <VoucherBookingModal open={bookOpen} onClose={() => setBookOpen(false)} r={r} />
       </div>,
       'Reward voucher',
     );

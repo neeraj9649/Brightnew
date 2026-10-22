@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronRight, Crown, Gem, Medal, Star, Users } from 'lucide-react';
 import { fileUrl } from '../../services/storage';
-import { Badge, fmtNum } from '../ui';
+import { Badge, VoucherTag, fmtNum } from '../ui';
 import { CardFront, FlippableCard } from '../MembershipCard';
 import { PHOTO, SERVICE_PHOTO, photoFor } from '../photos';
 import { bookingSubtitle, bookingTitle, serviceOf, statusMeta, TIERS } from '../booking';
@@ -59,6 +59,7 @@ export function BookingCard({ booking, onClick, showId = true }) {
         </div>
         <div className="pt-item-title" style={{ fontSize: 15 }}>{bookingTitle(booking)}</div>
         <div className="pt-item-sub" style={{ marginTop: 0 }}>{bookingSubtitle(booking) || 'Dates to be confirmed'}</div>
+        {booking.voucherBooking && <div><VoucherTag /></div>}
         {showId && <div className="pt-tiny">Booking ID <strong style={{ color: 'var(--pt-navy)', marginLeft: 4 }}>{booking.id}</strong></div>}
       </div>
       <ChevronRight size={18} className="chev" style={{ alignSelf: 'center', color: 'var(--pt-faint)' }} />

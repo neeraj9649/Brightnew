@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { api } from '../../services/api';
-import { Avatar, Badge, Card, Check2, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, PinField, SearchBox, Select, Skeleton, TextArea, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
+import { Avatar, Badge, Card, Check2, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, PinField, SearchBox, Select, Skeleton, TextArea, VoucherTag, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
 import { SERVICES, SERVICE_ORDER, bookingTitle, serviceOf, statusMeta, STATUS } from '../booking';
 import { FieldView, initialForm, validateTrip } from '../customer/BookingNew';
 import StaffShell from './StaffShell';
@@ -97,6 +97,7 @@ export default function StaffBookings() {
                         <div className="pt-row between"><span className="pt-tiny">{b.id}</span><Phone size={16} style={{ color: 'var(--pt-muted)' }} /></div>
                         <strong style={{ color: 'var(--pt-navy)' }}>{b.userName}</strong>
                         <span className="pt-small pt-row" style={{ gap: 5 }}><MapPin size={13} />{bookingTitle(b)}</span>
+                        {b.voucherBooking && <span><VoucherTag /></span>}
                         <span className="pt-small pt-row" style={{ gap: 5 }}><Calendar size={13} />{fmtDate(serviceOf(b.type).date_of(b))}<Badge style={{ marginLeft: 'auto' }}>{serviceOf(b.type).label}</Badge></span>
                         {f ? <span className="pt-tiny pt-row" style={{ gap: 5, color: overdue ? 'var(--pt-red)' : 'var(--pt-muted)' }}><CircleAlert size={13} /> Follow up: {dateTime(f)}</span> : <span className="pt-tiny">No follow-up scheduled</span>}
                         {isAdmin && <span className="pt-tiny">{employeeName(b.assignedEmployeeId) || 'Unassigned'}</span>}
@@ -118,7 +119,7 @@ export default function StaffBookings() {
                     {list.map((b) => { const m = statusMeta(b.status); const f = followBy.get(b.docId); return (
                       <tr key={b.docId} className={`clickable ${selected.includes(b.docId) ? 'sel' : ''}`} onClick={() => navigate(`/admin/bookings/${b.docId}`)}>
                         {isAdmin && <td onClick={(e) => e.stopPropagation()}><Check2 checked={selected.includes(b.docId)} onChange={() => toggle(b.docId)}>{' '}</Check2></td>}
-                        <td><strong>{b.id}</strong></td><td>{b.userName || '—'}</td><td>{bookingTitle(b)}<span className="sub">{serviceOf(b.type).label}</span></td>
+                        <td><strong>{b.id}</strong></td><td>{b.userName || '—'}</td><td>{bookingTitle(b)}<span className="sub">{serviceOf(b.type).label}</span>{b.voucherBooking && <span style={{ display: 'block', marginTop: 4 }}><VoucherTag /></span>}</td>
                         <td><Badge tone={m.tone}>{m.label}</Badge></td>
                         {isAdmin && <td>{employeeName(b.assignedEmployeeId) || <span style={{ color: 'var(--pt-muted)' }}>Unassigned</span>}</td>}
                         <td>{f ? fmtDate(f) : '—'}</td><td>{fmtDate(b.createdAt)}</td>

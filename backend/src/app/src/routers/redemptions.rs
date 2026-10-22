@@ -4,6 +4,7 @@ use actix_web::{
 };
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -11,6 +12,9 @@ use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::role::{ADMIN_ONLY, STAFF};
+use bookings::api::dto::booking::BookingDTO;
+use bookings::domain::models::booking::CreateBooking;
+use bookings::domain::services::booking::BookingService;
 use rewards::domain::tier_config::tier_rank;
 
 // ---- DTOs -----------------------------------------------------------------
@@ -55,6 +59,10 @@ pub struct RedemptionDTO {
     pub issued_at: Option<DateTime<Utc>>,
     pub delivered_at: Option<DateTime<Utc>>,
     pub rejected_at: Option<DateTime<Utc>>,
+    /// Set once the voucher has been used to book its trip.
+    pub booking_id: Option<Uuid>,
+    pub booking_code: Option<String>,
+    pub voucher_used_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -74,6 +82,16 @@ pub struct AdminRedemptionDTO {
 #[derive(Debug, Deserialize)]
 pub struct CreateRedemptionDTO {
     pub reward_item_id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BookWithVoucherDTO {
+    pub travel_date: NaiveDate,
+    pub guests: i32,
+    #[serde(default)]
+    pub pickup: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -153,9 +171,11 @@ const REDEMPTION_SELECT: &str = r#"
     SELECT r.id, r.display_code, r.reward_item_id, r.item_name, r.wings_cost, r.status,
            r.voucher_code, r.valid_till, r.admin_note,
            ri.category, ri.image_file_id, ri.reward_value, ri.terms,
-           r.created_at, r.updated_at, r.approved_at, r.issued_at, r.delivered_at, r.rejected_at
+           r.created_at, r.updated_at, r.approved_at, r.issued_at, r.delivered_at, r.rejected_at,
+           r.booking_id, b.display_code AS booking_code, r.voucher_used_at
     FROM redemptions r
     LEFT JOIN reward_items ri ON ri.id = r.reward_item_id
+    LEFT JOIN bookings b ON b.id = r.booking_id
 "#;
 
 fn db_err(e: sqlx::Error) -> ApiError {
@@ -275,6 +295,118 @@ async fn create_redemption_handler(
     Ok(ApiResponse(dto))
 }
 
+/// Use an issued voucher to book its trip. The trip is already paid for by the company, so the
+/// booking is created fully paid with no amount due. The voucher is locked and linked to the
+/// booking in the same transaction, so it can be used exactly once (even on a double click).
+async fn book_with_voucher_handler(
+    pool: web::Data<PgPool>,
+    booking_service: web::Data<dyn BookingService>,
+    claims: JwtClaims,
+    path: web::Path<Uuid>,
+    body: web::Json<BookWithVoucherDTO>,
+) -> Result<ApiResponse<BookingDTO>, ApiError> {
+    let id = path.into_inner();
+    let body = body.into_inner();
+    let today = Utc::now().date_naive();
+    if body.travel_date < today {
+        return Err(ApiError::new("Please choose a travel date from today onwards", 400));
+    }
+    if !(1..=20).contains(&body.guests) {
+        return Err(ApiError::new("Guests must be between 1 and 20", 400));
+    }
+    let pickup = body.pickup.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
+    let notes = body.notes.map(|n| n.trim().to_string()).filter(|n| !n.is_empty());
+    if pickup.as_deref().is_some_and(|p| p.chars().count() > 200) || notes.as_deref().is_some_and(|n| n.chars().count() > 500) {
+        return Err(ApiError::new("Pickup or notes are too long", 400));
+    }
+
+    let mut tx = pool.begin().await.map_err(db_err)?;
+    let (status, valid_till, used_booking, voucher_code, request_code, item_name, wings_cost, category): (
+        String,
+        Option<NaiveDate>,
+        Option<Uuid>,
+        Option<String>,
+        String,
+        String,
+        i32,
+        Option<String>,
+    ) = sqlx::query_as(
+        r#"SELECT r.status, r.valid_till, r.booking_id, r.voucher_code, r.display_code, r.item_name, r.wings_cost,
+                  (SELECT category FROM reward_items WHERE id = r.reward_item_id)
+           FROM redemptions r WHERE r.id = $1 AND r.user_id = $2 FOR UPDATE"#,
+    )
+    .bind(id)
+    .bind(claims.sub)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db_err)?
+    .ok_or_else(|| ApiError::new("Voucher not found", 404))?;
+
+    if used_booking.is_some() {
+        return Err(ApiError::new("This voucher has already been used for a booking", 400));
+    }
+    let voucher_code = match (status.as_str(), voucher_code) {
+        ("voucher_issued", Some(code)) => code,
+        _ => return Err(ApiError::new("This voucher is not active", 400)),
+    };
+    if valid_till.is_some_and(|date| date < today) {
+        return Err(ApiError::new("This voucher has expired", 400));
+    }
+
+    let tier: Option<String> = sqlx::query_scalar("SELECT membership_tier FROM users WHERE id = $1")
+        .bind(claims.sub)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db_err)?;
+    let booking_id = Uuid::new_v4();
+    let display_code = CreateBooking::generate_display_code("custom");
+    let details = json!({
+        "destinations": item_name,
+        "travelDates": body.travel_date.to_string(),
+        "travelers": body.guests.to_string(),
+        "pickup": pickup,
+        "rewardCategory": category,
+        "voucherBooking": true,
+        "voucherCode": voucher_code,
+        "voucherRedemptionId": id,
+        "voucherRequestCode": request_code,
+        "voucherWings": wings_cost,
+    });
+    sqlx::query(
+        r#"INSERT INTO bookings
+               (id, display_code, user_id, type, membership_tier_snapshot, estimated_cost, final_cost,
+                payment_status, special_requests, details)
+           VALUES ($1, $2, $3, 'custom', $4, 0, 0, 'paid', $5, $6)"#,
+    )
+    .bind(booking_id)
+    .bind(&display_code)
+    .bind(claims.sub)
+    .bind(tier)
+    .bind(notes)
+    .bind(details)
+    .execute(&mut *tx)
+    .await
+    .map_err(db_err)?;
+    sqlx::query("INSERT INTO booking_events (booking_id, actor_id, kind, message) VALUES ($1, $2, 'voucher', $3)")
+        .bind(booking_id)
+        .bind(claims.sub)
+        .bind(format!("Fully paid with reward voucher {voucher_code}"))
+        .execute(&mut *tx)
+        .await
+        .map_err(db_err)?;
+    sqlx::query("UPDATE redemptions SET booking_id = $2, voucher_used_at = NOW(), updated_at = NOW() WHERE id = $1")
+        .bind(id)
+        .bind(booking_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(db_err)?;
+    tx.commit().await.map_err(db_err)?;
+
+    let mut dto: BookingDTO = booking_service.get_owned(booking_id, claims.sub).await?.into();
+    super::workflow::assign_to_associated_staff(pool.get_ref(), &mut dto).await?;
+    Ok(ApiResponse(dto))
+}
+
 /// The customer's own redemption history (for the "track activities" view).
 async fn my_redemptions_handler(
     pool: web::Data<PgPool>,
@@ -333,6 +465,7 @@ async fn list_redemptions_handler(
                   r.voucher_code, r.valid_till, r.admin_note,
                   ri.category, ri.image_file_id, ri.reward_value, ri.terms,
                   r.created_at, r.updated_at, r.approved_at, r.issued_at, r.delivered_at, r.rejected_at,
+                  r.booking_id, b.display_code AS booking_code, r.voucher_used_at,
                   r.user_id,
                   TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) AS user_name,
                   u.phone AS user_phone, u.membership_code, u.membership_tier,
@@ -341,6 +474,7 @@ async fn list_redemptions_handler(
            FROM redemptions r
            JOIN users u ON u.id = r.user_id
            LEFT JOIN reward_items ri ON ri.id = r.reward_item_id
+           LEFT JOIN bookings b ON b.id = r.booking_id
            ORDER BY r.created_at DESC"#,
     )
     .fetch_all(pool.get_ref())
@@ -365,8 +499,8 @@ async fn update_status_handler(
     }
 
     let mut tx = pool.begin().await.map_err(db_err)?;
-    let (user_id, wings_cost, cur_status, item_id): (Uuid, i32, String, Uuid) = sqlx::query_as(
-        "SELECT user_id, wings_cost, status, reward_item_id FROM redemptions WHERE id = $1 FOR UPDATE",
+    let (user_id, wings_cost, cur_status, item_id, used_booking): (Uuid, i32, String, Uuid, Option<Uuid>) = sqlx::query_as(
+        "SELECT user_id, wings_cost, status, reward_item_id, booking_id FROM redemptions WHERE id = $1 FOR UPDATE",
     )
     .bind(id)
     .fetch_optional(&mut *tx)
@@ -390,6 +524,9 @@ async fn update_status_handler(
         return Err(ApiError::new("Invalid redemption status transition", 400));
     }
 
+    if body.status == "rejected" && used_booking.is_some() {
+        return Err(ApiError::new("This voucher was already used for a booking, so it can't be rejected", 400));
+    }
     if body.status == "rejected" && ACTIVE.contains(&cur_status.as_str()) {
         refund_in_transaction(&mut tx, user_id, id, item_id, wings_cost, "Redemption rejected").await?;
     }
@@ -610,7 +747,8 @@ pub fn redemption_routes(cfg: &mut ServiceConfig) {
             .route("/catalog", web::get().to(catalog_handler))
             .route("", web::post().to(create_redemption_handler))
             .route("/me", web::get().to(my_redemptions_handler))
-            .route("/{id}/cancel", web::post().to(cancel_redemption_handler)),
+            .route("/{id}/cancel", web::post().to(cancel_redemption_handler))
+            .route("/{id}/book", web::post().to(book_with_voucher_handler)),
     )
     .service(
         web::scope("/admin/redemptions")

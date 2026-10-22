@@ -1,7 +1,7 @@
 import { MessagesCard, StepsCard } from './BookingExtras';
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Check, Clock, Copy, Download, EllipsisVertical, FileText, Info, MessageSquare, Phone, Plane, X, CircleCheck, CircleX, CalendarClock } from 'lucide-react';
+import { ArrowRight, Check, Clock, Copy, Download, EllipsisVertical, FileText, Info, MessageSquare, Phone, Plane, X, CircleCheck, CircleX, CalendarClock, Ticket } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { fileUrl } from '../../services/storage';
@@ -104,6 +104,7 @@ export function MobileBookingDetail() {
       <Page>
         <div className="pt-split" style={{ marginTop: wide ? 18 : 6 }}>
           <div className="pt-stack lg">
+            {booking.voucherBooking && <Notice icon={Ticket} tone="green" title="Fully paid by your voucher">Voucher {booking.voucherCode} covers this trip, so there is nothing to pay. Your advisor will confirm the details with you.</Notice>}
             {wide && <div className="pt-row between"><div><h1 className="pt-h1">Booking details</h1></div>{cancellable && <button type="button" className="pt-btn danger sm" onClick={() => setCancelOpen(true)}>Cancel request</button>}</div>}
             <div className="pt-card pad" style={{ background: '#eaf3fb', borderColor: '#d3e4f3' }}>
               <div className="pt-row between top">

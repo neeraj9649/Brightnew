@@ -48,7 +48,7 @@ async fn associated_staff_of(pool: &PgPool, customer_id: Uuid) -> Result<Option<
 
 /// Hands a booking that has no owner yet to the customer's associated staff member (and moves it from
 /// `new` to `assigned`). Returns who it was assigned to.
-async fn assign_to_associated_staff(pool: &PgPool, booking: &mut BookingDTO) -> Result<(), ApiError> {
+pub(crate) async fn assign_to_associated_staff(pool: &PgPool, booking: &mut BookingDTO) -> Result<(), ApiError> {
     if booking.assigned_employee_id.is_some() {
         return Ok(());
     }
