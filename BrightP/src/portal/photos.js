@@ -43,9 +43,20 @@ const DESTINATIONS = [
   [/maldives/i, maldives], [/himalaya|leh|srinagar|kashmir|manali/i, mountains], [/rome|italy|colosseum/i, colosseum], [/amalfi|positano/i, amalfi],
 ];
 
-/** Best photo for a booking: destination match first, otherwise the service photo. */
+// Services whose picture must always match the service itself: a hotel shows a hotel, a flight shows a
+// plane. A hotel in Dubai is still a hotel, so the destination never overrides these.
+const CATEGORY_FIRST = new Set(['flight', 'hotel', 'car_rental', 'visa', 'cruise', 'airport_transfer', 'insurance']);
+
+// For destination-led services (tour, activity, customized travel) the text can name the service itself,
+// e.g. a "Free Dhow Cruise" voucher trip.
+const SERVICE_WORDS = [[/cruise|dhow|yacht/i, cruise], [/hotel|resort|stay/i, hotelroom], [/flight|air ?ticket|airline/i, wing], [/car rental|cab|chauffeur/i, car]];
+
+/** Best photo for a booking: its service category first, then destination for destination-led trips. */
 export const photoFor = (type, ...places) => {
+  if (CATEGORY_FIRST.has(type) && SERVICE_PHOTO[type]) return SERVICE_PHOTO[type];
   const text = places.filter(Boolean).join(' ');
+  const word = SERVICE_WORDS.find(([re]) => re.test(text));
+  if (word) return word[1];
   const hit = DESTINATIONS.find(([re]) => re.test(text));
   return hit ? hit[1] : SERVICE_PHOTO[type] || santorini;
 };

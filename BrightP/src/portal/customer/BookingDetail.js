@@ -11,6 +11,7 @@ import {
 } from '../ui';
 import { MILESTONES, serviceOf, statusMeta } from '../booking';
 import { ServiceArt } from './parts';
+import { photoFor } from '../photos';
 
 const stepDates = (events = [], booking) => {
   const at = (pred) => events.find(pred)?.created_at;
@@ -107,7 +108,7 @@ export function MobileBookingDetail() {
             {booking.voucherBooking && <Notice icon={Ticket} tone="green" title="Fully paid by your voucher">Voucher {booking.voucherCode} covers this trip, so there is nothing to pay. Your advisor will confirm the details with you.</Notice>}
             {wide && <div className="pt-row between"><div><h1 className="pt-h1">Booking details</h1></div>{cancellable && <button type="button" className="pt-btn danger sm" onClick={() => setCancelOpen(true)}>Cancel request</button>}</div>}
             <div className="pt-card pad" style={{ background: '#eaf3fb', borderColor: '#d3e4f3' }}>
-              <div className="pt-row between top">
+              <div className="pt-row between top" style={{ flexWrap: 'wrap' }}>
                 <div><div className="pt-small">Booking ID</div><div className="pt-row" style={{ gap: 8 }}><strong className="pt-serif" style={{ fontSize: 22, color: 'var(--pt-navy)' }}>{booking.id}</strong><button type="button" className="pt-icon-btn" style={{ width: 30, height: 30 }} aria-label="Copy booking ID" onClick={() => copy(booking.id, 'id')}>{copied === 'id' ? <Check size={16} /> : <Copy size={16} />}</button></div></div>
                 <div style={{ textAlign: 'right' }}><Badge tone={meta.tone}>{meta.tone === 'amber' && <Clock size={13} />}{meta.label}</Badge>{waitingOnYou && <div className="pt-tiny" style={{ marginTop: 6 }}>Awaiting your acceptance</div>}</div>
               </div>
@@ -134,7 +135,7 @@ export function MobileBookingDetail() {
             )}
 
             <Card>
-              <div className="pt-row between" style={{ marginBottom: 12 }}><span className="pt-row" style={{ gap: 10 }}><ServiceArt type={booking.type} size={40} radius={12} /><h2 className="pt-h2" style={{ fontSize: 18 }}>{booking.type === 'flight' ? `${fromCity || 'Departure'} → ${toCity || 'Destination'}` : svc.title_of(booking)}</h2></span><Badge tone="blue">{svc.label}</Badge></div>
+              <div className="pt-row between" style={{ marginBottom: 12 }}><span className="pt-row" style={{ gap: 10 }}><ServiceArt type={booking.type} size={40} radius={12} photo={photoFor(booking.type, booking.destination, booking.to, booking.hotel, booking.region, booking.country, booking.destinations)} /><h2 className="pt-h2" style={{ fontSize: 18 }}>{booking.type === 'flight' ? `${fromCity || 'Departure'} → ${toCity || 'Destination'}` : svc.title_of(booking)}</h2></span><Badge tone="blue">{svc.label}</Badge></div>
               {booking.type === 'flight' ? (
                 <div className="pt-row between" style={{ padding: '6px 0' }}>
                   <div><strong style={{ fontSize: 24, color: 'var(--pt-navy)' }}>{fromCode}</strong><div className="pt-small">{fromCity}</div></div>

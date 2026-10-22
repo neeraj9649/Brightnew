@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { fileUrl } from '../services/storage';
 import { useBooking } from '../contexts/BookingContext';
 import BrightLogo from '../assets/BrightLogo.png';
+import DatePicker from './DatePicker';
 import chairs from '../assets/travel/hero-palace.jpg';
 import coast from '../assets/travel/hero-coast.jpg';
 import village from '../assets/travel/destination-beach.jpg';
@@ -494,6 +495,12 @@ export function Field({ label, optional, hint, error, children, right }) {
 }
 
 export function Input({ icon: Icon, error, className = '', ...props }) {
+  // Dates use the themed calendar instead of the browser's native picker.
+  if (props.type === 'date' || props.type === 'datetime-local') {
+    const { type, ...rest } = props;
+    const field = <DatePicker {...rest} withTime={type === 'datetime-local'} error={error} className={className} hasLeftIcon={!!Icon} />;
+    return Icon ? <div className="pt-input-icon"><Icon size={18} />{field}</div> : field;
+  }
   const input = <input className={`pt-input ${error ? 'err' : ''} ${className}`} {...props} />;
   return Icon ? <div className="pt-input-icon"><Icon size={18} />{input}</div> : input;
 }

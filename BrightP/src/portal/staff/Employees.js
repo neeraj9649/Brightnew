@@ -57,7 +57,7 @@ export default function Employees() {
               <tbody>
                 {list.map((u) => (
                   <tr key={u.uid} className={`clickable ${sel?.uid === u.uid ? 'sel' : ''}`} onClick={() => setPick(u.uid)}>
-                    <td><span className="pt-row"><Avatar user={u} size="sm" /><span><strong>{u.displayName}</strong><span className="sub">{formatPhone(u.profile?.phone)}</span></span></span></td>
+                    <td><span className="pt-row"><Avatar user={u} size="sm" /><span><strong>{u.displayName}</strong><span className="sub" style={{ whiteSpace: 'nowrap' }}>{formatPhone(u.profile?.phone)}</span></span></span></td>
                     <td><Badge tone={u.role === 'employee' ? '' : 'gold'}>{ROLE_LABEL[u.role]}</Badge></td>
                     <td><Badge tone={u.isActive ? 'green' : 'red'}>{u.isActive ? 'Active' : 'Inactive'}</Badge></td>
                     <td>{u.role !== 'employee' ? 'All bookings' : `${assigned(u)} booking${assigned(u) === 1 ? '' : 's'}`}</td>

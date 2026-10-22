@@ -52,7 +52,7 @@ export function LoyaltySettings() {
 
   return (
     <StaffShell title="Loyalty Settings" sub="Configure how Wings are earned, tier thresholds and referral rewards."
-      actions={<><Badge tone="green" dot>Live configuration</Badge>{savedAt && <span className="pt-small">Saved {fmtDate(savedAt)}</span>}<button type="button" className="pt-btn sm" disabled={!changes.length || busy || invalid} onClick={save}>{busy ? 'Saving…' : 'Save Changes'}</button><button type="button" className="pt-btn ghost sm" onClick={() => setSummary(true)}>View Change Summary{changes.length ? ` (${changes.length})` : ''}</button></>}>
+      actions={<div className="ly-actions"><div className="ly-status"><Badge tone="green" dot>Live configuration</Badge>{savedAt && <span className="pt-small">Saved {fmtDate(savedAt)}</span>}</div><button type="button" className="pt-btn sm" disabled={!changes.length || busy || invalid} onClick={save}>{busy ? 'Saving…' : 'Save Changes'}</button><button type="button" className="pt-btn ghost sm" onClick={() => setSummary(true)}>View Change Summary{changes.length ? ` (${changes.length})` : ''}</button></div>}>
       {cfg.error ? <ErrorState onRetry={cfg.reload} /> : !draft ? <Skeleton h={320} r={18} /> : (
         <div className="pt-stack lg">
           <Tabs tabs={[['earning', 'Earning Rules'], ['tiers', 'Tier Levels'], ['referral', 'Referral Program']]} value={tab} onChange={setTab} />

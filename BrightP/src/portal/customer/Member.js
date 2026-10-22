@@ -132,7 +132,7 @@ export function Referrals() {
   const body = (
     <div className="pt-stack lg">
       <Card style={{ marginTop: wide ? 0 : -48, position: 'relative' }}>
-        <div className="pt-row between" style={{ marginBottom: 10 }}><h2 className="pt-h2" style={{ fontSize: 17 }}>Your referral code</h2><button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={() => setHow(true)}>How it works? <Info size={13} style={{ verticalAlign: -2 }} /></button></div>
+        <div className="pt-row between" style={{ marginBottom: 10 }}><h2 className="pt-h2" style={{ fontSize: 17 }}>Your referral code</h2><button type="button" className="pt-link" style={{ color: 'var(--pt-blue)', display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', flex: 'none' }} onClick={() => setHow(true)}>How it works? <Info size={13} /></button></div>
         {loading && !data ? <Skeleton h={58} r={14} /> : error ? <ErrorState onRetry={reload} /> : (
           <>
             <div className="pt-code" style={{ justifyContent: 'center', position: 'relative' }}><strong>{code || '—'}</strong><button type="button" className="pt-icon-btn" style={{ position: 'absolute', right: 8 }} aria-label="Copy code" onClick={() => copy(code, 'code')}>{copied === 'code' ? <Check size={18} /> : <Copy size={18} />}</button></div>
@@ -146,9 +146,9 @@ export function Referrals() {
       <div className="pt-notice" style={{ alignItems: 'center' }}><Users size={26} /><div><strong style={{ fontSize: 14 }}>Invite friends who love to travel</strong>When they complete their first booking on Bright Wings, you’ll earn {per} Wings. It’s our way of saying thanks for spreading brighter journeys.</div></div>
       <Card>
         <h2 className="pt-h2" style={{ fontSize: 17, marginBottom: 14 }}>Your referral stats</h2>
-        <div className="pt-grid3" style={{ textAlign: 'center' }}>
+        <div className="pt-grid3 pt-vstats" style={{ textAlign: 'center' }}>
           {[[Users, data?.invited, 'Friends invited'], [CircleCheck, data?.completed, 'Completed first booking'], [WingsIcon, data?.wings_earned, 'Wings earned']].map(([I, v, l], i) => (
-            <div key={l} style={{ borderLeft: i ? '1px solid var(--pt-line)' : 0 }}><I size={22} style={{ color: 'var(--pt-gold-dark)' }} /><div><strong style={{ fontSize: 24, color: 'var(--pt-navy)' }}>{loading && !data ? '—' : fmtNum(v)}</strong></div><div className="pt-tiny" style={{ lineHeight: 1.3 }}>{l}</div></div>
+            <div key={l} style={{ borderLeft: i ? '1px solid var(--pt-line)' : 0, justifyContent: 'flex-start' }}><span style={{ height: 26, display: 'grid', placeItems: 'center' }}><I size={22} style={{ color: 'var(--pt-gold-dark)' }} /></span><div><strong style={{ fontSize: 24, color: 'var(--pt-navy)' }}>{loading && !data ? '—' : fmtNum(v)}</strong></div><div className="pt-tiny" style={{ lineHeight: 1.3 }}>{l}</div></div>
           ))}
         </div>
       </Card>

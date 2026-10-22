@@ -90,7 +90,7 @@ export default function Crm() {
           <Card pad={false}>
             {customers.loading && !customers.data ? <div style={{ padding: 18 }}><Skeleton h={200} /></div> : (
               <div className="pt-table-wrap"><table className="pt-table"><thead><tr><th>Customer</th><th>Phone</th><th>Tier</th><th>Bookings</th><th>Next follow-up</th><th /></tr></thead><tbody>
-                {(customers.data || []).map((c) => <tr key={c.id}><td><strong>{c.name}</strong><span className="sub">{c.membership_code}</span></td><td>{formatPhone(c.phone)}</td><td><Badge>{c.membership_tier}</Badge></td><td>{c.bookings}</td><td>{c.next_followup ? fmtDateTime(c.next_followup) : <span style={{ color: 'var(--pt-muted)' }}>None scheduled</span>}</td><td><button type="button" className="pt-btn ghost xs" onClick={() => { setCreateOpen(c); }}>Schedule</button></td></tr>)}
+                {(customers.data || []).map((c) => <tr key={c.id}><td><strong>{c.name}</strong><span className="sub">{c.membership_code}</span></td><td style={{ whiteSpace: 'nowrap' }}>{formatPhone(c.phone)}</td><td><Badge>{c.membership_tier}</Badge></td><td>{c.bookings}</td><td>{c.next_followup ? fmtDateTime(c.next_followup) : <span style={{ color: 'var(--pt-muted)' }}>None scheduled</span>}</td><td><button type="button" className="pt-btn ghost xs" onClick={() => { setCreateOpen(c); }}>Schedule</button></td></tr>)}
                 {!(customers.data || []).length && <tr><td colSpan={6}><Empty icon={Search} title="No customers yet">Customers with bookings assigned to you appear here.</Empty></td></tr>}
               </tbody></table></div>
             )}

@@ -154,3 +154,11 @@
 @media (prefers-reduced-motion: reduce) { .lp { scroll-behavior: auto; } .lp-scroll { animation: none; } .lp-btn, .lp-service, .lp-dest { transition: none; } }
 
 @media (max-width: 520px) { .lp-brand b { font-size: 19px; } .lp-brand img { width: 34px; height: 34px; } .lp-nav-row { gap: 10px; } }
+
+/* Keep the nav inside the screen on small phones (brand shrinks, CTA stays tidy). */
+.lp-brand { min-width: 0; }
+.lp-brand span { min-width: 0; }
+.lp-brand b { overflow: hidden; text-overflow: ellipsis; }
+.lp-nav-cta { flex: none; }
+@media (max-width: 420px) { .lp-nav-cta .lp-btn.sm { padding: 0 12px; font-size: 12.5px; gap: 5px; } .lp-nav-cta .lp-btn.sm svg { display: none; } .lp-burger { width: 40px; } }
+@media (max-width: 360px) { .lp-brand small { display: none; } .lp-brand b { font-size: 17px; } .lp-brand img { width: 30px; height: 30px; } }

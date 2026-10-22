@@ -53,7 +53,7 @@ export function BookingCard({ booking, onClick, showId = true }) {
     <button type="button" className="pt-item" onClick={onClick} style={{ alignItems: 'stretch', padding: 12 }}>
       <ServiceArt type={booking.type} size={92} photo={photoFor(booking.type, booking.destination, booking.to, booking.hotel, booking.region, booking.country, booking.destinations)} />
       <div className="pt-item-body" style={{ display: 'grid', alignContent: 'center', gap: 5 }}>
-        <div className="pt-row between" style={{ gap: 8 }}>
+        <div className="pt-row between" style={{ gap: 6, flexWrap: 'wrap' }}>
           <Badge><s.Icon size={13} /> {s.label}</Badge>
           <Badge tone={meta.tone} dot>{meta.label}</Badge>
         </div>
