@@ -12,18 +12,10 @@ pub trait UserService: 'static + Sync + Send {
         new_user: CreateUser,
         referred_by_code: Option<String>,
     ) -> Result<User, UserError>;
-    async fn authenticate(
-        &self,
-        phone: &str,
-        pin: &str,
-    ) -> Result<User, UserError>;
+    /// The account for `phone` (stored form). `UserDoesNotExist` when there is none,
+    /// `UserNotAuthorised` when it is deactivated. The one-time code is checked by the caller.
+    async fn find_for_sign_in(&self, phone: &str) -> Result<User, UserError>;
     async fn update(&self, update_user: UpdateUser) -> Result<User, UserError>;
-    async fn change_pin(
-        &self,
-        user_id: Uuid,
-        current_pin: &str,
-        new_pin: &str,
-    ) -> Result<User, UserError>;
     async fn list(&self) -> Result<ResultPaging<User>, UserError>;
     async fn get(&self, user_id: Uuid) -> Result<User, UserError>;
     /// Associate a customer with a staff member (`None` clears it). `source` is one of

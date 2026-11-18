@@ -5,12 +5,14 @@ use base::error::ApiError;
 use base::jwt_claims::JwtClaims;
 use base::rate_limit::LIMITER;
 use serde_json::json;
+use sqlx::PgPool;
 use std::time::Duration;
 
-use crate::api::dto::auth::{AuthResponseDTO, LoginRequestDTO, RegisterRequestDTO};
+use crate::api::dto::auth::{AuthResponseDTO, LoginRequestDTO, OtpRequestDTO, RegisterRequestDTO};
 use crate::api::dto::user::UserDTO;
+use crate::api::utils::otp::{self, OtpPurpose, OTP_LENGTH};
 use crate::api::utils::phone::{is_valid_phone, normalize_phone};
-use crate::api::utils::pin::{hash_pin, is_valid_pin_format};
+use crate::api::utils::pin::unusable_pin_hash;
 use crate::domain::errors::user_errors::UserError;
 use crate::domain::models::user::User;
 use crate::domain::services::refresh_token::RefreshTokenService;
@@ -22,6 +24,10 @@ const LOGIN_IP_MAX_FAILURES: u32 = 40;
 const LOGIN_WINDOW: Duration = Duration::from_secs(15 * 60);
 const REGISTER_MAX_PER_IP: u32 = 30;
 const REGISTER_WINDOW: Duration = Duration::from_secs(60 * 60);
+// Every code costs an SMS, so sends are capped per number and per address.
+const OTP_SENDS_PER_PHONE: u32 = 5;
+const OTP_SENDS_PER_IP: u32 = 30;
+const OTP_SEND_WINDOW: Duration = Duration::from_secs(60 * 60);
 
 /// Serialises the refresh cookie as a `Set-Cookie` value, adding `Partitioned` when configured.
 fn set_cookie_header(cookie: &Cookie<'static>) -> (&'static str, String) {
@@ -69,9 +75,73 @@ async fn issue_session(
     })))
 }
 
+/// Sends a 4-digit code for signing in ("login") or joining ("register").
+/// Unlike the old PIN reset this says whether the number has an account: the member needs to
+/// know whether to sign in or join, and sending codes to numbers without an account costs money.
+pub async fn request_otp_handler(
+    user_service: web::Data<dyn UserService>,
+    pool: web::Data<PgPool>,
+    body: web::Json<OtpRequestDTO>,
+    req: HttpRequest,
+) -> Result<HttpResponse, ApiError> {
+    let body = body.into_inner();
+    if !is_valid_phone(&body.phone) {
+        return Err(ApiError::from(UserError::InvalidPhoneFormat));
+    }
+    let phone = normalize_phone(&body.phone);
+    let purpose = match body.purpose.as_str() {
+        "login" => OtpPurpose::Login,
+        "register" => OtpPurpose::Register,
+        _ => return Err(ApiError::new("Unknown code purpose", 400)),
+    };
+
+    let email = match (purpose, user_service.find_for_sign_in(&phone).await) {
+        (OtpPurpose::Login, Ok(user)) => user.email,
+        (OtpPurpose::Login, Err(UserError::UserDoesNotExist)) => {
+            return Err(ApiError::new("No Bright Wings account uses this number. Create your membership instead.", 404));
+        }
+        (OtpPurpose::Register, Err(UserError::UserDoesNotExist)) => None,
+        (OtpPurpose::Register, Ok(_) | Err(UserError::UserNotAuthorised)) => {
+            return Err(ApiError::from(UserError::UserAlreadyExists));
+        }
+        (_, Err(err)) => return Err(ApiError::from(err)),
+    };
+
+    // Catch a mistyped referral or staff code before the member waits for an SMS.
+    if purpose == OtpPurpose::Register {
+        if let Some(code) = body.referred_by_code.map(|c| c.trim().to_uppercase()).filter(|c| !c.is_empty()) {
+            let known: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM users WHERE referral_code = $1 AND is_active)")
+                .bind(&code)
+                .fetch_one(pool.get_ref())
+                .await
+                .map_err(|e| base::error::internal(e))?;
+            if !known {
+                return Err(ApiError::from(UserError::InvalidReferralCode));
+            }
+        }
+    }
+
+    LIMITER.hit(&format!("otp:{phone}"), OTP_SENDS_PER_PHONE, OTP_SEND_WINDOW)?;
+    LIMITER.hit(&format!("otp-ip:{}", client_ip(&req)), OTP_SENDS_PER_IP, OTP_SEND_WINDOW)?;
+
+    let sent = otp::send_code(pool.get_ref(), &phone, purpose, email.as_deref()).await?;
+    let mut data = json!({
+        "sent": true,
+        "channel": sent.channel,
+        "code_length": OTP_LENGTH,
+        "expires_in_seconds": 600,
+        "resend_after_seconds": 60,
+    });
+    if let Some(code) = sent.dev_code {
+        data["dev_code"] = json!(code);
+    }
+    Ok(HttpResponse::Ok().json(json!({ "data": data, "msg": "", "success": true, "statusCode": 200 })))
+}
+
 pub async fn register_handler(
     user_service: web::Data<dyn UserService>,
     refresh_token_service: web::Data<dyn RefreshTokenService>,
+    pool: web::Data<PgPool>,
     body: web::Json<RegisterRequestDTO>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ApiError> {
@@ -81,19 +151,19 @@ pub async fn register_handler(
     if !is_valid_phone(&body.phone) {
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
     }
+    let phone = normalize_phone(&body.phone);
 
-    if !is_valid_pin_format(&body.pin) {
-        return Err(ApiError::from(UserError::InvalidPinFormat));
-    }
+    // The code proves the member owns this number.
+    otp::check_code(pool.get_ref(), &phone, OtpPurpose::Register, body.code.trim()).await?;
 
     let user = user_service
         .register(
             CreateUser {
                 email: body.email.map(|e| e.trim().to_lowercase()),
-                pin_hash: hash_pin(&body.pin),
+                pin_hash: unusable_pin_hash(),
                 first_name: body.first_name,
                 last_name: body.last_name,
-                phone: normalize_phone(&body.phone),
+                phone,
                 membership_tier: "Member".to_string(),
                 membership_code: String::new(),
                 referral_code: String::new(),
@@ -113,27 +183,26 @@ pub async fn register_handler(
 pub async fn login_handler(
     user_service: web::Data<dyn UserService>,
     refresh_token_service: web::Data<dyn RefreshTokenService>,
+    pool: web::Data<PgPool>,
     body: web::Json<LoginRequestDTO>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ApiError> {
     let phone = normalize_phone(&body.phone);
-    // A 4-digit PIN has only 10,000 values, so failed sign-ins are throttled per
-    // phone number (stops guessing one account) and per address (stops spraying).
+    // Wrong codes are throttled per phone number and per address on top of the
+    // per-code attempt limit, so nobody can keep requesting codes and guessing.
     let phone_key = format!("login:{phone}");
     let ip_key = format!("login-ip:{}", client_ip(&req));
     LIMITER.check(&phone_key, LOGIN_MAX_FAILURES, LOGIN_WINDOW)?;
     LIMITER.check(&ip_key, LOGIN_IP_MAX_FAILURES, LOGIN_WINDOW)?;
 
-    let user = match user_service.authenticate(&phone, &body.pin).await {
-        Ok(user) => user,
-        Err(err) => {
-            if matches!(err, UserError::InvalidCredentials) {
-                LIMITER.record(&phone_key, LOGIN_WINDOW);
-                LIMITER.record(&ip_key, LOGIN_WINDOW);
-            }
-            return Err(ApiError::from(err));
+    let user = user_service.find_for_sign_in(&phone).await.map_err(ApiError::from)?;
+    if let Err(err) = otp::check_code(pool.get_ref(), &phone, OtpPurpose::Login, body.code.trim()).await {
+        if err.code == 400 {
+            LIMITER.record(&phone_key, LOGIN_WINDOW);
+            LIMITER.record(&ip_key, LOGIN_WINDOW);
         }
-    };
+        return Err(err);
+    }
     LIMITER.clear(&phone_key);
 
     issue_session(refresh_token_service.get_ref(), user).await

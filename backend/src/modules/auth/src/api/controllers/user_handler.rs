@@ -1,16 +1,13 @@
 use actix_web::web;
-use rand::Rng;
 use base::error::{ApiError, ApiResponse};
 use base::jwt_claims::JwtClaims;
 use base::role;
-use base::rate_limit::LIMITER;
 use base::result_paging::ResultPaging;
-use std::time::Duration;
 
 use crate::api::dto::user::{
-    AdminCreateUserDTO, AdminUpdateUserDTO, ChangePinDTO, UpdateProfileDTO, UserDTO,
+    AdminCreateUserDTO, AdminUpdateUserDTO, UpdateProfileDTO, UserDTO,
 };
-use crate::api::utils::pin::{hash_pin, is_valid_pin_format};
+use crate::api::utils::pin::unusable_pin_hash;
 use crate::api::utils::phone::{is_valid_phone, normalize_phone};
 use crate::domain::errors::user_errors::UserError;
 use crate::domain::models::user::{CreateUser, UpdateUser};
@@ -126,38 +123,9 @@ pub async fn admin_update_user_handler(
     Ok(ApiResponse(user.into()))
 }
 
-pub async fn change_pin_handler(
-    user_service: web::Data<dyn UserService>,
-    claims: JwtClaims,
-    body: web::Json<ChangePinDTO>,
-) -> Result<ApiResponse<UserDTO>, ApiError> {
-    let body = body.into_inner();
-
-    if !is_valid_pin_format(&body.new_pin) {
-        return Err(ApiError::from(UserError::InvalidPinFormat));
-    }
-    let window = Duration::from_secs(15 * 60);
-    let key = format!("change-pin:{}", claims.sub);
-    LIMITER.check(&key, 8, window)?;
-    let user = match user_service
-        .change_pin(claims.sub, &body.current_pin, &body.new_pin)
-        .await
-    {
-        Ok(user) => user,
-        Err(err) => {
-            if matches!(err, UserError::InvalidCredentials) {
-                LIMITER.record(&key, window);
-            }
-            return Err(err.into());
-        }
-    };
-    LIMITER.clear(&key);
-    Ok(ApiResponse(user.into()))
-}
-
-/// Admin sets the customer's PIN directly (e.g. signing them up in person at
-/// a branch) -- this mirrors self-signup's registration side effects, just
-/// initiated by an employee instead of the customer.
+/// Staff sign someone up (e.g. in person at a branch). This mirrors self-signup's
+/// registration side effects, just initiated by staff. There is no PIN: the member
+/// signs in with their phone number and a one-time code.
 pub async fn admin_create_user_handler(
     user_service: web::Data<dyn UserService>,
     claims: JwtClaims,
@@ -186,24 +154,11 @@ pub async fn admin_create_user_handler(
     {
         return Err(ApiError::new("Name must be 1 to 80 characters", 400));
     }
-    let explicit_pin = body.pin.as_deref().map(str::trim).filter(|p| !p.is_empty());
-    if let Some(pin) = explicit_pin {
-        if !is_valid_pin_format(pin) {
-            return Err(ApiError::from(UserError::InvalidPinFormat));
-        }
-    }
-    // No PIN supplied: nobody (not even staff) knows it; the member sets
-    // their own via the PIN-reset flow.
-    let invite = explicit_pin.is_none();
-    let pin = explicit_pin
-        .map(str::to_string)
-        .unwrap_or_else(|| format!("{:04}", rand::thread_rng().gen_range(0..10_000)));
-
     let user = user_service
         .register(
             CreateUser {
                 email: body.email.map(|e| e.trim().to_lowercase()),
-                pin_hash: hash_pin(&pin),
+                pin_hash: unusable_pin_hash(),
                 first_name: body.first_name,
                 last_name: body.last_name,
                 phone: normalize_phone(&body.phone),
@@ -219,36 +174,21 @@ pub async fn admin_create_user_handler(
         )
         .await?;
 
-    if invite {
-        let portal = std::env::var("PORTAL_URL").unwrap_or_default();
-        let link = if portal.is_empty() { String::new() } else { format!(" Set your PIN at {}/auth?mode=forgot", portal.trim_end_matches('/')) };
-        let text = format!(
-            "Welcome to Bright Wings, {}! Your membership {} is ready.{} using this phone number.",
-            user.first_name, user.membership_code, link
-        );
-        if shared::sms::sms_configured() {
-            if let Err(err) = shared::sms::send_sms(&user.phone, &text).await {
-                log::warn!("PIN setup invitation SMS failed for {}: {err}", user.phone);
-            }
+    // Tell the member how to sign in. Best effort: the account exists either way.
+    let portal = std::env::var("PORTAL_URL").unwrap_or_default();
+    let link = if portal.is_empty() { String::new() } else { format!(" at {}/auth", portal.trim_end_matches('/')) };
+    let text = format!(
+        "Welcome to Bright Wings, {}! Your membership {} is ready. Sign in{} with this phone number; we'll text you a one-time code.",
+        user.first_name, user.membership_code, link
+    );
+    if shared::sms::sms_configured() {
+        if let Err(err) = shared::sms::send_sms(&user.phone, &text).await {
+            log::warn!("Welcome SMS failed for {}: {err}", user.phone);
         }
     }
-
     if let Some(email) = user.email.clone() {
-        let subject = "Your Bright Wings account is ready".to_string();
-        let message = if invite {
-            format!(
-                "Hi {},\n\nYour Bright Wings membership {} is ready. Choose 'Forgot PIN' on the sign-in page with your phone number to set your own PIN.",
-                user.first_name, user.membership_code
-            )
-        } else {
-            format!(
-                "Hi {},\n\nAn account has been created for you at Bright Wings. \
-                 Log in with your phone number and the PIN your travel consultant gave you.",
-                user.first_name
-            )
-        };
         let _ = web::block(move || {
-            shared::mail::send_plain_email(&email, &subject, &message)
+            shared::mail::send_plain_email(&email, "Your Bright Wings account is ready", &text)
         })
         .await;
     }

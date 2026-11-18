@@ -4,8 +4,7 @@ use actix_web::{
 };
 
 use auth::api::controllers::user_handler::{
-    admin_create_user_handler, admin_update_user_handler, change_pin_handler,
-    get_me_profile_handler, list_users_handler, staff_get_user_handler,
+    admin_create_user_handler, admin_update_user_handler, get_me_profile_handler, list_users_handler, staff_get_user_handler,
     update_me_profile_handler,
 };
 use auth::api::middlewares::jwt_extractor::check_permission_middleware;
@@ -18,8 +17,7 @@ pub fn user_config(cfg: &mut ServiceConfig) {
                 check_permission_middleware(req, next, &[]).await
             }))
             .route("", web::get().to(get_me_profile_handler))
-            .route("", web::patch().to(update_me_profile_handler))
-            .route("/pin", web::patch().to(change_pin_handler)),
+            .route("", web::patch().to(update_me_profile_handler)),
     )
     .service(
         web::scope("/admin/users")

@@ -6,7 +6,8 @@ use super::user::UserDTO;
 #[derive(Debug, Deserialize)]
 pub struct RegisterRequestDTO {
     pub phone: String,
-    pub pin: String,
+    /// The 4-digit code sent to `phone` by `POST /auth/otp/request` with purpose "register".
+    pub code: String,
     pub first_name: String,
     #[serde(default)]
     pub last_name: Option<String>,
@@ -16,7 +17,7 @@ pub struct RegisterRequestDTO {
     /// The referrer's `referral_code`, if this signup came from a referral.
     #[serde(default)]
     pub referred_by_code: Option<String>,
-    /// Optional: enrollment is phone + 4-digit PIN in the customer portal.
+    /// Optional: enrollment is phone + one-time code in the customer portal.
     /// Staff may still provide a date when it is useful for the itinerary.
     #[serde(default)]
     pub date_of_birth: Option<NaiveDate>,
@@ -25,7 +26,18 @@ pub struct RegisterRequestDTO {
 #[derive(Debug, Deserialize)]
 pub struct LoginRequestDTO {
     pub phone: String,
-    pub pin: String,
+    /// The 4-digit code sent by `POST /auth/otp/request` with purpose "login".
+    pub code: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OtpRequestDTO {
+    pub phone: String,
+    /// "login" (the account must exist) or "register" (the number must be new).
+    pub purpose: String,
+    /// Register only: the referral or staff code the member typed, checked before sending.
+    #[serde(default)]
+    pub referred_by_code: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

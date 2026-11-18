@@ -46,19 +46,21 @@ TEST_DATABASE_URL=postgresql:///bp_scratch \
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL`, `ADDRESS`, `PORT` | yes | Postgres and listen address |
-| `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, `PASSWORD_HASH_SECRET` | yes | Token/PIN hashing secrets |
+| `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, `PASSWORD_HASH_SECRET` | yes | Token and code hashing secrets |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | **yes, for sign-in** | Twilio Verify sends the 4-digit sign-in / join code by SMS. Set the Verify Service code length to 4 in the Twilio Console |
 | `CORS_ALLOWED_ORIGIN` | yes | Comma-separated portal origins (e.g. `https://portal.brightwingstravel.com`) |
 | `PHP_UPLOADER_BASE_URL`, `PHP_UPLOADER_TOKEN` | yes | File uploads (profile images, documents) |
-| `SMS_WEBHOOK_URL` | for PIN-reset SMS | Gateway receiving `POST {"to","message"}`; optional `SMS_WEBHOOK_TOKEN` is sent as a bearer token |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` | optional | E-mail fallback for PIN codes and welcome mails |
-| `PORTAL_URL` | optional | Used in the "set your PIN" invitation sent to staff-created accounts |
+| `SMS_WEBHOOK_URL` | optional | Welcome SMS for staff-created accounts. | Gateway receiving `POST {"to","message"}`; optional `SMS_WEBHOOK_TOKEN` is sent as a bearer token |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS` | optional | E-mail fallback for sign-in codes and welcome mails |
+| `PORTAL_URL` | optional | Sign-in link in the welcome message sent to staff-created accounts |
 | `SUPPORT_PHONE` | optional | Company line shown behind the **Call** button on booking details |
 | `ENABLE_APP_CORS=true` | optional | Turns on the API's own CORS layer (off by default; leave off when your reverse proxy already sends CORS headers, otherwise browsers see duplicate headers) |
-| `OTP_DEV_ECHO=true` | **never in production** | Returns the PIN-reset code in the API response for local testing |
+| `OTP_DEV_ECHO=true` | **never in production** | Returns the sign-in code in the API response for local testing |
 
-PIN-reset codes are delivered by the SMS gateway, falling back to e-mail, and
-finally to a server log warning. If neither SMS nor SMTP is configured, members
-cannot recover a PIN by themselves — configure at least one before go-live.
+Everyone signs in with their phone number and a 4-digit one-time code (there is no PIN).
+Codes go out through Twilio Verify; if that fails and the account has an e-mail address, a code
+is e-mailed instead. **Without Twilio (or SMTP for members with e-mail) nobody can sign in**, so
+configure it before deploying this version.
 
 ## Releases
 
@@ -74,17 +76,16 @@ messages and e-mail referral invites for the desktop portal. Deploy the backend 
 `super_admin` (migration `0025_super_admin_role.sql`) can do everything an admin can,
 and is the only role that can promote/demote admins and staff or deactivate admin
 accounts. Nobody can change their own role or deactivate themselves. Sign-in is phone +
-4-digit PIN like every other account. After deploying the backend, promote a phone
-(creating the account with a random one-time PIN if it doesn't exist):
+one-time code like every other account. Register the number on the portal's *Join* page
+first, then promote it:
 
 ```sh
-DATABASE_URL=postgres://... API_URL=https://<api-host> \
-  backend/scripts/make_super_admin.sh 9649863232 "First Last"
+DATABASE_URL=postgres://... backend/scripts/make_super_admin.sh 9649863232
 ```
 
 To avoid needing database access, set `SUPER_ADMIN_PHONES=9649863232` (comma-separated) on the backend:
 at every start it promotes those already-registered accounts to `super_admin`. It never creates or
-demotes anyone — register the number through the portal's *Join* page first, then restart the backend.
+demotes anyone.
 
 ## Phone numbers
 

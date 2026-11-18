@@ -1,35 +1,23 @@
 #!/usr/bin/env bash
-# Promote a phone number to the super_admin role, creating the account first if it
-# does not exist yet. Sign-in is phone + 4-digit PIN like every other account.
+# Promote an existing account to the super_admin role.
 #
-#   DATABASE_URL=postgres://... API_URL=https://your-api.example.com \
-#     backend/scripts/make_super_admin.sh 9649863232 "First Last"
+#   DATABASE_URL=postgres://... backend/scripts/make_super_admin.sh 9649863232
 #
-# - Existing account: only the role changes; the member keeps their own PIN.
-# - New account: registered through the API (so membership code, referral code and
-#   welcome Wings are created normally) with a random PIN that is printed ONCE.
-# Run it after the backend with migration 0025 has been deployed.
+# Sign-in is phone number + one-time code (no PIN), and joining requires that code,
+# so this script cannot create the account: register the number on the portal's
+# Join page first, then run it. Sign out and back in afterwards to get the new role.
 set -euo pipefail
 
-PHONE="${1:-}"; NAME="${2:-Super Admin}"
-[[ "$PHONE" =~ ^[6-9][0-9]{9}$ ]] || { echo "usage: $0 <10-digit mobile> [\"First Last\"]" >&2; exit 2; }
+PHONE="${1:-}"
+[[ "$PHONE" =~ ^[6-9][0-9]{9}$ ]] || { echo "usage: $0 <10-digit Indian mobile>" >&2; exit 2; }
 : "${DATABASE_URL:?set DATABASE_URL}"
 PSQL=(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atq)
 
 exists=$("${PSQL[@]}" -c "SELECT count(*) FROM users WHERE phone = '$PHONE'")
-pin=""
 if [[ "$exists" == "0" ]]; then
-  : "${API_URL:?set API_URL to create a new account}"
-  pin=$(printf '%04d' $((RANDOM % 10000)))
-  first="${NAME%% *}"; last=""; [[ "$NAME" == *" "* ]] && last="${NAME#* }"
-  code=$(curl -s -o /tmp/make_super_admin.out -w '%{http_code}' -X POST "$API_URL/auth/register" \
-    -H 'content-type: application/json' \
-    -d "{\"phone\":\"$PHONE\",\"pin\":\"$pin\",\"first_name\":\"$first\",\"last_name\":$([[ -n "$last" ]] && printf '"%s"' "$last" || echo null)}")
-  [[ "$code" == 2* ]] || { echo "registration failed (HTTP $code): $(cat /tmp/make_super_admin.out)" >&2; exit 1; }
-  rm -f /tmp/make_super_admin.out
+  echo "No account uses $PHONE yet. Join on the portal with that number first, then run this again." >&2
+  exit 1
 fi
 
 "${PSQL[@]}" -c "UPDATE users SET role = 'super_admin', is_active = true WHERE phone = '$PHONE'" >/dev/null
-echo "OK: $PHONE is now super_admin."
-if [[ -n "$pin" ]]; then echo "Sign in with phone $PHONE and PIN $pin (shown once — change it after first sign-in)."
-else echo "Existing account: sign in with that member's current PIN."; fi
+echo "OK: $PHONE is now super_admin. Sign in with that phone number and the code we text you."

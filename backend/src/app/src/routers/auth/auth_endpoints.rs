@@ -5,13 +5,14 @@ use actix_web::{
 
 use auth::api::controllers::auth_handler::{
     get_me_handler, login_handler, logout_handler, refresh_token_handler,
-    register_handler,
+    register_handler, request_otp_handler,
 };
 use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 
 pub fn auth_endpoints_config(cfg: &mut ServiceConfig) {
     cfg.service(
         web::scope("/auth")
+            .route("/otp/request", web::post().to(request_otp_handler))
             .route("/register", web::post().to(register_handler))
             .route("/login", web::post().to(login_handler))
             .route("/refresh", web::post().to(refresh_token_handler))

@@ -1,4 +1,4 @@
-//! Customer-portal features that sit on top of the core modules: PIN recovery,
+//! Customer-portal features that sit on top of the core modules:
 //! member preferences, structured quotations and the booking activity feed.
 //!
 //! These handlers talk to Postgres directly (like `support.rs`) instead of
@@ -10,8 +10,7 @@ use actix_web::{
     web::{self, ServiceConfig},
     HttpRequest,
 };
-use chrono::{DateTime, Duration, Utc};
-use rand::Rng;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -19,254 +18,15 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use auth::api::middlewares::jwt_extractor::check_permission_middleware;
-use auth::api::utils::phone::normalize_phone;
-use auth::api::utils::pin::{hash_pin, is_valid_pin_format};
 use base::{
-    constants::{PASSWORD_HASH_SECRET, REFRESH_TOKEN_COOKIE_NAME},
+    constants::REFRESH_TOKEN_COOKIE_NAME,
     error::{ApiError, ApiResponse},
     jwt_claims::JwtClaims,
     role::{self, EMPLOYEE, STAFF},
 };
 
-const OTP_TTL_MINUTES: i64 = 10;
-const RESET_TOKEN_TTL_MINUTES: i64 = 15;
-const OTP_MAX_ATTEMPTS: i32 = 5;
-const OTP_RESEND_SECONDS: i64 = 60;
-
 fn db_err(e: sqlx::Error) -> ApiError {
     base::error::internal(e)
-}
-
-fn sha256_hex(parts: &[&str]) -> String {
-    let mut hasher = Sha256::new();
-    for part in parts {
-        hasher.update(part.as_bytes());
-        hasher.update([0u8]);
-    }
-    hasher.update(PASSWORD_HASH_SECRET.as_bytes());
-    hex::encode(hasher.finalize())
-}
-
-// ---------------------------------------------------------------------------
-// PIN recovery (public)
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Deserialize)]
-pub struct PinResetRequestDTO {
-    pub phone: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PinResetVerifyDTO {
-    pub phone: String,
-    pub code: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PinResetConfirmDTO {
-    pub phone: String,
-    pub reset_token: String,
-    pub new_pin: String,
-}
-
-async fn find_user_by_phone(
-    pool: &PgPool,
-    phone: &str,
-) -> Result<Option<(Uuid, Option<String>, bool)>, ApiError> {
-    sqlx::query_as::<_, (Uuid, Option<String>, bool)>(
-        "SELECT id, email, is_active FROM users WHERE phone = $1",
-    )
-    .bind(normalize_phone(phone))
-    .fetch_optional(pool)
-    .await
-    .map_err(db_err)
-}
-
-/// Sends the code by SMS gateway, falling back to e-mail, falling back to the
-/// server log (so a misconfigured environment is visible, not silent).
-async fn deliver_otp(phone: &str, email: Option<&str>, code: &str) {
-    let message = format!(
-        "{code} is your Bright Wings verification code. It expires in {OTP_TTL_MINUTES} minutes. Never share it with anyone."
-    );
-    if shared::sms::sms_configured() {
-        match shared::sms::send_sms(phone, &message).await {
-            Ok(()) => return,
-            Err(err) => log::error!("PIN reset SMS failed for {phone}: {err}"),
-        }
-    }
-    if let Some(email) = email {
-        let to = email.to_string();
-        let body = message.clone();
-        let sent = web::block(move || {
-            shared::mail::send_plain_email(&to, "Your Bright Wings verification code", &body)
-        })
-        .await;
-        match sent {
-            Ok(Ok(())) => return,
-            Ok(Err(err)) => log::error!("PIN reset e-mail failed: {err}"),
-            Err(err) => log::error!("PIN reset e-mail task failed: {err}"),
-        }
-    }
-    log::warn!("PIN reset code for {phone} could not be delivered (configure SMS_WEBHOOK_URL or SMTP_*)");
-}
-
-/// Always answers the same way so the endpoint cannot be used to discover
-/// which phone numbers have accounts.
-async fn pin_reset_request_handler(
-    pool: web::Data<PgPool>,
-    body: web::Json<PinResetRequestDTO>,
-) -> Result<ApiResponse<Value>, ApiError> {
-    let phone = normalize_phone(&body.phone);
-    let mut response = json!({ "sent": true, "expires_in_seconds": OTP_TTL_MINUTES * 60 });
-
-    let Some((user_id, email, is_active)) = find_user_by_phone(&pool, &phone).await? else {
-        return Ok(ApiResponse(response));
-    };
-    if !is_active {
-        return Ok(ApiResponse(response));
-    }
-
-    let recent: Option<DateTime<Utc>> = sqlx::query_scalar(
-        "SELECT created_at FROM pin_reset_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
-    )
-    .bind(user_id)
-    .fetch_optional(pool.get_ref())
-    .await
-    .map_err(db_err)?;
-    if recent.is_some_and(|at| Utc::now() - at < Duration::seconds(OTP_RESEND_SECONDS)) {
-        return Err(ApiError::new("Please wait a minute before requesting another code", 429));
-    }
-
-    let code = format!("{:06}", rand::thread_rng().gen_range(0..1_000_000));
-    sqlx::query(
-        "INSERT INTO pin_reset_requests (user_id, code_hash, expires_at) VALUES ($1, $2, $3)",
-    )
-    .bind(user_id)
-    .bind(sha256_hex(&[&code, &user_id.to_string()]))
-    .bind(Utc::now() + Duration::minutes(OTP_TTL_MINUTES))
-    .execute(pool.get_ref())
-    .await
-    .map_err(db_err)?;
-
-    deliver_otp(&phone, email.as_deref(), &code).await;
-
-    // Local development only; never enable in production.
-    if std::env::var("OTP_DEV_ECHO").map(|v| v == "true").unwrap_or(false) {
-        response["dev_code"] = json!(code);
-    }
-    Ok(ApiResponse(response))
-}
-
-async fn pin_reset_verify_handler(
-    pool: web::Data<PgPool>,
-    body: web::Json<PinResetVerifyDTO>,
-) -> Result<ApiResponse<Value>, ApiError> {
-    let invalid = || ApiError::new("That code is incorrect or has expired", 400);
-    let Some((user_id, _, is_active)) = find_user_by_phone(&pool, &body.phone).await? else {
-        return Err(invalid());
-    };
-    if !is_active {
-        return Err(invalid());
-    }
-
-    let request: Option<(Uuid, String)> = sqlx::query_as(
-        r#"SELECT id, code_hash FROM pin_reset_requests
-           WHERE user_id = $1 AND consumed_at IS NULL AND verified_at IS NULL AND expires_at > NOW()
-           ORDER BY created_at DESC LIMIT 1"#,
-    )
-    .bind(user_id)
-    .fetch_optional(pool.get_ref())
-    .await
-    .map_err(db_err)?;
-    let Some((request_id, code_hash)) = request else {
-        return Err(invalid());
-    };
-
-    // Claim an attempt atomically: parallel guesses cannot all slip under the limit.
-    let claimed: Option<i32> = sqlx::query_scalar(
-        "UPDATE pin_reset_requests SET attempts = attempts + 1 WHERE id = $1 AND attempts < $2 RETURNING attempts",
-    )
-    .bind(request_id)
-    .bind(OTP_MAX_ATTEMPTS)
-    .fetch_optional(pool.get_ref())
-    .await
-    .map_err(db_err)?;
-    if claimed.is_none() {
-        return Err(ApiError::new("Too many attempts. Please request a new code", 429));
-    }
-
-    if sha256_hex(&[body.code.trim(), &user_id.to_string()]) != code_hash {
-        return Err(invalid());
-    }
-
-    let token = Uuid::new_v4().simple().to_string() + &Uuid::new_v4().simple().to_string();
-    sqlx::query(
-        r#"UPDATE pin_reset_requests
-           SET verified_at = NOW(), reset_token_hash = $2, reset_token_expires_at = $3
-           WHERE id = $1"#,
-    )
-    .bind(request_id)
-    .bind(sha256_hex(&[&token, &user_id.to_string()]))
-    .bind(Utc::now() + Duration::minutes(RESET_TOKEN_TTL_MINUTES))
-    .execute(pool.get_ref())
-    .await
-    .map_err(db_err)?;
-
-    Ok(ApiResponse(json!({ "reset_token": token })))
-}
-
-async fn pin_reset_confirm_handler(
-    pool: web::Data<PgPool>,
-    body: web::Json<PinResetConfirmDTO>,
-) -> Result<ApiResponse<Value>, ApiError> {
-    if !is_valid_pin_format(&body.new_pin) {
-        return Err(ApiError::new("PIN must be exactly 4 digits", 400));
-    }
-    let invalid = || ApiError::new("This reset link has expired. Please start again", 400);
-    let Some((user_id, _, is_active)) = find_user_by_phone(&pool, &body.phone).await? else {
-        return Err(invalid());
-    };
-    if !is_active {
-        return Err(invalid());
-    }
-
-    let mut tx = pool.begin().await.map_err(db_err)?;
-    let request_id: Option<Uuid> = sqlx::query_scalar(
-        r#"SELECT id FROM pin_reset_requests
-           WHERE user_id = $1 AND reset_token_hash = $2 AND consumed_at IS NULL
-                 AND reset_token_expires_at > NOW()
-           FOR UPDATE"#,
-    )
-    .bind(user_id)
-    .bind(sha256_hex(&[&body.reset_token, &user_id.to_string()]))
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(db_err)?;
-    let Some(request_id) = request_id else {
-        return Err(invalid());
-    };
-
-    sqlx::query("UPDATE users SET pin_hash = $2 WHERE id = $1")
-        .bind(user_id)
-        .bind(hash_pin(&body.new_pin))
-        .execute(&mut *tx)
-        .await
-        .map_err(db_err)?;
-    sqlx::query("UPDATE pin_reset_requests SET consumed_at = NOW() WHERE user_id = $1 AND consumed_at IS NULL")
-        .bind(user_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(db_err)?;
-    // A recovered account must not stay signed in on a device the owner lost.
-    sqlx::query("UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1")
-        .bind(user_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(db_err)?;
-    tx.commit().await.map_err(db_err)?;
-    let _ = request_id;
-
-    Ok(ApiResponse(json!({ "reset": true })))
 }
 
 // ---------------------------------------------------------------------------
@@ -1112,12 +872,6 @@ async fn public_program_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<V
 pub fn portal_routes(cfg: &mut ServiceConfig) {
     cfg.route("/public/program", web::get().to(public_program_handler))
         .route("/public/offers", web::get().to(super::workflow::public_offers_handler))
-        .service(
-        web::scope("/pin-reset")
-            .route("/request", web::post().to(pin_reset_request_handler))
-            .route("/verify", web::post().to(pin_reset_verify_handler))
-            .route("/confirm", web::post().to(pin_reset_confirm_handler)),
-    )
     .service(
         web::scope("/preferences")
             .wrap(from_fn(|req, next| async move {

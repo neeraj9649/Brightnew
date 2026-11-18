@@ -3,7 +3,6 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::api::utils::pin::{hash_pin, verify_pin};
 use crate::domain::errors::user_errors::UserError;
 use crate::domain::membership_code::{generate_membership_code, generate_referral_code};
 use crate::domain::models::user::{CreateUser, UpdateUser, User};
@@ -159,24 +158,16 @@ impl UserService for UserServiceImpl {
         unreachable!("loop always returns on its final attempt")
     }
 
-    async fn authenticate(
-        &self,
-        phone: &str,
-        pin: &str,
-    ) -> Result<User, UserError> {
+    async fn find_for_sign_in(&self, phone: &str) -> Result<User, UserError> {
         let user = self
             .repository
             .get_by_phone(phone)
             .await
             .map_err(UserError::InternalServerError)?
-            .ok_or(UserError::InvalidCredentials)?;
+            .ok_or(UserError::UserDoesNotExist)?;
 
         if !user.is_active {
             return Err(UserError::UserNotAuthorised);
-        }
-
-        if !verify_pin(pin, &user.pin_hash) {
-            return Err(UserError::InvalidCredentials);
         }
 
         Ok(user)
@@ -185,27 +176,6 @@ impl UserService for UserServiceImpl {
     async fn update(&self, update_user: UpdateUser) -> Result<User, UserError> {
         self.repository
             .update(&update_user)
-            .await
-            .map_err(UserError::InternalServerError)
-    }
-
-    async fn change_pin(
-        &self,
-        user_id: Uuid,
-        current_pin: &str,
-        new_pin: &str,
-    ) -> Result<User, UserError> {
-        let user = self.get(user_id).await?;
-        if !verify_pin(current_pin, &user.pin_hash) {
-            return Err(UserError::InvalidCredentials);
-        }
-
-        self.repository
-            .update(&UpdateUser {
-                id: user_id,
-                pin_hash: Some(hash_pin(new_pin)),
-                ..Default::default()
-            })
             .await
             .map_err(UserError::InternalServerError)
     }

@@ -55,15 +55,11 @@ pub struct AdminUpdateUserDTO {
     pub membership_tier: Option<String>,
 }
 
-/// Admin sets the customer's initial PIN directly (e.g. in person at a
-/// branch); the customer can change it later via `/users/me/pin`.
+/// Staff create an account for someone (e.g. in person at a branch). There is no
+/// PIN: the member signs in with their phone number and a one-time code.
 #[derive(Debug, Deserialize)]
 pub struct AdminCreateUserDTO {
     pub phone: String,
-    /// Optional. When omitted the account gets a random PIN nobody sees, and
-    /// the member sets their own through "Forgot PIN" (an invitation is sent).
-    #[serde(default)]
-    pub pin: Option<String>,
     pub first_name: String,
     #[serde(default)]
     pub last_name: Option<String>,
@@ -83,10 +79,4 @@ pub struct AdminCreateUserDTO {
     /// employee are always associated with that employee.
     #[serde(default)]
     pub associated_staff_id: Option<Uuid>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ChangePinDTO {
-    pub current_pin: String,
-    pub new_pin: String,
 }
