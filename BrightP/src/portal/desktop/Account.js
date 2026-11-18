@@ -5,13 +5,13 @@ import { CircleCheck, Clock, Download, KeyRound, LogOut, Share2, ShieldCheck, Sm
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
-import { Check2, Field, Input, Modal, ModalHead, Notice, Page, PinField, Shell, Skeleton, fmtDateTime, formatPhone, useAsync, useCopy } from '../ui';
+import { Check2, Field, Input, Modal, ModalHead, Notice, Page, Shell, Skeleton, fmtDateTime, formatPhone, useAsync, useCopy } from '../ui';
 
 const splitName = (full = '') => { const [first, ...rest] = full.trim().split(/\s+/); return [first || '', rest.join(' ')]; };
 
 export default function DeskAccount() {
   const navigate = useNavigate();
-  const { userData, refreshUser, changePassword, logout } = useAuth();
+  const { userData, refreshUser, logout } = useAuth();
   const prefs = useAsync(() => api.get('/preferences/me'), []);
   const card = useAsync(() => api.get('/loyalty/summary').then((s) => s.card), []);
   const { copy } = useCopy();
@@ -20,7 +20,6 @@ export default function DeskAccount() {
   const [pref, setPref] = useState(null);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
-  const [pinOpen, setPinOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [sessionBusy, setSessionBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -85,7 +84,7 @@ export default function DeskAccount() {
                   <Field label="Last name"><Input value={form.last} onChange={(e) => setForm({ ...form, last: e.target.value })} autoComplete="family-name" /></Field>
                 </div>
                 <Field label="Email address" optional error={errors.email}><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} autoComplete="email" placeholder="you@example.com" /></Field>
-                <Field label="Phone number" right={<span className="da-verified"><CircleCheck size={16} /> Verified</span>} hint="Your phone is your verified sign-in. To change it, contact support.">
+                <Field label="Phone number" right={<span className="da-verified"><CircleCheck size={16} /> Verified</span>} hint="Your phone is your verified sign-in: we text your sign-in code here. To change it, contact support.">
                   <div className="da-phone"><span>{formatPhone(userData?.phone).split(' ')[0]}</span><input value={formatPhone(userData?.phone).split(' ').slice(1).join(' ')} readOnly aria-label="Phone number" /></div>
                 </Field>
               </div>
@@ -99,10 +98,6 @@ export default function DeskAccount() {
                   <Check2 checked={!!p.partner_offers} onChange={(v) => setPref({ ...p, partner_offers: v })}><b>Partner offers</b><small>Special offers from our travel and lifestyle partners.</small></Check2>
                 </div>
               )}
-              <hr className="pt-divider" style={{ margin: '26px 0' }} />
-              <h2 className="pt-serif-h" style={{ fontSize: 22 }}>Security PIN</h2>
-              <p className="pt-sub" style={{ marginTop: 4 }}>Used to sign in and to confirm changes to your account.</p>
-              <div className="da-pin"><div>{[0, 1, 2, 3].map((i) => <span key={i}><i /></span>)}</div><button type="button" className="pt-navy-btn ghost" onClick={() => setPinOpen(true)}>Change PIN</button></div>
               <button type="button" className="pt-gold-btn full" style={{ marginTop: 26 }} disabled={busy || !dirty} onClick={save}>{busy ? 'Saving…' : 'Save changes'}</button>
             </section>
           </div>
@@ -121,7 +116,7 @@ export default function DeskAccount() {
               <h2 className="pt-serif-h">Account security</h2>
               <p className="pt-sub" style={{ marginTop: 4 }}>Help keep your account safe.</p>
               <ul className="da-sec">
-                <li><span><KeyRound size={24} /></span><div><b>Security PIN</b><small>Your 4-digit PIN protects sign-in and redemptions.</small></div><button type="button" className="pt-navy-btn ghost" onClick={() => setPinOpen(true)}>Change PIN</button></li>
+                <li><span><KeyRound size={24} /></span><div><b>One-time sign-in codes</b><small>Each sign-in is confirmed with a 4-digit code sent to {formatPhone(userData?.phone)}. Never share it.</small></div></li>
                 <li><span><Smartphone size={24} /></span><div><b>Other devices</b><small>Sign out of every other browser and phone.</small></div><button type="button" className="pt-navy-btn ghost" disabled={sessionBusy} onClick={signOutOthers}>{sessionBusy ? 'Working…' : 'Sign out others'}</button></li>
                 <li><span><Clock size={24} /></span><div><b>Recent account activity</b><small>Review your latest sign-ins.</small></div><button type="button" className="pt-navy-btn ghost" onClick={() => setActivityOpen(true)}>View activity</button></li>
               </ul>
@@ -130,35 +125,8 @@ export default function DeskAccount() {
           </div>
         </div>
       </Page>
-      <ChangePin open={pinOpen} onClose={() => setPinOpen(false)} change={changePassword} />
       <ActivityModal open={activityOpen} onClose={() => setActivityOpen(false)} />
     </Shell>
-  );
-}
-
-function ChangePin({ open, onClose, change }) {
-  const [cur, setCur] = useState('');
-  const [next, setNext] = useState('');
-  const [again, setAgain] = useState('');
-  const [busy, setBusy] = useState(false);
-  const mismatch = again.length === 4 && next !== again;
-  const close = () => { setCur(''); setNext(''); setAgain(''); onClose(); };
-  const submit = async (e) => {
-    e.preventDefault();
-    if (next === cur) { toast.error('Your new PIN must be different from the current one'); return; }
-    setBusy(true);
-    try { await change(cur, next); close(); } catch { /* AuthContext explains */ } finally { setBusy(false); }
-  };
-  return (
-    <Modal open={open} onClose={close} label="Change PIN">
-      <ModalHead title="Change your PIN" sub="Choose a PIN that’s hard to guess and don’t share it." onClose={close} />
-      <form onSubmit={submit} className="pt-stack lg">
-        <PinField label="Current PIN" value={cur} onChange={setCur} autoFocus />
-        <PinField label="New PIN" value={next} onChange={setNext} />
-        <PinField label="Confirm new PIN" value={again} onChange={setAgain} error={mismatch ? 'PINs do not match' : ''} />
-        <button type="submit" className="pt-gold-btn full" disabled={busy || cur.length !== 4 || next.length !== 4 || again.length !== 4 || mismatch}>{busy ? 'Saving…' : 'Save new PIN'}</button>
-      </form>
-    </Modal>
   );
 }
 

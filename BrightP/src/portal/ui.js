@@ -522,7 +522,7 @@ export const TextArea = React.forwardRef(function TextArea({ error, max, value =
 export { default as PhoneField } from './PhoneField';
 export { formatPhone, isValidPhone, maskPhone, toStoredPhone } from './phone';
 
-export function PinBoxes({ value = '', onChange, show = false, length = 4, error, autoFocus, label = 'PIN', size }) {
+export function PinBoxes({ value = '', onChange, show = false, length = 4, error, autoFocus, label = 'PIN', size, autoComplete = 'off' }) {
   const ref = useRef(null);
   const [focused, setFocused] = useState(false);
   return (
@@ -536,7 +536,7 @@ export function PinBoxes({ value = '', onChange, show = false, length = 4, error
         ref={ref}
         type="text"
         inputMode="numeric"
-        autoComplete="off"
+        autoComplete={autoComplete}
         autoFocus={autoFocus}
         aria-label={label}
         value={value}

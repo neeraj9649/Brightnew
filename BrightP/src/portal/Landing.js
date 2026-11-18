@@ -29,7 +29,7 @@ const WHY = [
   [UserRoundCheck, 'A real advisor behind every request', 'A named travel advisor handles your trip from request to completion.'],
   [BadgeCheck, 'Transparent quotations', 'Fares, taxes, inclusions and exclusions in one place, valid until a date you can see.'],
   [CalendarCheck, 'Everything tracked in one place', 'Status, documents, vouchers and Wings activity — on your phone, any time.'],
-  [ShieldCheck, 'Simple, private sign-in', 'Phone number and a 4-digit PIN. Public card checks reveal only your name, tier and validity.'],
+  [ShieldCheck, 'Simple, private sign-in', 'Your phone number and a 4-digit code we text you. No password to remember. Public card checks reveal only your name, tier and validity.'],
 ];
 
 const DESTINATIONS = [
@@ -47,7 +47,7 @@ const FAQ = [
   ['When do I receive Wings?', 'After a service is completed. A first-booking bonus and referral rewards are credited once, as shown in the portal. Cancelled requests do not earn Wings.'],
   ['What can I spend Wings on?', 'Rewards such as hotel credits, airport services and experiences. Redemptions are reviewed by our team and Wings are refunded in full if a request is declined.'],
   ['Does spending Wings lower my tier?', 'Never. Your tier follows your lifetime Wings earned, so redeeming rewards does not affect it.'],
-  ['I forgot my PIN. What now?', 'Choose “Forgot PIN?” on the sign-in screen. We send a verification code to your registered mobile number and you set a new PIN.'],
+  ['How do I sign in?', 'Enter your mobile number on the sign-in screen and type the 4-digit code we text you. There is no PIN or password to forget.'],
 ];
 
 function useScrolled(offset = 24) {
@@ -320,7 +320,6 @@ export default function Landing() {
             <h4>Members</h4>
             <Link to="/auth">Sign in</Link>
             <Link to="/auth?mode=register">Join free</Link>
-            <Link to="/auth?mode=forgot">Forgot PIN</Link>
           </div>
           <div>
             <h4>Help</h4>

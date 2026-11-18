@@ -53,42 +53,41 @@ export const AuthProvider = ({ children }) => {
     setIsStaff(["admin", "super_admin", "employee"].includes(dto.role));
   };
 
-  const signUp = async (phone, pin, additionalData = {}) => {
-    try {
-      const [first_name, ...rest] = (additionalData.name || "Customer").split(
-        " ",
-      );
-      const data = await api.post("/auth/register", {
-        phone,
-        pin,
-        first_name,
-        last_name: rest.join(" ") || null,
-        date_of_birth: additionalData.dob,
-        referred_by_code: additionalData.referredByCode || undefined,
-      });
-      setAccessToken(data.access_token);
-      applyUserDTO(data.user);
-      return data.user;
-    } catch (error) {
-      throw error;
-    }
+  // Sends a 4-digit code by SMS. purpose: "login" or "register".
+  // Resolves to { channel, code_length, expires_in_seconds, resend_after_seconds, dev_code? }.
+  const requestOtp = (phone, purpose, referredByCode) =>
+    api.post("/auth/otp/request", {
+      phone,
+      purpose,
+      referred_by_code: referredByCode || undefined,
+    });
+
+  const signUp = async (phone, code, additionalData = {}) => {
+    const [first_name, ...rest] = (additionalData.name || "Customer").split(" ");
+    const data = await api.post("/auth/register", {
+      phone,
+      code,
+      first_name,
+      last_name: rest.join(" ") || null,
+      date_of_birth: additionalData.dob,
+      referred_by_code: additionalData.referredByCode || undefined,
+    });
+    setAccessToken(data.access_token);
+    applyUserDTO(data.user);
+    return data.user;
   };
 
-  const signIn = async (phone, pin) => {
-    try {
-      const data = await api.post("/auth/login", { phone, pin });
-      setAccessToken(data.access_token);
-      applyUserDTO(data.user);
-      return data.user;
-    } catch (error) {
-      throw error;
-    }
+  const signIn = async (phone, code) => {
+    const data = await api.post("/auth/login", { phone, code });
+    setAccessToken(data.access_token);
+    applyUserDTO(data.user);
+    return data.user;
   };
 
   // Google sign-in was retired with the move off Firebase Auth.
   const signInWithGoogle = async () => {
     throw new Error(
-      "Google sign-in is no longer available. Please sign in with your phone and PIN.",
+      "Google sign-in is no longer available. Please sign in with your phone number.",
     );
   };
 
@@ -103,13 +102,6 @@ export const AuthProvider = ({ children }) => {
       setIsSuperAdmin(false);
       setIsStaff(false);
     }
-  };
-
-  // Password-reset email delivery isn't wired up on the new backend yet.
-  const resetPassword = async () => {
-    throw new Error(
-      "Password reset is not available yet. Please contact support.",
-    );
   };
 
   const updateUserProfile = async (updates) => {
@@ -130,19 +122,6 @@ export const AuthProvider = ({ children }) => {
       return mapUserDTO(dto);
     } catch (error) {
       toast.error("Failed to update profile");
-      throw error;
-    }
-  };
-
-  const changePassword = async (currentPin, newPin) => {
-    try {
-      await api.patch("/users/me/pin", {
-        current_pin: currentPin,
-        new_pin: newPin,
-      });
-      toast.success("PIN changed successfully!");
-    } catch (error) {
-      toast.error(error.message || "Failed to change PIN");
       throw error;
     }
   };
@@ -201,13 +180,12 @@ export const AuthProvider = ({ children }) => {
     // Login.js/AuthPage.js gate their old Firebase-demo-credentials banner
     // on this flag; there's always a real backend now, so keep it hidden.
     isFirebaseConfigured: true,
+    requestOtp,
     signUp,
     signIn,
     signInWithGoogle,
     logout,
-    resetPassword,
     updateUserProfile,
-    changePassword,
     addTokens,
     refreshUser,
   };

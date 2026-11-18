@@ -1,13 +1,39 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, ChartNoAxesColumn, CircleAlert, Eye, EyeOff, Gift, IdCard, Lock, Plane, Search, Star, Ticket, User, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChartNoAxesColumn, CircleAlert, Gift, IdCard, Plane, Search, Smartphone, Star, Ticket, User, Wallet } from 'lucide-react';
 import { api } from '../../services/api';
-import { BrightLogo, Field, Notice, PhoneField, PinBoxes, fmtNum, useAsync } from '../ui';
+import { BrightLogo, Field, Notice, PhoneField, PinBoxes, fmtNum, formatPhone, useAsync } from '../ui';
 import { PHOTO } from '../photos';
+
+/* ------------------------------------------------------- one-time code step */
+
+/**
+ * The "enter the code we sent" step, shared by sign-in and join on every screen size.
+ * `sent` is the /auth/otp/request response.
+ */
+export function OtpEntry({ phone, code, setCode, error, sent, cooldown, onResend, onChangeNumber, busy }) {
+  const length = sent?.code_length || 4;
+  const where = sent?.channel === 'email' ? 'your e-mail address' : formatPhone(phone);
+  return (
+    <div className="pt-stack" style={{ gap: 14 }}>
+      <Notice tone="green" icon={Smartphone}>We sent a {length}-digit code to <strong style={{ display: 'inline' }}>{where}</strong>. It expires in 10 minutes.</Notice>
+      {sent?.dev_code && <Notice tone="amber" icon={Smartphone} title="Development mode">Your code is <strong style={{ display: 'inline' }}>{sent.dev_code}</strong>. Shown only when OTP_DEV_ECHO is on.</Notice>}
+      <Field label={`Enter the ${length}-digit code`} error={error}>
+        <PinBoxes value={code} onChange={setCode} length={length} show autoFocus autoComplete="one-time-code" label={`${length}-digit code`} error={!!error} />
+      </Field>
+      <div className="pt-row between" style={{ flexWrap: 'wrap', gap: 10 }}>
+        <button type="button" className="pt-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onChangeNumber}><ArrowLeft size={15} /> Change number</button>
+        {cooldown > 0
+          ? <span className="pt-small">Resend code in {cooldown}s</span>
+          : <button type="button" className="pt-link" onClick={onResend} disabled={busy}>Resend code</button>}
+      </div>
+    </div>
+  );
+}
 
 /* ---------------------------------------------------------------- sign in */
 
-export function DeskLogin({ phone, setPhone, pin, setPin, showPin, setShowPin, errors, busy, onSubmit, onForgot, onJoin }) {
+export function DeskLogin({ phone, setPhone, step, otp, errors, busy, onSubmit, onJoin }) {
   const navigate = useNavigate();
   return (
     <div className="pt-app da2-login">
@@ -19,12 +45,14 @@ export function DeskLogin({ phone, setPhone, pin, setPin, showPin, setShowPin, e
           <p className="pt-lede" style={{ marginTop: 14, fontSize: 18 }}>Sign in to manage your bookings, view and redeem your Wings, and unlock a more rewarding tomorrow — all in one place.</p>
           <div className="pt-stack lg" style={{ marginTop: 30 }}>
             {errors.form && <Notice tone="red" icon={CircleAlert}>{errors.form}</Notice>}
-            <Field label="Mobile number" error={errors.phone}><PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder="98765 43210" /></Field>
-            <Field label="Enter your 4-digit PIN" error={errors.pin}>
-              <div className="da2-pinrow"><PinBoxes value={pin} onChange={setPin} show={showPin} error={!!errors.pin} label="4-digit PIN" /><button type="button" className="da2-eye" onClick={() => setShowPin(!showPin)} aria-pressed={showPin}>{showPin ? <EyeOff size={22} /> : <Eye size={22} />} {showPin ? 'Hide PIN' : 'Show PIN'}</button></div>
-            </Field>
-            <button type="submit" className="pt-navy-btn da2-submit" disabled={busy}>{busy ? 'Signing in…' : <>Sign in <ArrowRight size={20} /></>}</button>
-            <button type="button" className="pt-link" style={{ justifySelf: 'start', color: 'var(--pt-navy)' }} onClick={onForgot}>Forgot PIN?</button>
+            {step === 'phone'
+              ? <Field label="Mobile number" error={errors.phone} hint="We’ll text you a 4-digit code to sign in."><PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder="98765 43210" /></Field>
+              : <OtpEntry phone={phone} error={errors.code} busy={busy} {...otp} />}
+            <button type="submit" className="pt-navy-btn da2-submit" disabled={busy}>
+              {step === 'phone'
+                ? (busy ? 'Sending code…' : <>Send code <ArrowRight size={20} /></>)
+                : (busy ? 'Signing in…' : <>Sign in <ArrowRight size={20} /></>)}
+            </button>
             <hr className="pt-divider" />
             <div><b style={{ fontSize: 17, color: 'var(--pt-navy)' }}>New to Bright Wings?</b><div><button type="button" className="pt-link" style={{ color: 'var(--pt-navy)', fontSize: 17, marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={onJoin}>Create your membership <ArrowRight size={16} style={{ verticalAlign: -3 }} /></button></div></div>
           </div>
@@ -41,14 +69,7 @@ export function DeskLogin({ phone, setPhone, pin, setPin, showPin, setShowPin, e
 
 /* ------------------------------------------------------------------- join */
 
-const PwdBox = ({ value, onChange, placeholder, show, label, error }) => (
-  <div className={`da2-pwd ${error ? 'err' : ''}`}>
-    <Lock size={20} />
-    <input type={show ? 'text' : 'password'} inputMode="numeric" autoComplete="off" maxLength={4} value={value} placeholder={placeholder} aria-label={label} onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))} />
-  </div>
-);
-
-export function DeskJoin({ name, setName, phone, setPhone, pin, setPin, pin2, setPin2, referral, setReferral, agree, setAgree, showPin, setShowPin, errors, busy, onSubmit, onSignIn, onTerms }) {
+export function DeskJoin({ name, setName, phone, setPhone, step, otp, referral, setReferral, agree, setAgree, errors, busy, onSubmit, onSignIn, onTerms }) {
   const navigate = useNavigate();
   const { data: program } = useAsync(() => api.get('/public/program').catch(() => null), []);
   const welcome = program?.welcome_bonus;
@@ -72,19 +93,22 @@ export function DeskJoin({ name, setName, phone, setPhone, pin, setPin, pin2, se
           <p className="pt-lede" style={{ marginTop: 6, fontSize: 17 }}>A more rewarding way to travel. Quick sign up, instant benefits.</p>
           <div className="pt-stack lg" style={{ marginTop: 22 }}>
             {errors.form && <Notice tone="red" icon={CircleAlert}>{errors.form}</Notice>}
-            <Field label="Full name" error={errors.name}><div className={`da2-pwd ${errors.name ? 'err' : ''}`}><User size={20} /><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your full name" autoComplete="name" aria-label="Full name" /></div></Field>
-            <Field label="Phone number" error={errors.phone}><PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder="Enter your phone number" /></Field>
-            <div className="dp-grid2" style={{ gap: 16 }}>
-              <Field label="4-digit PIN" error={errors.pin}><PwdBox value={pin} onChange={setPin} placeholder="Enter 4-digit PIN" show={showPin} label="4-digit PIN" error={errors.pin} /></Field>
-              <Field label="Confirm PIN" error={errors.pin2}><PwdBox value={pin2} onChange={setPin2} placeholder="Re-enter 4-digit PIN" show={showPin} label="Confirm PIN" error={errors.pin2} /></Field>
-            </div>
-            <label className="pt-check" style={{ marginTop: -6 }}><input type="checkbox" checked={showPin} onChange={(e) => setShowPin(e.target.checked)} /><span className="box">{showPin ? '✓' : ''}</span><span>Show PIN</span></label>
-            <Field label="Referral or staff code" optional error={errors.referral}><div className={`da2-pwd ${errors.referral ? 'err' : ''}`}><Gift size={20} /><input value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} placeholder="Friend’s or advisor’s code" aria-label="Referral or staff code" /></div></Field>
-            <div style={{ display: 'grid', gap: 6 }}>
-              <label className="pt-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span className="box">{agree ? '✓' : ''}</span><span>I agree to the Bright Wings <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Terms &amp; Conditions</button> and acknowledge the <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Privacy Policy</button>.</span></label>
-              {errors.agree && <span className="pt-err-text"><CircleAlert size={13} /> {errors.agree}</span>}
-            </div>
-            <button type="submit" className="pt-gold-btn full" disabled={busy}>{busy ? 'Creating membership…' : <>Create membership <ArrowRight size={19} /></>}</button>
+            {step === 'phone' ? (
+              <>
+                <Field label="Full name" error={errors.name}><div className={`da2-pwd ${errors.name ? 'err' : ''}`}><User size={20} /><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your full name" autoComplete="name" aria-label="Full name" /></div></Field>
+                <Field label="Phone number" error={errors.phone} hint="We’ll text you a 4-digit code to confirm it."><PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder="Enter your phone number" /></Field>
+                <Field label="Referral or staff code" optional error={errors.referral}><div className={`da2-pwd ${errors.referral ? 'err' : ''}`}><Gift size={20} /><input value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} placeholder="Friend’s or advisor’s code" aria-label="Referral or staff code" /></div></Field>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <label className="pt-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span className="box">{agree ? '✓' : ''}</span><span>I agree to the Bright Wings <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Terms &amp; Conditions</button> and acknowledge the <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Privacy Policy</button>.</span></label>
+                  {errors.agree && <span className="pt-err-text"><CircleAlert size={13} /> {errors.agree}</span>}
+                </div>
+              </>
+            ) : <OtpEntry phone={phone} error={errors.code} busy={busy} {...otp} />}
+            <button type="submit" className="pt-gold-btn full" disabled={busy}>
+              {step === 'phone'
+                ? (busy ? 'Sending code…' : <>Send code <ArrowRight size={19} /></>)
+                : (busy ? 'Creating membership…' : <>Create membership <ArrowRight size={19} /></>)}
+            </button>
             <hr className="pt-divider" style={{ margin: 0 }} />
             <p style={{ textAlign: 'center', margin: 0, color: '#55657a' }}>Already a member? <button type="button" className="pt-link" style={{ color: 'var(--pt-navy)' }} onClick={onSignIn}>Sign in</button></p>
           </div>

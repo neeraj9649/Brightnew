@@ -111,7 +111,7 @@ async function tryRefresh() {
 export async function apiRequest(path, options = {}) {
   let { response, body } = await rawRequest(path, options);
 
-  // A wrong PIN on /auth/login is also a 401, but there is nothing to refresh and a retry would count as a second guess.
+  // A failed sign-in on /auth/login is not a session problem: there is nothing to refresh, and a retry would count as a second guess.
   if (response.status === 401 && path !== '/auth/refresh' && path !== '/auth/login' && hasSessionHint()) {
     const refreshed = await tryRefresh();
     if (refreshed) {

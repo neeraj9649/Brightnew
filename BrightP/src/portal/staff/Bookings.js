@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminBooking } from '../../contexts/AdminBookingContext';
 import { api } from '../../services/api';
-import { Avatar, Badge, Card, Check2, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, PinField, SearchBox, Select, Skeleton, TextArea, VoucherTag, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
+import { Avatar, Badge, Card, Check2, Empty, Field, Input, Modal, ModalHead, Notice, PhoneField, SearchBox, Select, Skeleton, TextArea, VoucherTag, fmtDate, formatPhone, isValidPhone, toStoredPhone, useAsync } from '../ui';
 import { SERVICES, SERVICE_ORDER, bookingTitle, serviceOf, statusMeta, STATUS } from '../booking';
 import { FieldView, initialForm, validateTrip } from '../customer/BookingNew';
 import StaffShell from './StaffShell';
@@ -192,7 +192,7 @@ export function CreateBookingModal({ open, onClose, customer: preset }) {
   const [searching, setSearching] = useState(false);
   const [customer, setCustomer] = useState(preset || null);
   const [adding, setAdding] = useState(false);
-  const [fresh, setFresh] = useState({ name: '', phone: '', pin: '' });
+  const [fresh, setFresh] = useState({ name: '', phone: '' });
   const [freshErr, setFreshErr] = useState({});
   const [service, setService] = useState('flight');
   const [form, setForm] = useState(null);
@@ -219,13 +219,12 @@ export function CreateBookingModal({ open, onClose, customer: preset }) {
     const next = {};
     if (fresh.name.trim().length < 2) next.name = 'Enter the customer’s name';
     if (!isValidPhone(fresh.phone)) next.phone = 'Enter a valid mobile number';
-    if (fresh.pin && fresh.pin.length !== 4) next.pin = 'Enter all 4 digits or leave it empty';
     setFreshErr(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     try {
       const [first, ...rest] = fresh.name.trim().split(/\s+/);
-      const u = await api.post('/staff/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(fresh.phone), pin: fresh.pin || undefined });
+      const u = await api.post('/staff/users', { first_name: first, last_name: rest.join(' ') || null, phone: toStoredPhone(fresh.phone) });
       setCustomer({ id: u.id, name: [u.first_name, u.last_name].filter(Boolean).join(' '), phone: u.phone, membership_code: u.membership_code });
       setAdding(false);
       toast.success('Customer registered');
@@ -267,8 +266,7 @@ export function CreateBookingModal({ open, onClose, customer: preset }) {
                 {freshErr.form && <Notice tone="red" icon={CircleAlert}>{freshErr.form}</Notice>}
                 <Field label="Full name *" error={freshErr.name}><Input value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} error={freshErr.name} /></Field>
                 <Field label="Phone number *" error={freshErr.phone}><PhoneField value={fresh.phone} onChange={(v) => setFresh({ ...fresh, phone: v })} error={freshErr.phone} /></Field>
-                <PinField label="Initial PIN (optional)" value={fresh.pin} onChange={(v) => setFresh({ ...fresh, pin: v })} error={freshErr.pin} show size="sm" />
-                <p className="pt-tiny" style={{ marginTop: -6 }}>Give the customer this PIN so they can sign in, or leave it empty and they set their own with Forgot PIN (needs SMS or e-mail set up).</p>
+                <p className="pt-tiny" style={{ marginTop: -6 }}>The customer signs in with this phone number and a 4-digit code we text them. There is no PIN to hand over.</p>
                 <div className="pt-grid2"><button type="button" className="pt-btn ghost sm" onClick={() => setAdding(false)}>Cancel</button><button type="button" className="pt-btn sm" disabled={busy} onClick={addCustomer}>{busy ? 'Registering…' : 'Register customer'}</button></div>
               </div>
             )}

@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import { uploadProfileImage, validateFile } from '../../services/storage';
 import {
-  AppBar, Avatar, Badge, BellButton, BrightLogo, Card, Check2, Empty, ErrorState, Field, Hero, IMG, Input, Modal, ModalHead, Notice, Page, PinField, Progress, Select, Shell, Skeleton, Switch, TextArea,
+  AppBar, Avatar, Badge, BellButton, BrightLogo, Card, Check2, Empty, ErrorState, Field, Hero, IMG, Input, Modal, ModalHead, Notice, Page, Progress, Select, Shell, Skeleton, Switch, TextArea,
   WingsIcon, bg, fmtDate, fmtNum, formatPhone, humanize, maskPhone, memberName, relTime, useAsync, useCopy, useWide, SearchBox, Tabs, tierTitle } from '../ui';
 import { MembershipCardPair, downloadCardImage } from '../MembershipCard';
 import { TierIcon, TierRail } from './parts';
@@ -343,7 +343,7 @@ export function Account() {
   const { data: summary } = useAsync(() => api.get('/loyalty/summary'), []);
   const tier = summary?.tier?.current || userData?.membershipTier;
   const rows = [
-    [[UserRound, 'Profile details', 'View and update your information', '/profile'], [IdCard, 'Membership card', 'View, download or share your card', '/membership'], [Bell, 'Notifications', 'Manage your preferences', '/notification-preferences'], [Lock, 'Security & PIN', 'Change your 4-digit PIN', '/security']],
+    [[UserRound, 'Profile details', 'View and update your information', '/profile'], [IdCard, 'Membership card', 'View, download or share your card', '/membership'], [Bell, 'Notifications', 'Manage your preferences', '/notification-preferences'], [Lock, 'Security', 'Sign-in codes and your devices', '/security']],
     [[CircleHelp, 'Help & support', 'Get help or contact us', '/support'], [FileText, 'Terms & policies', 'Read our terms and privacy policy', 'terms']],
   ];
   return (
@@ -476,9 +476,9 @@ const TOPICS = [
     ['Do I lose my tier if I redeem Wings?', 'No. Your tier is based on lifetime Wings earned and never decreases.'],
     ['How do referrals work?', 'When a friend you referred completes their first booking, you earn the referral Wings once for that friend.'],
   ] },
-  { key: 'Membership & PIN', icon: ShieldCheck, sub: 'Account access, PIN reset and security', faqs: [
-    ['I forgot my PIN', 'Choose Forgot PIN? on the sign-in screen. We send a 6-digit code to your registered mobile number, then you can set a new PIN.'],
-    ['How do I change my PIN?', 'Go to Account → Security & PIN and enter your current PIN followed by a new one.'],
+  { key: 'Membership & sign-in', icon: ShieldCheck, sub: 'Account access, sign-in codes and security', faqs: [
+    ['How do I sign in?', 'Enter your mobile number and we text you a 4-digit code. Type it in to sign in. There is no PIN or password to remember.'],
+    ['I didn’t get the code', 'Wait a minute and tap Resend code. Check that the number is right and that your phone can receive SMS. If you added an e-mail address to your account, the code may arrive there instead.'],
     ['How do I change my phone number?', 'Your phone number is your verified login. Raise a support request and our team will verify and update it for you.'],
     ['How do I verify my membership card?', 'Show the QR code on your membership card. Anyone scanning it sees only your name, member number, tier and validity.'],
   ] },
@@ -552,7 +552,7 @@ function SupportForm({ open, onClose, onSent, category, bookingId }) {
     <Modal open={open} onClose={onClose} label="Raise a support request">
       <ModalHead title="Raise a support request" sub="Tell us what’s happening and we’ll get back to you." onClose={onClose} />
       <form onSubmit={submit} className="pt-stack">
-        <Field label="Category"><Select value={state.category} onChange={(e) => setState({ ...state, category: e.target.value })}>{['Booking assistance', 'Wings & rewards', 'Membership & PIN', 'Travel advisor', 'General question'].map((c) => <option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Category"><Select value={state.category} onChange={(e) => setState({ ...state, category: e.target.value })}>{['Booking assistance', 'Wings & rewards', 'Membership & sign-in', 'Travel advisor', 'General question'].map((c) => <option key={c}>{c}</option>)}</Select></Field>
         <Field label="Subject"><Input required maxLength={180} value={state.subject} onChange={(e) => setState({ ...state, subject: e.target.value })} placeholder="How can we help?" /></Field>
         <Field label="Message"><TextArea required max={2000} value={state.message} onChange={(e) => setState({ ...state, message: e.target.value })} placeholder="Share any booking or redemption reference and what you need." /></Field>
         {bookingId && <Notice icon={FileText}>This request will be linked to your booking.</Notice>}
@@ -567,21 +567,9 @@ function SupportForm({ open, onClose, onSent, category, bookingId }) {
 export function Security() {
   const navigate = useNavigate();
   const wide = useWide();
-  const { userData, changePassword, logout } = useAuth();
-  const [cur, setCur] = useState('');
-  const [next, setNext] = useState('');
-  const [again, setAgain] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [show, setShow] = useState(false);
+  const { userData, logout } = useAuth();
   const [sessionBusy, setSessionBusy] = useState(false);
-  const mismatch = again.length === 4 && next !== again;
 
-  const save = async (event) => {
-    event.preventDefault();
-    if (next === cur) { toast.error('Your new PIN must be different from the current one'); return; }
-    setBusy(true);
-    try { await changePassword(cur, next); setCur(''); setNext(''); setAgain(''); } catch { /* AuthContext shows the reason */ } finally { setBusy(false); }
-  };
   const signOutOthers = async () => {
     if (!window.confirm('Sign out of all other devices? You will stay signed in here.')) return;
     setSessionBusy(true);
@@ -590,21 +578,11 @@ export function Security() {
 
   return (
     <Shell active="account" topbar={wide}>
-      {withBack(wide, 'Security & PIN', () => navigate('/account'))}
+      {withBack(wide, 'Security', () => navigate('/account'))}
       <Page>
         <div className="pt-stack lg" style={{ marginTop: wide ? 16 : 0, maxWidth: 640 }}>
           <div><h1 className="pt-h1">Account security</h1><p className="pt-sub" style={{ marginTop: 4 }}>Keep your account safe and in your control.</p></div>
-          <Card><div className="pt-row"><Smartphone size={24} style={{ color: 'var(--pt-navy)' }} /><div style={{ flex: 1 }}><div className="pt-row between"><strong style={{ color: 'var(--pt-navy)' }}>Verified phone number</strong><Badge tone="green"><CircleCheck size={12} /> Verified</Badge></div><div style={{ fontSize: 17, marginTop: 4 }}>{maskPhone(userData?.phone)}</div><div className="pt-small">Used for login, PIN and important notifications.</div></div></div></Card>
-          <Card>
-            <form onSubmit={save} className="pt-stack lg">
-              <div className="pt-row"><Lock size={22} style={{ color: 'var(--pt-navy)' }} /><div><h2 className="pt-h3">Change your 4-digit PIN</h2><p className="pt-small">Use a strong PIN to keep your account secure.</p></div></div>
-              <PinField label="Current PIN" value={cur} onChange={setCur} show={show} />
-              <PinField label="New PIN" value={next} onChange={setNext} show={show} />
-              <PinField label="Confirm new PIN" value={again} onChange={setAgain} show={show} error={mismatch ? 'PINs do not match' : ''} />
-              <Check2 checked={show} onChange={setShow}>Show PIN</Check2>
-              <button type="submit" className="pt-btn full" disabled={busy || cur.length !== 4 || next.length !== 4 || again.length !== 4 || mismatch}>{busy ? 'Saving…' : 'Save PIN'}</button>
-            </form>
-          </Card>
+          <Card><div className="pt-row"><Smartphone size={24} style={{ color: 'var(--pt-navy)' }} /><div style={{ flex: 1 }}><div className="pt-row between"><strong style={{ color: 'var(--pt-navy)' }}>Verified phone number</strong><Badge tone="green"><CircleCheck size={12} /> Verified</Badge></div><div style={{ fontSize: 17, marginTop: 4 }}>{maskPhone(userData?.phone)}</div><div className="pt-small">We text your 4-digit sign-in code to this number. Never share it with anyone.</div></div></div></Card>
           <Card>
             <div className="pt-row top"><Smartphone size={22} style={{ color: 'var(--pt-navy)' }} /><div><h2 className="pt-h3">Secure session</h2><p className="pt-small">Noticed a new device? You can sign out from other sessions for added security.</p></div></div>
             <button type="button" className="pt-btn danger full" style={{ marginTop: 14 }} disabled={sessionBusy} onClick={signOutOthers}><LogOut size={16} /> {sessionBusy ? 'Signing out…' : 'Sign out other sessions'}</button>
@@ -636,7 +614,7 @@ export function NotificationPreferences() {
   };
   const rows = [
     ['Booking updates', 'Flight, hotel, activity and insurance updates related to your trips.', 'trip_updates', true, Plane],
-    ['Security notices', 'Login alerts, PIN changes and important account updates.', null, true, ShieldCheck],
+    ['Security notices', 'Login alerts and important account updates.', null, true, ShieldCheck],
     ['Wings activity', 'Earnings, redemptions and new offers for your Wings.', 'wings_activity', false, WingsIcon],
     ['Reward status', 'Tier updates, milestone progress and exclusive benefits.', 'reward_status', false, Star],
     ['Travel offers (optional)', 'Curated deals, destination ideas and partner offers.', 'travel_offers', false, Gift],

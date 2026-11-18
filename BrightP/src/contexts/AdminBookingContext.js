@@ -244,7 +244,6 @@ export const AdminBookingProvider = ({ children }) => {
           first_name: firstName,
           last_name: lastName || null,
           phone,
-          pin: digits.slice(-4),
           date_of_birth: dateOfBirth || undefined,
         });
         const created = mapUserDTO(dto);
