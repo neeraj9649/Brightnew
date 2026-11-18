@@ -28,6 +28,7 @@ pub async fn promote_super_admins(pool: &sqlx::PgPool) {
     }
 }
 
+
 /// Every few hours, deletes sign-ins that ended more than a week ago (every token in the session
 /// has expired). Live sessions are never touched, so the account's sign-in history stays intact.
 pub fn spawn_refresh_token_cleanup(pool: sqlx::PgPool) {
