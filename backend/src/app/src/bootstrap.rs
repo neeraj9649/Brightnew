@@ -49,3 +49,15 @@ pub fn spawn_refresh_token_cleanup(pool: sqlx::PgPool) {
         }
     });
 }
+
+/// Says at start-up whether sign-in codes can go out by SMS. The deploy workflow prints this line,
+/// so a missing or unreadable Twilio setting is visible straight after a deploy.
+pub fn log_sign_in_code_delivery() {
+    if shared::twilio::verify_configured() {
+        log::warn!("Sign-in codes: Twilio Verify is configured");
+    } else {
+        log::warn!(
+            "Sign-in codes: Twilio Verify is NOT configured (set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID); codes can only be e-mailed"
+        );
+    }
+}
