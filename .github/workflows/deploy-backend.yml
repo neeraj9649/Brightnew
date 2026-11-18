@@ -78,6 +78,27 @@ jobs:
           set -euo pipefail
           OPTS=(-i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes)
           scp "${OPTS[@]}" -P "$SSH_PORT" out/bp "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/bp.new"
+      - name: Upload Twilio settings (from GitHub secrets)
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_VERIFY_SERVICE_SID: ${{ secrets.TWILIO_VERIFY_SERVICE_SID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TWILIO_ACCOUNT_SID:-}" ] || [ -z "${TWILIO_AUTH_TOKEN:-}" ] || [ -z "${TWILIO_VERIFY_SERVICE_SID:-}" ]; then
+            echo "::warning::TWILIO_* secrets are not all set; the server's Twilio settings are left unchanged."
+            exit 0
+          fi
+          # Only well-formed values, so nothing else can be smuggled into the .env file.
+          [[ "$TWILIO_ACCOUNT_SID" =~ ^AC[0-9a-fA-F]{32}$ ]] || { echo '::error::TWILIO_ACCOUNT_SID must look like AC followed by 32 hex characters'; exit 1; }
+          [[ "$TWILIO_AUTH_TOKEN" =~ ^[0-9a-zA-Z]{32}$ ]] || { echo '::error::TWILIO_AUTH_TOKEN must be 32 letters/digits'; exit 1; }
+          [[ "$TWILIO_VERIFY_SERVICE_SID" =~ ^VA[0-9a-fA-F]{32}$ ]] || { echo '::error::TWILIO_VERIFY_SERVICE_SID must look like VA followed by 32 hex characters'; exit 1; }
+          umask 077
+          printf 'TWILIO_ACCOUNT_SID=%s\nTWILIO_AUTH_TOKEN=%s\nTWILIO_VERIFY_SERVICE_SID=%s\n' \
+            "$TWILIO_ACCOUNT_SID" "$TWILIO_AUTH_TOKEN" "$TWILIO_VERIFY_SERVICE_SID" > "$RUNNER_TEMP/twilio.env"
+          OPTS=(-i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          scp "${OPTS[@]}" -P "$SSH_PORT" "$RUNNER_TEMP/twilio.env" "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/.twilio.env.new"
+          rm -f "$RUNNER_TEMP/twilio.env"
       - name: Swap binary, restart and verify (rolls back on failure)
         run: |
           set -euo pipefail
@@ -87,11 +108,26 @@ jobs:
           DIR="$1"; HEALTH="$2"
           cd "$DIR"
           chmod 755 bp.new
+          # Twilio settings from GitHub secrets: replace only the TWILIO_* lines of .env (the API loads
+          # .env from its working directory at start-up; values in /etc/bright-wings/bp.env still win).
+          if [ -f .twilio.env.new ]; then
+            ( umask 077
+              { if [ -f .env ]; then grep -v '^TWILIO_' .env || true; fi; cat .twilio.env.new; } > .env.tmp )
+            # The API runs as the brightwings user, so it must be able to read the file.
+            if chgrp brightwings .env.tmp 2>/dev/null; then chmod 640 .env.tmp; fi
+            mv -f .env.tmp .env
+            rm -f .twilio.env.new
+            echo "Twilio settings written to $DIR/.env"
+          fi
           [ -f bp ] && cp -p bp bp.prev
           mv -f bp.new bp
           sudo systemctl restart bp
           for i in $(seq 1 30); do
-            if curl -fsS -o /dev/null "$HEALTH"; then echo "API healthy after ${i}s"; exit 0; fi
+            if curl -fsS -o /dev/null "$HEALTH"; then
+              echo "API healthy after ${i}s"
+              sudo journalctl -u bp -n 300 --no-pager | grep 'Sign-in codes' | tail -n 1 || true
+              exit 0
+            fi
             sleep 1
           done
           echo "API did not become healthy; rolling back" >&2
