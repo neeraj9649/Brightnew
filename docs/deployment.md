@@ -52,7 +52,7 @@ npm run start:live
 
 This starts the portal at `http://localhost:3000` with
 `https://bp.nsiif.in` as its API. A user can then sign in with the phone number
-and 4-digit PIN stored in the live database. The live API must be deployed with
+registered in the live database and the 4-digit code texted to it. The live API must be deployed with
 `ENABLE_APP_CORS=true` and an exact `CORS_ALLOWED_ORIGIN` entry for
 `http://localhost:3000` (the deployment examples include this).
 
@@ -76,7 +76,7 @@ Keep the destination path under your SSH account's
 Optional secrets: `REACT_APP_RESOURCE_URL` (default
 `https://resource.brightwingstravel.in`), `REACT_APP_PORTAL_URL` (default
 `https://portal.brightwingstravel.com`), and `REACT_APP_CONTACT_EMAIL` /
-`REACT_APP_CONTACT_PHONE` (shown on the Forgot PIN and inactive-account
+`REACT_APP_CONTACT_PHONE` (shown on the inactive-account
 screens; hidden when unset).
 
 ## Frontend source

@@ -9,7 +9,7 @@
 | `admin` | `/admin` | Everything employees can, for all bookings, plus rewards, Team, analytics, loyalty settings |
 | `super_admin` | `/admin` | Everything admins can, and the only role that can create/promote/demote admins or deactivate them |
 
-Everyone signs in on the same page, `/auth`, with **phone number + 4-digit PIN**. After sign-in anyone who is
+Everyone signs in on the same page, `/auth`, with **phone number + a 4-digit code we text them** (no PIN). After sign-in anyone who is
 not a customer is sent to `/admin`. The role is read from the account when you sign in, so **after a role
 change sign out and sign in again**. Typing `/admin` while signed in as a customer sends you back to `/dashboard`.
 
@@ -17,7 +17,7 @@ change sign out and sign in again**. Typing `/admin` while signed in as a custom
 
 There is no screen that makes the first admin: only an existing admin can create staff. Do it once, outside the portal:
 
-1. Register the phone number on the portal's **Join** page (choose your own PIN).
+1. Register the phone number on the portal's **Join** page (you confirm it with the code we text you).
 2. Promote it with **one** of:
    - **A migration** (what this project uses): `backend/migrations/0026_promote_owner_super_admin.sql` promotes
      `9649863232` when the backend starts after a push. It runs only once, so the account must already be registered
@@ -29,15 +29,14 @@ There is no screen that makes the first admin: only an existing admin can create
    - **`SUPER_ADMIN_PHONES=9649863232`** in the backend's environment (`/etc/bp.env` or your host's settings), then
      restart the backend. Requires the backend build that contains `bootstrap.rs`. Check `journalctl -u bp` for
      `SUPER_ADMIN_PHONES: <phone> is now super_admin`.
-   - **`backend/scripts/make_super_admin.sh <phone>`** with `DATABASE_URL` (and `API_URL` if the account must be created).
+   - **`backend/scripts/make_super_admin.sh <phone>`** with `DATABASE_URL` (the account must already be registered).
 3. Sign out, sign in again, open `/admin`.
 
 ## Creating more staff (as an admin or super admin)
 
 `/admin/employees` (Team & permissions) → **Invite employee**:
 - Name, phone, HR code (unique), optional e-mail.
-- **Initial PIN (optional):** set a 4-digit PIN and tell the person. Leave it empty only if SMS or SMTP is configured,
-  because they then choose their own with **Forgot PIN** (the one-time code is sent by SMS/e-mail).
+- There is no PIN to set or share: the new person signs in at `/auth` with their phone number and the code we text them.
 - Role: admins can create **employees**; only a **super admin** can create admins or super admins.
 
 On the same page you can change an existing person's role or deactivate them. Nobody can change their own role or
