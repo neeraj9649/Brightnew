@@ -1,7 +1,8 @@
 //! Twilio Verify: Twilio generates, sends and checks the one-time sign-in code.
 //!
 //! Configured with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID`.
-//! The code length (4 digits) and expiry are set on the Verify Service in the Twilio Console,
+//! The code length (6 digits, must equal `OTP_LENGTH` in auth/api/utils/otp.rs) and expiry are set on
+//! the Verify Service in the Twilio Console,
 //! not here.
 
 use std::time::Duration;

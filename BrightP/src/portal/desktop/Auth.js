@@ -7,19 +7,22 @@ import { PHOTO } from '../photos';
 
 /* ------------------------------------------------------- one-time code step */
 
+/** Digits in the SMS code; the server also says so in `code_length`. The passcode stays 4 digits. */
+export const OTP_LENGTH = 6;
+
 /**
  * The "enter the code we sent" step of joining and of Forgot passcode, on every screen size.
  * `sent` is the /auth/otp/request response.
  */
 export function OtpEntry({ phone, code, setCode, error, sent, cooldown, onResend, onChangeNumber, busy, onComplete }) {
-  const length = sent?.code_length || 4;
+  const length = sent?.code_length || OTP_LENGTH;
   const where = sent?.channel === 'email' ? 'your e-mail address' : formatPhone(phone);
   return (
     <div className="pt-stack" style={{ gap: 14 }}>
       <Notice tone="green" icon={Smartphone}>We sent a {length}-digit code to <strong style={{ display: 'inline' }}>{where}</strong>. It expires in 10 minutes.</Notice>
       {sent?.dev_code && <Notice tone="amber" icon={Smartphone} title="Development mode">Your code is <strong style={{ display: 'inline' }}>{sent.dev_code}</strong>. Shown only when OTP_DEV_ECHO is on.</Notice>}
       <Field label={`Enter the ${length}-digit code`} error={error}>
-        <PinBoxes id="otp" value={code} onChange={setCode} onComplete={onComplete} length={length} show autoFocus autoComplete="one-time-code" label="Verification code" error={!!error} />
+        <PinBoxes id="otp" value={code} onChange={setCode} onComplete={onComplete} length={length} size={length > 4 ? 'sm' : undefined} show autoFocus autoComplete="one-time-code" label="Verification code" error={!!error} />
       </Field>
       <div className="pt-row between" style={{ flexWrap: 'wrap', gap: 10 }}>
         <button type="button" className="pt-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onChangeNumber}><ArrowLeft size={15} /> Change number</button>
@@ -134,7 +137,7 @@ export function DeskJoin({ name, setName, phone, setPhone, step, referral, setRe
             {step === 'phone' ? (
               <>
                 <Field label="Full name" error={errors.name}><div className={`da2-pwd ${errors.name ? 'err' : ''}`}><User size={20} /><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your full name" autoComplete="name" aria-label="Full name" /></div></Field>
-                <Field label="Phone number" error={errors.phone} hint="We’ll text you a 4-digit code to confirm it."><PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder="Enter your phone number" /></Field>
+                <Field label="Phone number" error={errors.phone} hint="We’ll text you a 6-digit code to confirm it."><PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder="Enter your phone number" /></Field>
                 <Field label="Referral or staff code" optional error={errors.referral}><div className={`da2-pwd ${errors.referral ? 'err' : ''}`}><Gift size={20} /><input value={referral} onChange={(e) => setReferral(e.target.value.toUpperCase())} placeholder="Friend’s or advisor’s code" aria-label="Referral or staff code" /></div></Field>
                 <div style={{ display: 'grid', gap: 6 }}>
                   <label className="pt-check"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span className="box">{agree ? '✓' : ''}</span><span>I agree to the Bright Wings <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Terms &amp; Conditions</button> and acknowledge the <button type="button" className="pt-link" style={{ color: 'var(--pt-blue)' }} onClick={(e) => { e.preventDefault(); onTerms(); }}>Privacy Policy</button>.</span></label>

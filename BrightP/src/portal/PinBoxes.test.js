@@ -72,3 +72,17 @@ test('typing over a filled box replaces that digit', () => {
   fireEvent.change(boxes()[1], { target: { value: '29' } });
   expect(value()).toBe('1934');
 });
+
+test('a 6-digit SMS code: six boxes, autofill fills them all', () => {
+  const done = jest.fn();
+  function Six() {
+    const [v, setV] = useState('');
+    return <PinBoxes value={v} onChange={setV} onComplete={done} length={6} show label="Code" />;
+  }
+  render(<Six />);
+  const six = screen.getAllByLabelText(/Code digit/);
+  expect(six).toHaveLength(6);
+  fireEvent.change(six[0], { target: { value: '482913' } });
+  expect(six.map((b) => b.value)).toEqual(['4', '8', '2', '9', '1', '3']);
+  expect(done).toHaveBeenCalledWith('482913');
+});

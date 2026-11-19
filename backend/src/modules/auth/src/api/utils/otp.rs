@@ -1,4 +1,4 @@
-//! One-time codes (4 digits) for joining and for resetting a forgotten passcode.
+//! One-time codes (6 digits) for joining and for resetting a forgotten passcode.
 //!
 //! Delivery order: Twilio Verify SMS -> e-mail with a locally generated code (only when the
 //! account has an e-mail address) -> error. With `OTP_DEV_ECHO=true` (local development only)
@@ -12,7 +12,8 @@ use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-pub const OTP_LENGTH: usize = 4;
+/// Must match the code length set on the Twilio Verify Service (Console -> Verify -> Services).
+pub const OTP_LENGTH: usize = 6;
 const OTP_TTL_MINUTES: i64 = 10;
 const OTP_MAX_ATTEMPTS: i32 = 5;
 const OTP_RESEND_SECONDS: i64 = 60;
@@ -202,9 +203,9 @@ mod tests {
 
     #[test]
     fn otp_format() {
-        assert!(is_valid_otp_format("0421"));
-        assert!(!is_valid_otp_format("421"));
-        assert!(!is_valid_otp_format("04211"));
-        assert!(!is_valid_otp_format("04a1"));
+        assert!(is_valid_otp_format("042113"));
+        assert!(!is_valid_otp_format("0421"));
+        assert!(!is_valid_otp_format("0421135"));
+        assert!(!is_valid_otp_format("04a113"));
     }
 }

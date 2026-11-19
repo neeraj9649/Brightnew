@@ -8,7 +8,7 @@ import {
   Check2, Field, Hero, IMG, Input, isValidPhone, Modal, ModalHead, Notice, PhoneField,
   fmtNum, memberName, toStoredPhone, useWide,
 } from '../ui';
-import { DeskJoin, DeskLogin, OtpEntry, PasscodeCreate, PasscodeInput } from '../desktop/Auth';
+import { DeskJoin, DeskLogin, OTP_LENGTH, OtpEntry, PasscodeCreate, PasscodeInput } from '../desktop/Auth';
 
 // Support contact details are configured per deployment (REACT_APP_CONTACT_EMAIL / _PHONE).
 const CONTACT_EMAIL = (process.env.REACT_APP_CONTACT_EMAIL || '').trim();
@@ -39,8 +39,8 @@ const PASSCODE_LENGTH = 4;
 
 /**
  * Sign in:          phone + 4-digit passcode.
- * Join:             details -> 4-digit code by SMS -> choose passcode.
- * Forgot passcode:  phone -> 4-digit code by SMS -> choose a new passcode (signs in).
+ * Join:             details -> 6-digit code by SMS -> choose passcode.
+ * Forgot passcode:  phone -> 6-digit code by SMS -> choose a new passcode (signs in).
  */
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -112,7 +112,8 @@ export default function AuthPage() {
   // Code step -> passcode step. The code itself is checked by the server together with the new
   // passcode; a wrong code brings the member back here.
   const continueWithCode = (value = code) => {
-    if (value.length !== (sent?.code_length || 4)) { setErrors({ code: 'Enter the 4-digit code' }); return; }
+    const length = sent?.code_length || OTP_LENGTH;
+    if (value.length !== length) { setErrors({ code: `Enter the ${length}-digit code` }); return; }
     setErrors(emptyErrors);
     setStep('passcode');
   };
@@ -231,7 +232,7 @@ export default function AuthPage() {
       : step === 'code' ? <>Continue {Arrow}</>
         : (busy ? finalBusy : <>{finalLabel} {Arrow}</>)
   );
-  const phoneHint = mode === 'register' ? 'We’ll text you a 4-digit code to confirm it.' : 'We’ll text you a 4-digit code to reset your passcode.';
+  const phoneHint = mode === 'register' ? 'We’ll text you a 6-digit code to confirm it.' : 'We’ll text you a 6-digit code to reset your passcode.';
 
   const loginFields = (
     <>
@@ -305,7 +306,7 @@ export default function AuthPage() {
     const back = <button type="button" className="pt-link" style={{ alignSelf: 'center' }} onClick={() => go('login')}>Back to sign in</button>;
     if (wide) {
       return (
-        <DeskLogin title="Reset passcode" lede="We’ll text a 4-digit code to your registered number. Then choose a new passcode and you’re signed in."
+        <DeskLogin title="Reset passcode" lede="We’ll text a 6-digit code to your registered number. Then choose a new passcode and you’re signed in."
           errors={errors} busy={busy} onSubmit={submitForgot} onJoin={() => go('register')} submit={submit}>
           {body}
           {back}

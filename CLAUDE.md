@@ -115,12 +115,12 @@ belongs in `src/app/src/routers/`.
 
 ### Domain rules (don't break these)
 - **Auth:** everyone (customers and staff) signs in with phone + **4-digit passcode** (`POST /auth/login {phone, pin}`,
-  stored in `users.pin_hash`, hashed by `auth/api/utils/pin.rs`, the same scheme as the old PIN). A **4-digit SMS code (OTP)**
+  stored in `users.pin_hash`, hashed by `auth/api/utils/pin.rs`, the same scheme as the old PIN). A **6-digit SMS code (OTP)**
   is used only to prove the phone: joining (`POST /auth/otp/request {purpose: "register"}` →
   `POST /auth/register {phone, code, pin, first_name, ...}`) and Forgot passcode (`purpose: "reset"` →
   `POST /auth/passcode/reset {phone, code, pin}`, which revokes every session and signs in). Codes are sent by
   **Twilio Verify** (`shared/src/twilio.rs`; env `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`;
-  code length 4 is set on the Verify Service in the Twilio Console). If Twilio fails, a local code is e-mailed when
+  code length **6** is set on the Verify Service in the Twilio Console and must equal `OTP_LENGTH` in `otp.rs`). If Twilio fails, a local code is e-mailed when
   the account has an e-mail. Core logic and limits: `auth/api/utils/otp.rs` (table `otp_requests`, migration 0034;
   10-minute expiry, 5 attempts, 60-second resend, 5 sends/hour per phone). `OTP_DEV_ECHO=true` returns the code
   in the response, local only. OTP purpose "reset" is stored as `'login'` in `otp_requests` (CHECK from 0034).

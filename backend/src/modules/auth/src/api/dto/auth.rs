@@ -6,7 +6,7 @@ use super::user::UserDTO;
 #[derive(Debug, Deserialize)]
 pub struct RegisterRequestDTO {
     pub phone: String,
-    /// The 4-digit code sent to `phone` by `POST /auth/otp/request` with purpose "register".
+    /// The 6-digit code sent to `phone` by `POST /auth/otp/request` with purpose "register".
     pub code: String,
     /// The 4-digit passcode the member chose; used to sign in from now on.
     pub pin: String,

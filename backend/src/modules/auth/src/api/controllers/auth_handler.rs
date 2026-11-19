@@ -76,7 +76,7 @@ async fn issue_session(
     })))
 }
 
-/// Sends a 4-digit code for joining ("register") or for resetting a forgotten passcode ("reset").
+/// Sends a 6-digit code for joining ("register") or for resetting a forgotten passcode ("reset").
 /// It says whether the number has an account: the member needs to know whether to join or reset,
 /// and sending codes to numbers without an account costs money.
 pub async fn request_otp_handler(

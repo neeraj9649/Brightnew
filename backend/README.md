@@ -57,7 +57,7 @@ TEST_DATABASE_URL=postgresql:///bp_scratch \
 | `ENABLE_APP_CORS=true` | optional | Turns on the API's own CORS layer (off by default; leave off when your reverse proxy already sends CORS headers, otherwise browsers see duplicate headers) |
 | `OTP_DEV_ECHO=true` | **never in production** | Returns the sign-in code in the API response for local testing |
 
-Everyone signs in with their phone number and a 4-digit passcode. A 4-digit SMS code is used
+Everyone signs in with their phone number and a 4-digit passcode. A 6-digit SMS code is used
 only to confirm the phone when joining and for *Forgot passcode*. Codes go out through Twilio
 Verify; if that fails and the account has an e-mail address, a code is e-mailed instead.
 **Without Twilio nobody can join or reset a passcode.**

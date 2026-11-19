@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     setIsStaff(["admin", "super_admin", "employee"].includes(dto.role));
   };
 
-  // Sends a 4-digit code by SMS. purpose: "login" or "register".
+  // Sends a 6-digit code by SMS. purpose: "register" or "reset" (forgot passcode).
   // Resolves to { channel, code_length, expires_in_seconds, resend_after_seconds, dev_code? }.
   const requestOtp = (phone, purpose, referredByCode) =>
     api.post("/auth/otp/request", {
