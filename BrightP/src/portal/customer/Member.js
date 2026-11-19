@@ -476,8 +476,8 @@ const TOPICS = [
     ['Do I lose my tier if I redeem Wings?', 'No. Your tier is based on lifetime Wings earned and never decreases.'],
     ['How do referrals work?', 'When a friend you referred completes their first booking, you earn the referral Wings once for that friend.'],
   ] },
-  { key: 'Membership & sign-in', icon: ShieldCheck, sub: 'Account access, sign-in codes and security', faqs: [
-    ['How do I sign in?', 'Enter your mobile number and we text you a 4-digit code. Type it in to sign in. There is no PIN or password to remember.'],
+  { key: 'Membership & sign-in', icon: ShieldCheck, sub: 'Account access, passcode and security', faqs: [
+    ['How do I sign in?', 'Enter your mobile number and your 4-digit passcode. Forgot it? Tap “Forgot passcode” on the sign-in screen, we text you a code, and you choose a new one.'],
     ['I didn’t get the code', 'Wait a minute and tap Resend code. Check that the number is right and that your phone can receive SMS. If you added an e-mail address to your account, the code may arrive there instead.'],
     ['How do I change my phone number?', 'Your phone number is your verified login. Raise a support request and our team will verify and update it for you.'],
     ['How do I verify my membership card?', 'Show the QR code on your membership card. Anyone scanning it sees only your name, member number, tier and validity.'],
@@ -582,7 +582,7 @@ export function Security() {
       <Page>
         <div className="pt-stack lg" style={{ marginTop: wide ? 16 : 0, maxWidth: 640 }}>
           <div><h1 className="pt-h1">Account security</h1><p className="pt-sub" style={{ marginTop: 4 }}>Keep your account safe and in your control.</p></div>
-          <Card><div className="pt-row"><Smartphone size={24} style={{ color: 'var(--pt-navy)' }} /><div style={{ flex: 1 }}><div className="pt-row between"><strong style={{ color: 'var(--pt-navy)' }}>Verified phone number</strong><Badge tone="green"><CircleCheck size={12} /> Verified</Badge></div><div style={{ fontSize: 17, marginTop: 4 }}>{maskPhone(userData?.phone)}</div><div className="pt-small">We text your 4-digit sign-in code to this number. Never share it with anyone.</div></div></div></Card>
+          <Card><div className="pt-row"><Smartphone size={24} style={{ color: 'var(--pt-navy)' }} /><div style={{ flex: 1 }}><div className="pt-row between"><strong style={{ color: 'var(--pt-navy)' }}>Verified phone number</strong><Badge tone="green"><CircleCheck size={12} /> Verified</Badge></div><div style={{ fontSize: 17, marginTop: 4 }}>{maskPhone(userData?.phone)}</div><div className="pt-small">Codes to reset your passcode are texted to this number. Never share your passcode or a code with anyone.</div></div></div></Card>
           <Card>
             <div className="pt-row top"><Smartphone size={22} style={{ color: 'var(--pt-navy)' }} /><div><h2 className="pt-h3">Secure session</h2><p className="pt-small">Noticed a new device? You can sign out from other sessions for added security.</p></div></div>
             <button type="button" className="pt-btn danger full" style={{ marginTop: 14 }} disabled={sessionBusy} onClick={signOutOthers}><LogOut size={16} /> {sessionBusy ? 'Signing out…' : 'Sign out other sessions'}</button>

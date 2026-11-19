@@ -125,8 +125,8 @@ function InviteModal({ open, onClose, onDone }) {
       {done ? (
         <div className="pt-stack lg" style={{ textAlign: 'center', paddingTop: 30 }}>
           <div className="pt-success-mark"><CircleCheck size={44} /></div>
-          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name} has been added</h2><p className="pt-sub" style={{ marginTop: 6 }}>They sign in on the sign-in page with {formatPhone(done.phone)} and the 4-digit code we text to that number.</p></div>
-          <Notice icon={ShieldCheck}>There is no PIN or password to share. Only the owner of that phone can sign in.</Notice>
+          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name} has been added</h2><p className="pt-sub" style={{ marginTop: 6 }}>To sign in the first time, they tap “Forgot passcode” on the sign-in page, enter {formatPhone(done.phone)} and set their own 4-digit passcode with the code we text them.</p></div>
+          <Notice icon={ShieldCheck}>There is no passcode to share. Only the owner of that phone can set one.</Notice>
           <button type="button" className="pt-btn full" onClick={() => { setDone(null); onDone(); }}>Done</button>
         </div>
       ) : (

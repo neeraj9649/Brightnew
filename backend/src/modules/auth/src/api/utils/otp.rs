@@ -1,4 +1,4 @@
-//! One-time sign-in / sign-up codes (4 digits).
+//! One-time codes (4 digits) for joining and for resetting a forgotten passcode.
 //!
 //! Delivery order: Twilio Verify SMS -> e-mail with a locally generated code (only when the
 //! account has an e-mail address) -> error. With `OTP_DEV_ECHO=true` (local development only)
@@ -17,17 +17,21 @@ const OTP_TTL_MINUTES: i64 = 10;
 const OTP_MAX_ATTEMPTS: i32 = 5;
 const OTP_RESEND_SECONDS: i64 = 60;
 
+/// Codes prove the member owns the phone: when joining, and when resetting a forgotten passcode.
+/// Signing in itself uses the 4-digit passcode, not a code.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum OtpPurpose {
-    Login,
     Register,
+    Reset,
 }
 
 impl OtpPurpose {
     pub fn as_str(self) -> &'static str {
         match self {
-            OtpPurpose::Login => "login",
             OtpPurpose::Register => "register",
+            // ponytail: stored as 'login' (the "existing account" value the 0034 CHECK allows),
+            // so no migration is needed to rename it.
+            OtpPurpose::Reset => "login",
         }
     }
 }

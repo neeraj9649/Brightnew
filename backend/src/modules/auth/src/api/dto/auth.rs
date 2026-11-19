@@ -8,6 +8,8 @@ pub struct RegisterRequestDTO {
     pub phone: String,
     /// The 4-digit code sent to `phone` by `POST /auth/otp/request` with purpose "register".
     pub code: String,
+    /// The 4-digit passcode the member chose; used to sign in from now on.
+    pub pin: String,
     pub first_name: String,
     #[serde(default)]
     pub last_name: Option<String>,
@@ -26,14 +28,22 @@ pub struct RegisterRequestDTO {
 #[derive(Debug, Deserialize)]
 pub struct LoginRequestDTO {
     pub phone: String,
-    /// The 4-digit code sent by `POST /auth/otp/request` with purpose "login".
+    /// The member's 4-digit passcode.
+    pub pin: String,
+}
+
+/// Forgot passcode: prove the phone with a code (purpose "reset"), then set a new passcode.
+#[derive(Debug, Deserialize)]
+pub struct ResetPinRequestDTO {
+    pub phone: String,
     pub code: String,
+    pub pin: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct OtpRequestDTO {
     pub phone: String,
-    /// "login" (the account must exist) or "register" (the number must be new).
+    /// "register" (the number must be new) or "reset" (forgot passcode; the account must exist).
     pub purpose: String,
     /// Register only: the referral or staff code the member typed, checked before sending.
     #[serde(default)]

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, ChartNoAxesColumn, CircleAlert, CircleCheck, Coins, Gift } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 import {
   Check2, Field, Hero, IMG, Input, isValidPhone, Modal, ModalHead, Notice, PhoneField,
   fmtNum, memberName, toStoredPhone, useWide,
 } from '../ui';
-import { DeskJoin, DeskLogin, OtpEntry } from '../desktop/Auth';
+import { DeskJoin, DeskLogin, OtpEntry, PasscodeCreate, PasscodeInput } from '../desktop/Auth';
 
 // Support contact details are configured per deployment (REACT_APP_CONTACT_EMAIL / _PHONE).
 const CONTACT_EMAIL = (process.env.REACT_APP_CONTACT_EMAIL || '').trim();
@@ -18,7 +19,7 @@ export function TermsModal({ open, onClose }) {
     <Modal open={open} onClose={onClose} label="Terms and conditions">
       <ModalHead title="Terms & Conditions" onClose={onClose} sub="Bright Wings membership and Wings program" />
       <div className="pt-stack" style={{ fontSize: 13, color: 'var(--pt-muted)', lineHeight: 1.6 }}>
-        <p><strong style={{ color: 'var(--pt-navy)' }}>Membership.</strong> Joining is free. Every new member joins at the Member level and receives the welcome Wings shown at enrolment. Your phone number is your login identity: we text a one-time code to it each time you sign in. Never share that code with anyone.</p>
+        <p><strong style={{ color: 'var(--pt-navy)' }}>Membership.</strong> Joining is free. Every new member joins at the Member level and receives the welcome Wings shown at enrolment. You sign in with your phone number and the 4-digit passcode you choose. We text a one-time code to confirm your number when you join or reset your passcode. Never share your passcode or any code with anyone, including Bright Wings staff.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Earning Wings.</strong> Wings are credited after a service is completed, at the rates published in the portal. First-booking bonuses and referral rewards are credited once per eligible member. Cancelled bookings do not earn Wings.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Tiers.</strong> Your tier is based on lifetime Wings earned. Redeeming Wings never reduces your lifetime Wings or lowers your tier.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Redemptions.</strong> Rewards are subject to availability and approval. Wings are reserved when you submit a request and refunded in full if it is rejected or cancelled. Vouchers are valid until the date shown on the voucher.</p>
@@ -34,25 +35,29 @@ export function TermsModal({ open, onClose }) {
 /* ------------------------------------------------------------ main auth page */
 
 const emptyErrors = {};
+const PASSCODE_LENGTH = 4;
 
 /**
- * Sign in and join both work in two steps: phone number (plus join details) -> 4-digit code by SMS.
- * There is no PIN.
+ * Sign in:          phone + 4-digit passcode.
+ * Join:             details -> 4-digit code by SMS -> choose passcode.
+ * Forgot passcode:  phone -> 4-digit code by SMS -> choose a new passcode (signs in).
  */
 export default function AuthPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { requestOtp, signIn, signUp } = useAuth();
+  const { requestOtp, signIn, signUp, resetPasscode } = useAuth();
   const wide = useWide();
   const initialRef = params.get('ref') || '';
-  // Old "?mode=forgot" links (Forgot PIN) now simply open sign in.
-  const [mode, setMode] = useState(initialRef || params.get('mode') === 'register' ? 'register' : 'login');
+  const initialMode = initialRef || params.get('mode') === 'register' ? 'register' : params.get('mode') === 'forgot' ? 'forgot' : 'login';
+  const [mode, setMode] = useState(initialMode); // login | register | forgot
 
-  const [step, setStep] = useState('phone'); // phone -> code
+  const [step, setStep] = useState('phone'); // register/forgot: phone -> code -> passcode
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(null);
   const [cooldown, setCooldown] = useState(0);
+  const [passcode, setPasscode] = useState('');
+  const [confirm, setConfirm] = useState('');
   // join only
   const [name, setName] = useState('');
   const [referral, setReferral] = useState(initialRef.toUpperCase());
@@ -68,8 +73,10 @@ export default function AuthPage() {
     return () => clearTimeout(id);
   }, [cooldown]);
 
-  const backToPhone = () => { setStep('phone'); setCode(''); setSent(null); setErrors(emptyErrors); };
+  const clearSecrets = () => { setCode(''); setPasscode(''); setConfirm(''); };
+  const backToPhone = () => { setStep('phone'); setSent(null); clearSecrets(); setErrors(emptyErrors); };
 
+  // The phone number is kept when switching, so "Forgot passcode?" needs no retyping.
   const go = (next) => {
     setMode(next);
     backToPhone();
@@ -78,9 +85,10 @@ export default function AuthPage() {
     setParams(nextParams, { replace: true });
   };
 
-  const purpose = mode === 'register' ? 'register' : 'login';
+  const goHome = (user) => navigate(user?.role === 'customer' ? '/dashboard' : '/admin', { replace: true });
 
   const sendCode = async () => {
+    const purpose = mode === 'register' ? 'register' : 'reset';
     setBusy(true);
     setErrors(emptyErrors);
     try {
@@ -93,41 +101,67 @@ export default function AuthPage() {
       const message = error.message || 'We could not send your code. Please try again.';
       if (error.status === 403) navigate('/inactive', { replace: true });
       else if (purpose === 'register' && message.toLowerCase().includes('referral')) setErrors({ referral: 'That code is not valid — check it and try again' });
-      else if (purpose === 'register' && error.status === 409) setErrors({ form: 'This phone number is already registered. Try signing in instead.' });
+      else if (purpose === 'register' && error.status === 409) setErrors({ form: 'This phone number is already registered. Sign in instead, or use Forgot passcode.' });
+      else if (error.status === 404) setErrors({ phone: message });
       else setErrors({ form: message });
     } finally {
       setBusy(false);
     }
   };
 
-  const codeError = (error) => {
-    if (error.status === 403) { navigate('/inactive', { replace: true }); return; }
-    setErrors(error.status === 400 || error.status === 401 ? { code: error.message || 'That code is incorrect or has expired' } : { form: error.message || 'Something went wrong. Please try again.' });
-    setCode('');
+  // Code step -> passcode step. The code itself is checked by the server together with the new
+  // passcode; a wrong code brings the member back here.
+  const continueWithCode = (value = code) => {
+    if (value.length !== (sent?.code_length || 4)) { setErrors({ code: 'Enter the 4-digit code' }); return; }
+    setErrors(emptyErrors);
+    setStep('passcode');
   };
 
-  const submitLogin = async (event) => {
-    event.preventDefault();
-    if (step === 'phone') {
-      if (!isValidPhone(phone)) { setErrors({ phone: 'Enter a valid mobile number' }); return; }
-      await sendCode();
+  const passcodeErrors = () => {
+    const next = {};
+    if (passcode.length !== PASSCODE_LENGTH) next.passcode = 'Enter all 4 digits';
+    else if (/^(\d)\1{3}$/.test(passcode) || passcode === '1234' || passcode === '4321') next.passcode = 'Too easy to guess. Choose a different passcode';
+    if (!next.passcode && confirm !== passcode) next.confirm = confirm.length < PASSCODE_LENGTH ? 'Enter the passcode again to confirm' : 'The passcodes don’t match';
+    return next;
+  };
+
+  // A rejected code (400/429) goes back to the code step; the chosen passcode is kept.
+  const finishError = (error) => {
+    if (error.status === 403) { navigate('/inactive', { replace: true }); return; }
+    if (error.status === 400 && /passcode/i.test(error.message || '')) { setErrors({ passcode: error.message }); return; }
+    if (error.status === 400 || error.status === 429) {
+      setStep('code');
+      setCode('');
+      setErrors({ code: error.message || 'That code is incorrect or has expired' });
       return;
     }
-    if (code.length !== (sent?.code_length || 4)) { setErrors({ code: 'Enter the 4-digit code' }); return; }
+    setErrors({ form: error.message || 'Something went wrong. Please try again.' });
+  };
+
+  // `pin` is passed in when the 4th box is filled, before the passcode state has updated.
+  const login = async (pin = passcode) => {
+    if (busy) return;
+    const next = {};
+    if (!isValidPhone(phone)) next.phone = 'Enter a valid mobile number';
+    if (pin.length !== PASSCODE_LENGTH) next.passcode = 'Enter your 4-digit passcode';
+    setErrors(next);
+    if (Object.keys(next).length) return;
     setBusy(true);
-    setErrors(emptyErrors);
     try {
-      const user = await signIn(toStoredPhone(phone), code);
-      navigate(user?.role === 'customer' ? '/dashboard' : '/admin', { replace: true });
+      goHome(await signIn(toStoredPhone(phone), pin));
     } catch (error) {
-      codeError(error);
+      if (error.status === 403) navigate('/inactive', { replace: true });
+      else if (error.status === 404) setErrors({ phone: error.message });
+      else if (error.status === 401 || error.status === 400) { setErrors({ passcode: error.message || 'That passcode is incorrect' }); setPasscode(''); document.getElementById('passcode-0')?.focus(); }
+      else setErrors({ form: error.message || 'Something went wrong. Please try again.' });
     } finally {
       setBusy(false);
     }
   };
+  const submitLogin = (event) => { event.preventDefault(); login(); };
 
   const submitRegister = async (event) => {
-    event.preventDefault();
+    event?.preventDefault();
     if (step === 'phone') {
       const next = {};
       if (name.trim().length < 2) next.name = 'Please enter your full name';
@@ -138,32 +172,88 @@ export default function AuthPage() {
       await sendCode();
       return;
     }
-    if (code.length !== (sent?.code_length || 4)) { setErrors({ code: 'Enter the 4-digit code' }); return; }
+    if (step === 'code') { continueWithCode(); return; }
+    const next = passcodeErrors();
+    setErrors(next);
+    if (Object.keys(next).length) return;
     setBusy(true);
-    setErrors(emptyErrors);
     try {
       sessionStorage.setItem('bw_welcome', '1');
-      await signUp(toStoredPhone(phone), code, { name: name.trim(), referredByCode: referral.trim() || undefined });
+      await signUp(toStoredPhone(phone), code, passcode, { name: name.trim(), referredByCode: referral.trim() || undefined });
       navigate('/welcome', { replace: true });
     } catch (error) {
       sessionStorage.removeItem('bw_welcome');
-      if (error.status === 409) { backToPhone(); setErrors({ form: 'This phone number is already registered. Try signing in instead.' }); }
+      if (error.status === 409) { backToPhone(); setErrors({ form: 'This phone number is already registered. Sign in instead, or use Forgot passcode.' }); }
       else if (error.message?.toLowerCase().includes('referral')) { backToPhone(); setErrors({ referral: 'That code is not valid — check it and try again' }); }
-      else codeError(error);
+      else finishError(error);
     } finally {
       setBusy(false);
     }
   };
 
-  const otp = { code, setCode, sent, cooldown, onResend: sendCode, onChangeNumber: backToPhone };
-  const codeStep = <OtpEntry phone={phone} error={errors.code} busy={busy} {...otp} />;
+  const submitForgot = async (event) => {
+    event?.preventDefault();
+    if (step === 'phone') {
+      if (!isValidPhone(phone)) { setErrors({ phone: 'Enter a valid mobile number' }); return; }
+      await sendCode();
+      return;
+    }
+    if (step === 'code') { continueWithCode(); return; }
+    const next = passcodeErrors();
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setBusy(true);
+    try {
+      const user = await resetPasscode(toStoredPhone(phone), code, passcode);
+      toast.success('Your new passcode is set');
+      goHome(user);
+    } catch (error) {
+      if (error.status === 404) { backToPhone(); setErrors({ phone: error.message }); }
+      else finishError(error);
+    } finally {
+      setBusy(false);
+    }
+  };
 
+  /* ----- shared pieces */
+  const codeStep = (
+    <OtpEntry phone={phone} code={code} setCode={setCode} error={errors.code} sent={sent} cooldown={cooldown}
+      onResend={sendCode} onChangeNumber={backToPhone} busy={busy} onComplete={(value) => continueWithCode(value)} />
+  );
+  const passcodeStep = (
+    <PasscodeCreate passcode={passcode} setPasscode={setPasscode} confirm={confirm} setConfirm={setConfirm}
+      errors={errors} phone={phone} onBack={() => { setStep('code'); setErrors(emptyErrors); }} />
+  );
+  const flowStep = step === 'code' ? codeStep : passcodeStep;
+  const Arrow = wide ? <ArrowRight size={19} /> : <ArrowRight size={18} />;
+  const flowSubmit = (finalLabel, finalBusy) => (
+    step === 'phone' ? (busy ? 'Sending code…' : <>Send code {Arrow}</>)
+      : step === 'code' ? <>Continue {Arrow}</>
+        : (busy ? finalBusy : <>{finalLabel} {Arrow}</>)
+  );
+  const phoneHint = mode === 'register' ? 'We’ll text you a 4-digit code to confirm it.' : 'We’ll text you a 4-digit code to reset your passcode.';
+
+  const loginFields = (
+    <>
+      <Field label={wide ? 'Mobile number' : 'Phone number'} error={errors.phone}>
+        <PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder={wide ? '98765 43210' : undefined} />
+      </Field>
+      <PasscodeInput value={passcode} onChange={setPasscode} error={errors.passcode} onForgot={() => go('forgot')}
+        onComplete={(pin) => { if (isValidPhone(phone)) login(pin); }} />
+    </>
+  );
+  const loginSubmit = busy ? 'Signing in…' : <>Sign in {Arrow}</>;
+
+  /* ----- join */
   if (mode === 'register' && wide) {
     return (
       <>
-        <DeskJoin name={name} setName={setName} phone={phone} setPhone={setPhone} step={step} otp={otp}
+        <DeskJoin name={name} setName={setName} phone={phone} setPhone={setPhone} step={step}
           referral={referral} setReferral={setReferral} agree={agree} setAgree={setAgree}
-          errors={errors} busy={busy} onSubmit={submitRegister} onSignIn={() => go('login')} onTerms={() => setTerms(true)} />
+          errors={errors} busy={busy} onSubmit={submitRegister} onSignIn={() => go('login')} onTerms={() => setTerms(true)}
+          submit={flowSubmit('Create membership', 'Creating membership…')}>
+          {flowStep}
+        </DeskJoin>
         <TermsModal open={terms} onClose={() => setTerms(false)} />
       </>
     );
@@ -184,7 +274,7 @@ export default function AuthPage() {
                   <Field label="Full name" error={errors.name}>
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aanya Sharma" autoComplete="name" error={errors.name} />
                   </Field>
-                  <Field label="Phone number" error={errors.phone} hint="We’ll text you a 4-digit code to confirm it.">
+                  <Field label="Phone number" error={errors.phone} hint={phoneHint}>
                     <PhoneField value={phone} onChange={setPhone} error={errors.phone} />
                   </Field>
                   <Field label="Referral or staff code" optional hint="From a friend or your travel advisor." error={errors.referral}>
@@ -195,12 +285,8 @@ export default function AuthPage() {
                     {errors.agree && <span className="pt-err-text"><CircleAlert size={13} /> {errors.agree}</span>}
                   </div>
                 </>
-              ) : codeStep}
-              <button type="submit" className="pt-btn full" disabled={busy}>
-                {step === 'phone'
-                  ? (busy ? 'Sending code…' : <>Send code <ArrowRight size={18} /></>)
-                  : (busy ? 'Creating membership…' : <>Create membership <ArrowRight size={18} /></>)}
-              </button>
+              ) : flowStep}
+              <button type="submit" className="pt-btn full" disabled={busy}>{flowSubmit('Create membership', 'Creating membership…')}</button>
               <p className="pt-small" style={{ textAlign: 'center' }}>Already a member? <button type="button" className="pt-link" onClick={() => go('login')}>Sign in</button></p>
             </form>
             <TermsModal open={terms} onClose={() => setTerms(false)} />
@@ -210,10 +296,47 @@ export default function AuthPage() {
     );
   }
 
+  /* ----- forgot passcode */
+  if (mode === 'forgot') {
+    const body = step === 'phone'
+      ? <Field label={wide ? 'Mobile number' : 'Phone number'} error={errors.phone} hint={phoneHint}><PhoneField value={phone} onChange={setPhone} error={errors.phone} /></Field>
+      : flowStep;
+    const submit = flowSubmit('Save passcode & sign in', 'Saving…');
+    const back = <button type="button" className="pt-link" style={{ alignSelf: 'center' }} onClick={() => go('login')}>Back to sign in</button>;
+    if (wide) {
+      return (
+        <DeskLogin title="Reset passcode" lede="We’ll text a 4-digit code to your registered number. Then choose a new passcode and you’re signed in."
+          errors={errors} busy={busy} onSubmit={submitForgot} onJoin={() => go('register')} submit={submit}>
+          {body}
+          {back}
+        </DeskLogin>
+      );
+    }
+    return (
+      <div className="pt-app">
+        <div className="pt-auth">
+          <Hero image={IMG.beach} className="pt-auth-art" tall style={{ minHeight: 260 }}
+            title={<>Reset your<br />passcode.</>} subtitle="A code by SMS, then a new passcode." />
+          <div className="pt-auth-panel">
+            <form onSubmit={submitForgot} noValidate className="pt-stack lg">
+              {errors.form && <Notice tone="red" icon={CircleAlert}>{errors.form}</Notice>}
+              {body}
+              <button type="submit" className="pt-btn full" disabled={busy}>{submit}</button>
+              {back}
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ----- sign in */
   if (wide) {
     return (
-      <DeskLogin phone={phone} setPhone={setPhone} step={step} otp={otp} errors={errors} busy={busy}
-        onSubmit={submitLogin} onJoin={() => go('register')} />
+      <DeskLogin errors={errors} busy={busy} onSubmit={submitLogin} onJoin={() => go('register')}
+        submit={loginSubmit}>
+        {loginFields}
+      </DeskLogin>
     );
   }
 
@@ -226,14 +349,8 @@ export default function AuthPage() {
         <div className="pt-auth-panel">
           <form onSubmit={submitLogin} noValidate className="pt-stack lg">
             {errors.form && <Notice tone="red" icon={CircleAlert}>{errors.form}</Notice>}
-            {step === 'phone'
-              ? <Field label="Phone number" error={errors.phone} hint="We’ll text you a 4-digit code to sign in."><PhoneField value={phone} onChange={setPhone} error={errors.phone} /></Field>
-              : codeStep}
-            <button type="submit" className="pt-btn full" disabled={busy}>
-              {step === 'phone'
-                ? (busy ? 'Sending code…' : <>Send code <ArrowRight size={18} /></>)
-                : (busy ? 'Signing in…' : <>Sign in <ArrowRight size={18} /></>)}
-            </button>
+            {loginFields}
+            <button type="submit" className="pt-btn full" disabled={busy}>{loginSubmit}</button>
             <div className="pt-row" style={{ gap: 14 }}><hr className="pt-divider" style={{ flex: 1, margin: 0 }} /><span className="pt-small">New to Bright Wings?</span><hr className="pt-divider" style={{ flex: 1, margin: 0 }} /></div>
             <button type="button" className="pt-btn ghost full" onClick={() => go('register')}>Join Bright Wings</button>
           </form>

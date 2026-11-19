@@ -8,15 +8,15 @@ use serde_json::json;
 use sqlx::PgPool;
 use std::time::Duration;
 
-use crate::api::dto::auth::{AuthResponseDTO, LoginRequestDTO, OtpRequestDTO, RegisterRequestDTO};
+use crate::api::dto::auth::{AuthResponseDTO, LoginRequestDTO, OtpRequestDTO, RegisterRequestDTO, ResetPinRequestDTO};
 use crate::api::dto::user::UserDTO;
 use crate::api::utils::otp::{self, OtpPurpose, OTP_LENGTH};
 use crate::api::utils::phone::{is_valid_phone, normalize_phone};
-use crate::api::utils::pin::unusable_pin_hash;
+use crate::api::utils::pin::{hash_pin, is_valid_pin_format, verify_pin};
 use crate::domain::errors::user_errors::UserError;
 use crate::domain::models::user::User;
 use crate::domain::services::refresh_token::RefreshTokenService;
-use crate::domain::models::user::CreateUser;
+use crate::domain::models::user::{CreateUser, UpdateUser};
 use crate::domain::services::user::UserService;
 
 const LOGIN_MAX_FAILURES: u32 = 8;
@@ -24,6 +24,7 @@ const LOGIN_IP_MAX_FAILURES: u32 = 40;
 const LOGIN_WINDOW: Duration = Duration::from_secs(15 * 60);
 const REGISTER_MAX_PER_IP: u32 = 30;
 const REGISTER_WINDOW: Duration = Duration::from_secs(60 * 60);
+const RESET_MAX_PER_IP: u32 = 30;
 // Every code costs an SMS, so sends are capped per number and per address.
 const OTP_SENDS_PER_PHONE: u32 = 5;
 const OTP_SENDS_PER_IP: u32 = 30;
@@ -75,9 +76,9 @@ async fn issue_session(
     })))
 }
 
-/// Sends a 4-digit code for signing in ("login") or joining ("register").
-/// Unlike the old PIN reset this says whether the number has an account: the member needs to
-/// know whether to sign in or join, and sending codes to numbers without an account costs money.
+/// Sends a 4-digit code for joining ("register") or for resetting a forgotten passcode ("reset").
+/// It says whether the number has an account: the member needs to know whether to join or reset,
+/// and sending codes to numbers without an account costs money.
 pub async fn request_otp_handler(
     user_service: web::Data<dyn UserService>,
     pool: web::Data<PgPool>,
@@ -90,14 +91,15 @@ pub async fn request_otp_handler(
     }
     let phone = normalize_phone(&body.phone);
     let purpose = match body.purpose.as_str() {
-        "login" => OtpPurpose::Login,
         "register" => OtpPurpose::Register,
+        // "login" is what the portal sent before passcodes came back.
+        "reset" | "login" => OtpPurpose::Reset,
         _ => return Err(ApiError::new("Unknown code purpose", 400)),
     };
 
     let email = match (purpose, user_service.find_for_sign_in(&phone).await) {
-        (OtpPurpose::Login, Ok(user)) => user.email,
-        (OtpPurpose::Login, Err(UserError::UserDoesNotExist)) => {
+        (OtpPurpose::Reset, Ok(user)) => user.email,
+        (OtpPurpose::Reset, Err(UserError::UserDoesNotExist)) => {
             return Err(ApiError::new("No Bright Wings account uses this number. Create your membership instead.", 404));
         }
         (OtpPurpose::Register, Err(UserError::UserDoesNotExist)) => None,
@@ -151,6 +153,9 @@ pub async fn register_handler(
     if !is_valid_phone(&body.phone) {
         return Err(ApiError::from(UserError::InvalidPhoneFormat));
     }
+    if !is_valid_pin_format(&body.pin) {
+        return Err(ApiError::from(UserError::InvalidPinFormat));
+    }
     let phone = normalize_phone(&body.phone);
 
     // The code proves the member owns this number.
@@ -160,7 +165,7 @@ pub async fn register_handler(
         .register(
             CreateUser {
                 email: body.email.map(|e| e.trim().to_lowercase()),
-                pin_hash: unusable_pin_hash(),
+                pin_hash: hash_pin(&body.pin),
                 first_name: body.first_name,
                 last_name: body.last_name,
                 phone,
@@ -183,27 +188,71 @@ pub async fn register_handler(
 pub async fn login_handler(
     user_service: web::Data<dyn UserService>,
     refresh_token_service: web::Data<dyn RefreshTokenService>,
-    pool: web::Data<PgPool>,
     body: web::Json<LoginRequestDTO>,
     req: HttpRequest,
 ) -> Result<HttpResponse, ApiError> {
     let phone = normalize_phone(&body.phone);
-    // Wrong codes are throttled per phone number and per address on top of the
-    // per-code attempt limit, so nobody can keep requesting codes and guessing.
+    // A 4-digit passcode has only 10,000 values, so wrong guesses are throttled per phone
+    // number and per address.
     let phone_key = format!("login:{phone}");
     let ip_key = format!("login-ip:{}", client_ip(&req));
     LIMITER.check(&phone_key, LOGIN_MAX_FAILURES, LOGIN_WINDOW)?;
     LIMITER.check(&ip_key, LOGIN_IP_MAX_FAILURES, LOGIN_WINDOW)?;
 
-    let user = user_service.find_for_sign_in(&phone).await.map_err(ApiError::from)?;
-    if let Err(err) = otp::check_code(pool.get_ref(), &phone, OtpPurpose::Login, body.code.trim()).await {
-        if err.code == 400 {
-            LIMITER.record(&phone_key, LOGIN_WINDOW);
+    let user = match user_service.find_for_sign_in(&phone).await {
+        Ok(user) => user,
+        Err(UserError::UserDoesNotExist) => {
             LIMITER.record(&ip_key, LOGIN_WINDOW);
+            return Err(ApiError::new("No Bright Wings account uses this number. Create your membership instead.", 404));
         }
-        return Err(err);
+        Err(err) => return Err(ApiError::from(err)),
+    };
+    if !verify_pin(body.pin.trim(), &user.pin_hash) {
+        LIMITER.record(&phone_key, LOGIN_WINDOW);
+        LIMITER.record(&ip_key, LOGIN_WINDOW);
+        return Err(ApiError::from(UserError::InvalidCredentials));
     }
     LIMITER.clear(&phone_key);
+
+    issue_session(refresh_token_service.get_ref(), user).await
+}
+
+/// Forgot passcode: the code (purpose "reset") proves the phone, then the new passcode is saved,
+/// every existing session is signed out, and the member is signed in on this device.
+pub async fn reset_pin_handler(
+    user_service: web::Data<dyn UserService>,
+    refresh_token_service: web::Data<dyn RefreshTokenService>,
+    pool: web::Data<PgPool>,
+    body: web::Json<ResetPinRequestDTO>,
+    req: HttpRequest,
+) -> Result<HttpResponse, ApiError> {
+    let body = body.into_inner();
+    LIMITER.hit(&format!("pin-reset:{}", client_ip(&req)), RESET_MAX_PER_IP, REGISTER_WINDOW)?;
+    if !is_valid_pin_format(&body.pin) {
+        return Err(ApiError::from(UserError::InvalidPinFormat));
+    }
+    let phone = normalize_phone(&body.phone);
+    let user = match user_service.find_for_sign_in(&phone).await {
+        Ok(user) => user,
+        Err(UserError::UserDoesNotExist) => {
+            return Err(ApiError::new("No Bright Wings account uses this number. Create your membership instead.", 404));
+        }
+        Err(err) => return Err(ApiError::from(err)),
+    };
+
+    otp::check_code(pool.get_ref(), &phone, OtpPurpose::Reset, body.code.trim()).await?;
+
+    let user = user_service
+        .update(UpdateUser { id: user.id, pin_hash: Some(hash_pin(&body.pin)), ..Default::default() })
+        .await
+        .map_err(ApiError::from)?;
+    // Anyone who knew the old passcode is signed out everywhere.
+    sqlx::query("UPDATE refresh_tokens SET is_revoked = TRUE WHERE user_id = $1 AND is_revoked = FALSE")
+        .bind(user.id)
+        .execute(pool.get_ref())
+        .await
+        .map_err(|e| base::error::internal(e))?;
+    LIMITER.clear(&format!("login:{phone}"));
 
     issue_session(refresh_token_service.get_ref(), user).await
 }

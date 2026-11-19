@@ -62,11 +62,14 @@ export const AuthProvider = ({ children }) => {
       referred_by_code: referredByCode || undefined,
     });
 
-  const signUp = async (phone, code, additionalData = {}) => {
+  // Joining: `code` (texted by requestOtp(..., "register")) proves the phone, `pin` is the
+  // 4-digit passcode the member signs in with from now on.
+  const signUp = async (phone, code, pin, additionalData = {}) => {
     const [first_name, ...rest] = (additionalData.name || "Customer").split(" ");
     const data = await api.post("/auth/register", {
       phone,
       code,
+      pin,
       first_name,
       last_name: rest.join(" ") || null,
       date_of_birth: additionalData.dob,
@@ -77,8 +80,18 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
-  const signIn = async (phone, code) => {
-    const data = await api.post("/auth/login", { phone, code });
+  // Signing in is phone + 4-digit passcode (no SMS).
+  const signIn = async (phone, pin) => {
+    const data = await api.post("/auth/login", { phone, pin });
+    setAccessToken(data.access_token);
+    applyUserDTO(data.user);
+    return data.user;
+  };
+
+  // Forgot passcode: `code` comes from requestOtp(..., "reset"). Signs out every other device
+  // and signs in here.
+  const resetPasscode = async (phone, code, pin) => {
+    const data = await api.post("/auth/passcode/reset", { phone, code, pin });
     setAccessToken(data.access_token);
     applyUserDTO(data.user);
     return data.user;
@@ -183,6 +196,7 @@ export const AuthProvider = ({ children }) => {
     requestOtp,
     signUp,
     signIn,
+    resetPasscode,
     signInWithGoogle,
     logout,
     updateUserProfile,

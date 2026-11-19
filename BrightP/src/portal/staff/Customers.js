@@ -129,7 +129,7 @@ function CreateCustomer({ open, onClose, onCreated }) {
         <div className="pt-stack lg" style={{ textAlign: 'center', paddingTop: 30 }}>
           <div className="pt-success-mark"><CircleCheck size={44} /></div>
           <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name}’s membership is ready</h2><p className="pt-sub" style={{ marginTop: 6 }}>Member number <strong>{done.membership_code}</strong> · Member level · {fmtNum(done.tokens)} welcome Wings added.</p></div>
-          <Notice icon={ShieldCheck} title="Sign-in details">The customer signs in with {formatPhone(done.phone)} and the 4-digit code we text to that number. There is no PIN to hand over.</Notice>
+          <Notice icon={ShieldCheck} title="Sign-in details">To sign in, the customer taps “Forgot passcode”, enters {formatPhone(done.phone)} and sets their own 4-digit passcode with the code we text them. Staff never set or see it.</Notice>
           <button type="button" className="pt-btn full" onClick={() => onCreated(done)}>Done</button>
         </div>
       ) : (
@@ -144,8 +144,8 @@ function CreateCustomer({ open, onClose, onCreated }) {
             <Notice icon={ShieldCheck}>This customer will be associated with you, so their booking requests come to you.</Notice>
           )}
           <Notice tone="gold" icon={Gift}>A new <strong style={{ display: 'inline' }}>Bright Wings membership</strong> will be created automatically with a welcome bonus, identical to self signup.</Notice>
-          <div><h3 className="pt-h3">How they sign in</h3><p className="pt-sub" style={{ marginTop: 4 }}>The customer opens the portal, enters this phone number and types the 4-digit code we text them. Nothing to remember, nothing to share.</p></div>
-          <div className="pt-notice green" style={{ display: 'block' }}>{['Creates a Member-level membership', 'Adds welcome Wings to wallet', 'Generates a referral code', 'Sign-in by one-time code to their phone'].map((t) => <div key={t} className="pt-row" style={{ gap: 8, margin: '3px 0' }}><CircleCheck size={15} /> {t}</div>)}</div>
+          <div><h3 className="pt-h3">How they sign in</h3><p className="pt-sub" style={{ marginTop: 4 }}>The customer opens the portal, taps “Forgot passcode”, enters this phone number and chooses their own 4-digit passcode with the code we text them.</p></div>
+          <div className="pt-notice green" style={{ display: 'block' }}>{['Creates a Member-level membership', 'Adds welcome Wings to wallet', 'Generates a referral code', 'They set their own 4-digit passcode by SMS code'].map((t) => <div key={t} className="pt-row" style={{ gap: 8, margin: '3px 0' }}><CircleCheck size={15} /> {t}</div>)}</div>
           <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={close}>Cancel</button><button type="submit" className="pt-btn" disabled={busy}>{busy ? 'Creating…' : 'Create customer'}</button></div>
         </form>
       )}

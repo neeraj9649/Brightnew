@@ -266,7 +266,7 @@ export function CreateBookingModal({ open, onClose, customer: preset }) {
                 {freshErr.form && <Notice tone="red" icon={CircleAlert}>{freshErr.form}</Notice>}
                 <Field label="Full name *" error={freshErr.name}><Input value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} error={freshErr.name} /></Field>
                 <Field label="Phone number *" error={freshErr.phone}><PhoneField value={fresh.phone} onChange={(v) => setFresh({ ...fresh, phone: v })} error={freshErr.phone} /></Field>
-                <p className="pt-tiny" style={{ marginTop: -6 }}>The customer signs in with this phone number and a 4-digit code we text them. There is no PIN to hand over.</p>
+                <p className="pt-tiny" style={{ marginTop: -6 }}>To sign in, the customer taps “Forgot passcode” with this phone number and sets their own 4-digit passcode. Staff never set or see it.</p>
                 <div className="pt-grid2"><button type="button" className="pt-btn ghost sm" onClick={() => setAdding(false)}>Cancel</button><button type="button" className="pt-btn sm" disabled={busy} onClick={addCustomer}>{busy ? 'Registering…' : 'Register customer'}</button></div>
               </div>
             )}

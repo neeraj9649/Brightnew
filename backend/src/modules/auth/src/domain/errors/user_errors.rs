@@ -29,10 +29,10 @@ impl fmt::Display for UserError {
                 write!(f, "User Creation Error: HR Code Already In Use")
             }
             UserError::InvalidCredentials => {
-                write!(f, "That code is incorrect or has expired")
+                write!(f, "That passcode is incorrect. Try again, or use Forgot passcode to set a new one.")
             }
             UserError::InvalidPinFormat => {
-                write!(f, "PIN must be exactly 4 digits")
+                write!(f, "Your passcode must be exactly 4 digits")
             }
             UserError::InvalidPhoneFormat => {
                 write!(f, "Phone number must contain 5 to 20 digits")

@@ -5,7 +5,7 @@ use actix_web::{
 
 use auth::api::controllers::auth_handler::{
     get_me_handler, login_handler, logout_handler, refresh_token_handler,
-    register_handler, request_otp_handler,
+    register_handler, request_otp_handler, reset_pin_handler,
 };
 use auth::api::middlewares::jwt_extractor::check_permission_middleware;
 
@@ -15,6 +15,7 @@ pub fn auth_endpoints_config(cfg: &mut ServiceConfig) {
             .route("/otp/request", web::post().to(request_otp_handler))
             .route("/register", web::post().to(register_handler))
             .route("/login", web::post().to(login_handler))
+            .route("/passcode/reset", web::post().to(reset_pin_handler))
             .route("/refresh", web::post().to(refresh_token_handler))
             .route("/logout", web::post().to(logout_handler))
             .service(

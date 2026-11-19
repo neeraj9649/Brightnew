@@ -221,22 +221,25 @@
 .pt-phone:focus-within { border-color: var(--pt-gold); box-shadow: 0 0 0 4px rgba(201, 150, 62, 0.15); }
 .pt-phone.err { border-color: #d98a82; }
 .pt-phone-cc { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 28px; border-right: 1px solid var(--pt-line-strong); font: 600 14px var(--font-family-base, sans-serif); color: var(--pt-navy); }
-.pt-phone input:focus, .pt-pins > input:focus { box-shadow: none !important; border: 0 !important; outline: 0 !important; }
+.pt-phone input:focus { box-shadow: none !important; border: 0 !important; outline: 0 !important; }
 .pt-phone input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; padding: 0 14px; height: 48px; font: 500 14px var(--font-family-base, sans-serif); color: var(--pt-ink); }
 .pt-flag { width: 24px; height: 17px; border-radius: 3px; overflow: hidden; display: block; flex: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08); background: linear-gradient(#ff9933 33.3%, #fff 33.3% 66.6%, #138808 66.6%); position: relative; }
 .pt-flag::after { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; border: 1px solid #000a80; }
 
-.pt-pins { display: flex; gap: 10px; position: relative; }
+.pt-pins { display: flex; gap: 10px; }
 .pt-pin {
-  width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid var(--pt-line-strong); border-radius: 13px; background: #fff;
-  font: 700 20px var(--font-family-base, sans-serif); color: var(--pt-navy); transition: border 0.15s, box-shadow 0.15s;
+  width: 52px; height: 52px; padding: 0; text-align: center; border: 1px solid var(--pt-line-strong); border-radius: 13px; background: #fff;
+  font: 700 22px var(--font-family-base, sans-serif); color: var(--pt-navy); caret-color: var(--pt-gold); outline: 0;
+  transition: border 0.15s, box-shadow 0.15s, background 0.15s; -moz-appearance: textfield; appearance: none;
 }
-.pt-pin.active { border-color: var(--pt-gold); box-shadow: 0 0 0 4px rgba(201, 150, 62, 0.15); }
+.pt-pin[type='password'] { font-size: 26px; letter-spacing: 0; }
+.pt-pin.filled { border-color: var(--pt-navy); background: #fbfaf7; }
+.pt-pin:focus, .pt-pin:focus-visible { border-color: var(--pt-gold) !important; box-shadow: 0 0 0 4px rgba(201, 150, 62, 0.18) !important; outline: 0 !important; background: #fff; }
 .pt-pin.err { border-color: #d98a82; }
-.pt-pin .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pt-navy); }
 .pt-pins.sm { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 8px; }
 .pt-pins.sm .pt-pin { width: auto; height: 48px; }
-.pt-pins > input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: text; }
+.pt-pins.lg .pt-pin { width: 64px; height: 64px; font-size: 26px; border-radius: 15px; }
+@media (max-width: 380px) { .pt-pins .pt-pin { width: 48px; height: 48px; } }
 
 .pt-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 13px; color: var(--pt-ink); line-height: 1.45; }
 .pt-check input { position: absolute; opacity: 0; pointer-events: none; }

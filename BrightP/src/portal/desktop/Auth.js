@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ChartNoAxesColumn, CircleAlert, Gift, IdCard, Plane, Search, Smartphone, Star, Ticket, User, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ChartNoAxesColumn, CircleAlert, Eye, EyeOff, Gift, IdCard, Plane, Search, ShieldCheck, Smartphone, Star, Ticket, User, Wallet } from 'lucide-react';
 import { api } from '../../services/api';
 import { BrightLogo, Field, Notice, PhoneField, PinBoxes, fmtNum, formatPhone, useAsync } from '../ui';
 import { PHOTO } from '../photos';
@@ -8,10 +8,10 @@ import { PHOTO } from '../photos';
 /* ------------------------------------------------------- one-time code step */
 
 /**
- * The "enter the code we sent" step, shared by sign-in and join on every screen size.
+ * The "enter the code we sent" step of joining and of Forgot passcode, on every screen size.
  * `sent` is the /auth/otp/request response.
  */
-export function OtpEntry({ phone, code, setCode, error, sent, cooldown, onResend, onChangeNumber, busy }) {
+export function OtpEntry({ phone, code, setCode, error, sent, cooldown, onResend, onChangeNumber, busy, onComplete }) {
   const length = sent?.code_length || 4;
   const where = sent?.channel === 'email' ? 'your e-mail address' : formatPhone(phone);
   return (
@@ -19,7 +19,7 @@ export function OtpEntry({ phone, code, setCode, error, sent, cooldown, onResend
       <Notice tone="green" icon={Smartphone}>We sent a {length}-digit code to <strong style={{ display: 'inline' }}>{where}</strong>. It expires in 10 minutes.</Notice>
       {sent?.dev_code && <Notice tone="amber" icon={Smartphone} title="Development mode">Your code is <strong style={{ display: 'inline' }}>{sent.dev_code}</strong>. Shown only when OTP_DEV_ECHO is on.</Notice>}
       <Field label={`Enter the ${length}-digit code`} error={error}>
-        <PinBoxes value={code} onChange={setCode} length={length} show autoFocus autoComplete="one-time-code" label={`${length}-digit code`} error={!!error} />
+        <PinBoxes id="otp" value={code} onChange={setCode} onComplete={onComplete} length={length} show autoFocus autoComplete="one-time-code" label="Verification code" error={!!error} />
       </Field>
       <div className="pt-row between" style={{ flexWrap: 'wrap', gap: 10 }}>
         <button type="button" className="pt-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onChangeNumber}><ArrowLeft size={15} /> Change number</button>
@@ -31,9 +31,53 @@ export function OtpEntry({ phone, code, setCode, error, sent, cooldown, onResend
   );
 }
 
+/* --------------------------------------------------------------- passcode */
+
+function ShowToggle({ show, setShow }) {
+  return (
+    <button type="button" className="pt-link" onClick={() => setShow((v) => !v)} aria-pressed={show}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+      {show ? <EyeOff size={15} /> : <Eye size={15} />}{show ? 'Hide' : 'Show'}
+    </button>
+  );
+}
+
+/** Sign-in passcode: 4 boxes with show/hide and the Forgot passcode link. */
+export function PasscodeInput({ value, onChange, error, onForgot, onComplete, autoFocus }) {
+  const [show, setShow] = useState(false);
+  return (
+    <Field label="4-digit passcode" error={error} right={<ShowToggle show={show} setShow={setShow} />}>
+      <div className="pt-stack" style={{ gap: 10 }}>
+        <PinBoxes id="passcode" value={value} onChange={onChange} onComplete={onComplete} show={show} autoFocus={autoFocus} label="Passcode" error={!!error} />
+        {onForgot && <button type="button" className="pt-link" style={{ alignSelf: 'flex-start', fontSize: 13 }} onClick={onForgot}>Forgot passcode?</button>}
+      </div>
+    </Field>
+  );
+}
+
+/** Choose a passcode (joining, or after Forgot passcode): passcode + confirmation. */
+export function PasscodeCreate({ passcode, setPasscode, confirm, setConfirm, errors, phone, onBack }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="pt-stack" style={{ gap: 16 }}>
+      <Notice tone="green" icon={ShieldCheck}>{formatPhone(phone)} is verified. Now choose the 4-digit passcode you will sign in with.</Notice>
+      <Field label="Create passcode" error={errors.passcode} right={<ShowToggle show={show} setShow={setShow} />}>
+        <PinBoxes id="new-passcode" value={passcode} onChange={setPasscode} show={show} autoFocus label="New passcode" error={!!errors.passcode}
+          onComplete={() => document.getElementById('confirm-passcode-0')?.focus()} />
+      </Field>
+      <Field label="Confirm passcode" error={errors.confirm}>
+        <PinBoxes id="confirm-passcode" value={confirm} onChange={setConfirm} show={show} label="Confirm passcode" error={!!errors.confirm} />
+      </Field>
+      <p className="pt-small" style={{ margin: 0 }}>Avoid easy guesses like 1234 or your birth year. Never share your passcode, not even with Bright Wings staff.</p>
+      {onBack && <button type="button" className="pt-link" style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onBack}><ArrowLeft size={15} /> Back</button>}
+    </div>
+  );
+}
+
 /* ---------------------------------------------------------------- sign in */
 
-export function DeskLogin({ phone, setPhone, step, otp, errors, busy, onSubmit, onJoin }) {
+/** Sign in and Forgot passcode share this layout; the screen passes the form body. */
+export function DeskLogin({ title = 'Welcome back', lede, errors, busy, onSubmit, onJoin, submit, children }) {
   const navigate = useNavigate();
   return (
     <div className="pt-app da2-login">
@@ -41,18 +85,12 @@ export function DeskLogin({ phone, setPhone, step, otp, errors, busy, onSubmit, 
         <button type="button" className="da2-logo" onClick={() => navigate('/')} aria-label="Bright Wings home"><img src={BrightLogo} alt="" /><span><b>Bright Wings</b><small>Travel further together</small></span></button>
         <form onSubmit={onSubmit} noValidate className="da2-form">
           <div className="dp-eyebrow" style={{ padding: 0, color: '#b8832a', fontSize: 12 }}>BRIGHT WINGS LOYALTY PORTAL</div>
-          <h1 className="pt-title" style={{ marginTop: 14, fontSize: 'clamp(46px, 4.6vw, 62px)' }}>Welcome back</h1>
-          <p className="pt-lede" style={{ marginTop: 14, fontSize: 18 }}>Sign in to manage your bookings, view and redeem your Wings, and unlock a more rewarding tomorrow — all in one place.</p>
+          <h1 className="pt-title" style={{ marginTop: 14, fontSize: 'clamp(46px, 4.6vw, 62px)' }}>{title}</h1>
+          <p className="pt-lede" style={{ marginTop: 14, fontSize: 18 }}>{lede || 'Sign in to manage your bookings, view and redeem your Wings, and unlock a more rewarding tomorrow — all in one place.'}</p>
           <div className="pt-stack lg" style={{ marginTop: 30 }}>
             {errors.form && <Notice tone="red" icon={CircleAlert}>{errors.form}</Notice>}
-            {step === 'phone'
-              ? <Field label="Mobile number" error={errors.phone} hint="We’ll text you a 4-digit code to sign in."><PhoneField value={phone} onChange={setPhone} error={errors.phone} placeholder="98765 43210" /></Field>
-              : <OtpEntry phone={phone} error={errors.code} busy={busy} {...otp} />}
-            <button type="submit" className="pt-navy-btn da2-submit" disabled={busy}>
-              {step === 'phone'
-                ? (busy ? 'Sending code…' : <>Send code <ArrowRight size={20} /></>)
-                : (busy ? 'Signing in…' : <>Sign in <ArrowRight size={20} /></>)}
-            </button>
+            {children}
+            <button type="submit" className="pt-navy-btn da2-submit" disabled={busy}>{submit}</button>
             <hr className="pt-divider" />
             <div><b style={{ fontSize: 17, color: 'var(--pt-navy)' }}>New to Bright Wings?</b><div><button type="button" className="pt-link" style={{ color: 'var(--pt-navy)', fontSize: 17, marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={onJoin}>Create your membership <ArrowRight size={16} style={{ verticalAlign: -3 }} /></button></div></div>
           </div>
@@ -69,7 +107,7 @@ export function DeskLogin({ phone, setPhone, step, otp, errors, busy, onSubmit, 
 
 /* ------------------------------------------------------------------- join */
 
-export function DeskJoin({ name, setName, phone, setPhone, step, otp, referral, setReferral, agree, setAgree, errors, busy, onSubmit, onSignIn, onTerms }) {
+export function DeskJoin({ name, setName, phone, setPhone, step, referral, setReferral, agree, setAgree, errors, busy, onSubmit, onSignIn, onTerms, submit, children }) {
   const navigate = useNavigate();
   const { data: program } = useAsync(() => api.get('/public/program').catch(() => null), []);
   const welcome = program?.welcome_bonus;
@@ -103,12 +141,8 @@ export function DeskJoin({ name, setName, phone, setPhone, step, otp, referral, 
                   {errors.agree && <span className="pt-err-text"><CircleAlert size={13} /> {errors.agree}</span>}
                 </div>
               </>
-            ) : <OtpEntry phone={phone} error={errors.code} busy={busy} {...otp} />}
-            <button type="submit" className="pt-gold-btn full" disabled={busy}>
-              {step === 'phone'
-                ? (busy ? 'Sending code…' : <>Send code <ArrowRight size={19} /></>)
-                : (busy ? 'Creating membership…' : <>Create membership <ArrowRight size={19} /></>)}
-            </button>
+            ) : children}
+            <button type="submit" className="pt-gold-btn full" disabled={busy}>{submit}</button>
             <hr className="pt-divider" style={{ margin: 0 }} />
             <p style={{ textAlign: 'center', margin: 0, color: '#55657a' }}>Already a member? <button type="button" className="pt-link" style={{ color: 'var(--pt-navy)' }} onClick={onSignIn}>Sign in</button></p>
           </div>

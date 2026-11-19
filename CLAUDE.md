@@ -114,15 +114,18 @@ belongs in `src/app/src/routers/`.
 - Comments explain *why*. Existing code marks deliberate simplifications with `// ponytail:`.
 
 ### Domain rules (don't break these)
-- **Auth:** phone + **4-digit one-time code (OTP)** for everyone (customers and staff). There is **no PIN**
-  and no password. Flow: `POST /auth/otp/request {phone, purpose: "login"|"register", referred_by_code?}` →
-  `POST /auth/login {phone, code}` or `POST /auth/register {phone, code, first_name, ...}`. Codes are sent by
+- **Auth:** everyone (customers and staff) signs in with phone + **4-digit passcode** (`POST /auth/login {phone, pin}`,
+  stored in `users.pin_hash`, hashed by `auth/api/utils/pin.rs`, the same scheme as the old PIN). A **4-digit SMS code (OTP)**
+  is used only to prove the phone: joining (`POST /auth/otp/request {purpose: "register"}` →
+  `POST /auth/register {phone, code, pin, first_name, ...}`) and Forgot passcode (`purpose: "reset"` →
+  `POST /auth/passcode/reset {phone, code, pin}`, which revokes every session and signs in). Codes are sent by
   **Twilio Verify** (`shared/src/twilio.rs`; env `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`;
   code length 4 is set on the Verify Service in the Twilio Console). If Twilio fails, a local code is e-mailed when
   the account has an e-mail. Core logic and limits: `auth/api/utils/otp.rs` (table `otp_requests`, migration 0034;
   10-minute expiry, 5 attempts, 60-second resend, 5 sends/hour per phone). `OTP_DEV_ECHO=true` returns the code
-  in the response, local only. `users.pin_hash` still exists but holds an unusable random hash (`unusable_pin_hash`).
-  Staff-created accounts get no PIN; the member just signs in with their phone.
+  in the response, local only. OTP purpose "reset" is stored as `'login'` in `otp_requests` (CHECK from 0034).
+  Staff-created accounts get an unusable hash (`unusable_pin_hash`); the member sets a passcode via Forgot passcode.
+  The portal's 4-box input is `PinBoxes` in `portal/ui.js` (tested in `portal/PinBoxes.test.js`).
   Phones are normalised (`auth/api/utils/phone.rs`): Indian numbers are stored as the bare 10 digits, others in E.164 `+…`.
   Always run user input through `normalize_phone` before lookups.
 - **Sessions:** short-lived JWT access token (in memory on the client) + httpOnly rotating refresh cookie

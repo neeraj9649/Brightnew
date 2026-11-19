@@ -84,7 +84,7 @@ export default function DeskAccount() {
                   <Field label="Last name"><Input value={form.last} onChange={(e) => setForm({ ...form, last: e.target.value })} autoComplete="family-name" /></Field>
                 </div>
                 <Field label="Email address" optional error={errors.email}><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} autoComplete="email" placeholder="you@example.com" /></Field>
-                <Field label="Phone number" right={<span className="da-verified"><CircleCheck size={16} /> Verified</span>} hint="Your phone is your verified sign-in: we text your sign-in code here. To change it, contact support.">
+                <Field label="Phone number" right={<span className="da-verified"><CircleCheck size={16} /> Verified</span>} hint="Your phone is your verified sign-in: codes to reset your passcode are texted here. To change it, contact support.">
                   <div className="da-phone"><span>{formatPhone(userData?.phone).split(' ')[0]}</span><input value={formatPhone(userData?.phone).split(' ').slice(1).join(' ')} readOnly aria-label="Phone number" /></div>
                 </Field>
               </div>
@@ -116,7 +116,7 @@ export default function DeskAccount() {
               <h2 className="pt-serif-h">Account security</h2>
               <p className="pt-sub" style={{ marginTop: 4 }}>Help keep your account safe.</p>
               <ul className="da-sec">
-                <li><span><KeyRound size={24} /></span><div><b>One-time sign-in codes</b><small>Each sign-in is confirmed with a 4-digit code sent to {formatPhone(userData?.phone)}. Never share it.</small></div></li>
+                <li><span><KeyRound size={24} /></span><div><b>4-digit passcode</b><small>You sign in with your phone number and passcode. To change it, sign out and use “Forgot passcode”: we text a code to {formatPhone(userData?.phone)}. Never share it.</small></div></li>
                 <li><span><Smartphone size={24} /></span><div><b>Other devices</b><small>Sign out of every other browser and phone.</small></div><button type="button" className="pt-navy-btn ghost" disabled={sessionBusy} onClick={signOutOthers}>{sessionBusy ? 'Working…' : 'Sign out others'}</button></li>
                 <li><span><Clock size={24} /></span><div><b>Recent account activity</b><small>Review your latest sign-ins.</small></div><button type="button" className="pt-navy-btn ghost" onClick={() => setActivityOpen(true)}>View activity</button></li>
               </ul>

@@ -1,10 +1,10 @@
 # Staff workflow
 
 **Team.** An admin adds staff at `/admin/employees` → *Invite employee* (name, phone, HR code, role).
-Staff sign in at `/auth` with their phone number and the 4-digit code we text them, and land on `/admin`.
+Staff sign in at `/auth` with their phone number and 4-digit passcode, and land on `/admin`.
 
 **Recording a booking for a customer.** *Bookings → New booking*: search the customer (name, phone or member code, 3+
-characters) or register them on the spot (they sign in later with their phone and a texted code), pick the service
+characters) or register them on the spot (they set their own passcode later with Forgot passcode), pick the service
 (flight, visa, hotel, tour, airport transfer, cruise, insurance, activity, car rental, custom), fill the details.
 The booking is stored with `recorded_by` = the staff member; an employee who records a booking is also assigned to it.
 

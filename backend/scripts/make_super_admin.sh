@@ -3,8 +3,7 @@
 #
 #   DATABASE_URL=postgres://... backend/scripts/make_super_admin.sh 9649863232
 #
-# Sign-in is phone number + one-time code (no PIN), and joining requires that code,
-# so this script cannot create the account: register the number on the portal's
+# Joining needs a code texted to the phone, so this script cannot create the account: register the number on the portal's
 # Join page first, then run it. Sign out and back in afterwards to get the new role.
 set -euo pipefail
 
@@ -20,4 +19,4 @@ if [[ "$exists" == "0" ]]; then
 fi
 
 "${PSQL[@]}" -c "UPDATE users SET role = 'super_admin', is_active = true WHERE phone = '$PHONE'" >/dev/null
-echo "OK: $PHONE is now super_admin. Sign in with that phone number and the code we text you."
+echo "OK: $PHONE is now super_admin. Sign in with that phone number and your 4-digit passcode."

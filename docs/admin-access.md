@@ -9,7 +9,7 @@
 | `admin` | `/admin` | Everything employees can, for all bookings, plus rewards, Team, analytics, loyalty settings |
 | `super_admin` | `/admin` | Everything admins can, and the only role that can create/promote/demote admins or deactivate them |
 
-Everyone signs in on the same page, `/auth`, with **phone number + a 4-digit code we text them** (no PIN). After sign-in anyone who is
+Everyone signs in on the same page, `/auth`, with **phone number + their 4-digit passcode**. After sign-in anyone who is
 not a customer is sent to `/admin`. The role is read from the account when you sign in, so **after a role
 change sign out and sign in again**. Typing `/admin` while signed in as a customer sends you back to `/dashboard`.
 
@@ -36,7 +36,7 @@ There is no screen that makes the first admin: only an existing admin can create
 
 `/admin/employees` (Team & permissions) → **Invite employee**:
 - Name, phone, HR code (unique), optional e-mail.
-- There is no PIN to set or share: the new person signs in at `/auth` with their phone number and the code we text them.
+- There is no passcode to set or share: the first time, the new person opens `/auth`, taps **Forgot passcode**, enters their phone number and chooses their own passcode with the code we text them.
 - Role: admins can create **employees**; only a **super admin** can create admins or super admins.
 
 On the same page you can change an existing person's role or deactivate them. Nobody can change their own role or

@@ -522,28 +522,98 @@ export const TextArea = React.forwardRef(function TextArea({ error, max, value =
 export { default as PhoneField } from './PhoneField';
 export { formatPhone, isValidPhone, maskPhone, toStoredPhone } from './phone';
 
-export function PinBoxes({ value = '', onChange, show = false, length = 4, error, autoFocus, label = 'PIN', size, autoComplete = 'off' }) {
-  const ref = useRef(null);
-  const [focused, setFocused] = useState(false);
+/**
+ * N separate digit boxes (default 4). Typing moves to the next box, Backspace clears and steps
+ * back, arrow keys move, clicking a box selects it, and pasting or SMS autofill fills them all.
+ * `value` is always the digits typed so far, with no gaps; `onComplete` fires when all are filled.
+ */
+export function PinBoxes({ value = '', onChange, show = false, length = 4, error, autoFocus, label = 'PIN', size, autoComplete = 'off', id, onComplete }) {
+  const refs = useRef([]);
+  // Latest digits, updated before focus moves (the focus handler runs before React re-renders).
+  const current = useRef(value);
+  current.current = value;
+  const focusBox = (i) => {
+    const el = refs.current[Math.max(0, Math.min(length - 1, i))];
+    if (el) { el.focus(); el.select(); }
+  };
+  const commit = (next) => {
+    const clean = next.replace(/\D/g, '').slice(0, length);
+    const before = current.current;
+    current.current = clean;
+    onChange(clean);
+    if (clean.length === length && clean !== before) onComplete?.(clean);
+  };
+  // Writes `digits` starting at box i (overwriting), then focuses the box after the last one written.
+  const writeAt = (i, digits) => {
+    const chars = current.current.split('');
+    let j = i;
+    for (const d of digits) { if (j >= length) break; chars[j] = d; j += 1; }
+    commit(chars.join(''));
+    focusBox(j);
+  };
+  const removeAt = (i) => commit(current.current.slice(0, i) + current.current.slice(i + 1));
+
+  const onInput = (i, e) => {
+    const typed = e.target.value.replace(/\D/g, '');
+    const now = current.current;
+    if (!typed) { if (now[i]) removeAt(i); return; }
+    if (typed.length >= length) { writeAt(0, typed.slice(-length)); return; } // autofill of the whole code
+    // Typing over a filled box gives two characters; keep the new one.
+    const old = now[i];
+    const incoming = old && typed.length === 2 ? (typed[0] === old ? typed[1] : typed[0]) : typed;
+    writeAt(i, incoming);
+  };
+  const onKeyDown = (i, e) => {
+    const now = current.current;
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (now[i]) { removeAt(i); focusBox(i); } else if (i > 0) { removeAt(i - 1); focusBox(i - 1); }
+    } else if (e.key === 'Delete') {
+      e.preventDefault();
+      if (now[i]) removeAt(i);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault(); focusBox(i - 1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault(); focusBox(Math.min(i + 1, now.length));
+    } else if (e.key === 'Home') {
+      e.preventDefault(); focusBox(0);
+    } else if (e.key === 'End') {
+      e.preventDefault(); focusBox(now.length);
+    }
+  };
+  const onPaste = (i, e) => {
+    const digits = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+    e.preventDefault();
+    if (digits) writeAt(digits.length >= length ? 0 : i, digits);
+  };
+  // No gaps: clicking an empty box further right goes to the first empty one.
+  const onFocus = (i, e) => {
+    if (i > current.current.length) { focusBox(current.current.length); return; }
+    e.target.select();
+  };
+
   return (
-    <div className={`pt-pins ${size || ''}`} style={{ '--n': length }} onClick={() => ref.current?.focus()}>
+    <div className={`pt-pins ${size || ''}`} style={{ '--n': length }} role="group" aria-label={label}>
       {Array.from({ length }).map((_, i) => (
-        <div key={i} className={`pt-pin ${focused && i === Math.min(value.length, length - 1) ? 'active' : ''} ${error ? 'err' : ''}`}>
-          {i < value.length ? (show ? value[i] : <span className="dot" />) : null}
-        </div>
+        <input
+          key={i}
+          id={id ? `${id}-${i}` : undefined}
+          ref={(el) => { refs.current[i] = el; }}
+          className={`pt-pin ${error ? 'err' : ''} ${value[i] ? 'filled' : ''}`}
+          type={show ? 'text' : 'password'}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete={i === 0 ? autoComplete : 'off'}
+          autoFocus={autoFocus && i === 0}
+          aria-label={`${label} digit ${i + 1} of ${length}`}
+          aria-invalid={error ? true : undefined}
+          value={value[i] || ''}
+          onChange={(e) => onInput(i, e)}
+          onKeyDown={(e) => onKeyDown(i, e)}
+          onPaste={(e) => onPaste(i, e)}
+          onFocus={(e) => onFocus(i, e)}
+        />
       ))}
-      <input
-        ref={ref}
-        type="text"
-        inputMode="numeric"
-        autoComplete={autoComplete}
-        autoFocus={autoFocus}
-        aria-label={label}
-        value={value}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, length))}
-      />
     </div>
   );
 }

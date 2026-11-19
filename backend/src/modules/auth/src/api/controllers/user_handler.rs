@@ -124,8 +124,8 @@ pub async fn admin_update_user_handler(
 }
 
 /// Staff sign someone up (e.g. in person at a branch). This mirrors self-signup's
-/// registration side effects, just initiated by staff. There is no PIN: the member
-/// signs in with their phone number and a one-time code.
+/// registration side effects, just initiated by staff. Staff never see or set a passcode: the
+/// member sets their own with "Forgot passcode" (a code by SMS).
 pub async fn admin_create_user_handler(
     user_service: web::Data<dyn UserService>,
     claims: JwtClaims,
@@ -178,7 +178,7 @@ pub async fn admin_create_user_handler(
     let portal = std::env::var("PORTAL_URL").unwrap_or_default();
     let link = if portal.is_empty() { String::new() } else { format!(" at {}/auth", portal.trim_end_matches('/')) };
     let text = format!(
-        "Welcome to Bright Wings, {}! Your membership {} is ready. Sign in{} with this phone number; we'll text you a one-time code.",
+        "Welcome to Bright Wings, {}! Your membership {} is ready. To sign in{}, tap \"Forgot passcode\", enter this phone number and set your own 4-digit passcode with the code we text you.",
         user.first_name, user.membership_code, link
     );
     if shared::sms::sms_configured() {
