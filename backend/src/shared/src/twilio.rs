@@ -1,18 +1,26 @@
-//! Twilio Verify: Twilio generates, sends and checks the one-time sign-in code.
+//! Twilio: one-time codes by WhatsApp (Messages API + an approved authentication template)
+//! and by SMS (Twilio Verify).
 //!
-//! Configured with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID`.
-//! The code length (6 digits, must equal `OTP_LENGTH` in auth/api/utils/otp.rs) and expiry are set on
-//! the Verify Service in the Twilio Console,
-//! not here.
+//! Credentials: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`; SMS also needs `TWILIO_VERIFY_SERVICE_SID`.
+//! The Verify code length (6 digits, must equal `OTP_LENGTH` in auth/api/utils/otp.rs) and expiry are
+//! set on the Verify Service in the Twilio Console, not here.
+//!
+//! WhatsApp sender and template default to Bright Wings' own (below). `WHATSAPP_OTP_FROM` /
+//! `WHATSAPP_OTP_CONTENT_SID` override them, and `WHATSAPP_OTP_FROM=off` turns WhatsApp off.
+//! (Deliberately not `TWILIO_*`: the deploy workflow rewrites every `TWILIO_*` line of the server .env.)
 
 use std::time::Duration;
 
 const VERIFY_BASE: &str = "https://verify.twilio.com/v2/Services";
+const MESSAGES_BASE: &str = "https://api.twilio.com/2010-04-01/Accounts";
+/// Bright Wings' WhatsApp sender (connected in WhatsApp Manager and Twilio).
+const DEFAULT_WHATSAPP_FROM: &str = "+919252153290";
+/// Template `otp_code_whatsapp` (Authentication): "{{1}} is your verification code..." + Copy code button.
+const DEFAULT_WHATSAPP_CONTENT_SID: &str = "HX611fe1a9d4dae2ff54ef7bfddaec21db";
 
-struct Config {
+struct Credentials {
     account_sid: String,
     auth_token: String,
-    service_sid: String,
 }
 
 fn env_optional(key: &str) -> Option<String> {
@@ -20,17 +28,36 @@ fn env_optional(key: &str) -> Option<String> {
     std::env::var(key).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
 }
 
-fn config() -> Option<Config> {
-    Some(Config {
+fn credentials() -> Option<Credentials> {
+    Some(Credentials {
         account_sid: env_optional("TWILIO_ACCOUNT_SID")?,
         auth_token: env_optional("TWILIO_AUTH_TOKEN")?,
-        service_sid: env_optional("TWILIO_VERIFY_SERVICE_SID")?,
     })
 }
 
-/// True when all three Twilio settings are present.
+fn verify_service_sid() -> Option<String> {
+    env_optional("TWILIO_VERIFY_SERVICE_SID")
+}
+
+/// (sender in E.164, template ContentSid), or None when WhatsApp is switched off.
+fn whatsapp_sender() -> Option<(String, String)> {
+    let from = env_optional("WHATSAPP_OTP_FROM").unwrap_or_else(|| DEFAULT_WHATSAPP_FROM.to_string());
+    if from.eq_ignore_ascii_case("off") {
+        return None;
+    }
+    let content_sid =
+        env_optional("WHATSAPP_OTP_CONTENT_SID").unwrap_or_else(|| DEFAULT_WHATSAPP_CONTENT_SID.to_string());
+    Some((from.trim_start_matches("whatsapp:").to_string(), content_sid))
+}
+
+/// True when the SMS path (Twilio Verify) has all three settings.
 pub fn verify_configured() -> bool {
-    config().is_some()
+    credentials().is_some() && verify_service_sid().is_some()
+}
+
+/// True when codes can go out by WhatsApp (credentials present and WhatsApp not switched off).
+pub fn whatsapp_configured() -> bool {
+    credentials().is_some() && whatsapp_sender().is_some()
 }
 
 /// Stored phones are bare 10 digits for India and `+<country><number>` for everyone else;
@@ -57,17 +84,22 @@ fn form_encode(pairs: &[(&str, &str)]) -> String {
     pairs.iter().map(|(k, v)| format!("{}={}", encode(k), encode(v))).collect::<Vec<_>>().join("&")
 }
 
-async fn post(path: &str, pairs: &[(&str, &str)]) -> Result<serde_json::Value, String> {
-    let cfg = config().ok_or("Twilio Verify is not configured")?;
+/// POST a form (`Some(pairs)`) or GET (`None`) to a Twilio URL with Basic auth.
+async fn call(url: &str, form: Option<&[(&str, &str)]>) -> Result<serde_json::Value, String> {
+    let creds = credentials().ok_or("Twilio is not configured")?;
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .build()
         .map_err(|e| e.to_string())?;
-    let response = client
-        .post(format!("{VERIFY_BASE}/{}/{path}", cfg.service_sid))
-        .basic_auth(&cfg.account_sid, Some(&cfg.auth_token))
-        .header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-        .body(form_encode(pairs))
+    let request = match form {
+        Some(pairs) => client
+            .post(url)
+            .header(reqwest::header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(form_encode(pairs)),
+        None => client.get(url),
+    };
+    let response = request
+        .basic_auth(&creds.account_sid, Some(&creds.auth_token))
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -81,10 +113,15 @@ async fn post(path: &str, pairs: &[(&str, &str)]) -> Result<serde_json::Value, S
     }
 }
 
-/// Sends a new code by SMS to `stored_phone`.
+async fn verify_post(path: &str, pairs: &[(&str, &str)]) -> Result<serde_json::Value, String> {
+    let service_sid = verify_service_sid().ok_or("Twilio Verify is not configured")?;
+    call(&format!("{VERIFY_BASE}/{service_sid}/{path}"), Some(pairs)).await
+}
+
+/// Sends a new code by SMS to `stored_phone` (Twilio Verify generates and later checks it).
 pub async fn send_code(stored_phone: &str) -> Result<(), String> {
     let to = to_e164(stored_phone);
-    post("Verifications", &[("To", to.as_str()), ("Channel", "sms")]).await.map(|_| ())
+    verify_post("Verifications", &[("To", to.as_str()), ("Channel", "sms")]).await.map(|_| ())
 }
 
 /// `Ok(true)` when Twilio approves `code` for `stored_phone`. A wrong code is `Ok(false)`;
@@ -92,11 +129,42 @@ pub async fn send_code(stored_phone: &str) -> Result<(), String> {
 /// also treated as "not approved".
 pub async fn check_code(stored_phone: &str, code: &str) -> Result<bool, String> {
     let to = to_e164(stored_phone);
-    match post("VerificationCheck", &[("To", to.as_str()), ("Code", code)]).await {
+    match verify_post("VerificationCheck", &[("To", to.as_str()), ("Code", code)]).await {
         Ok(body) => Ok(body["status"] == "approved"),
         Err(err) if err.starts_with("Twilio 404") => Ok(false),
         Err(err) => Err(err),
     }
+}
+
+/// Sends `code` (generated and checked by us) through the WhatsApp authentication template.
+/// Returns the message SID, for `whatsapp_status`.
+pub async fn send_whatsapp_code(stored_phone: &str, code: &str) -> Result<String, String> {
+    let creds = credentials().ok_or("Twilio is not configured")?;
+    let (from, content_sid) = whatsapp_sender().ok_or("WhatsApp codes are switched off")?;
+    let from = format!("whatsapp:{from}");
+    let to = format!("whatsapp:{}", to_e164(stored_phone));
+    let variables = serde_json::json!({ "1": code }).to_string();
+    let url = format!("{MESSAGES_BASE}/{}/Messages.json", creds.account_sid);
+    let body = call(
+        &url,
+        Some(&[
+            ("From", from.as_str()),
+            ("To", to.as_str()),
+            ("ContentSid", content_sid.as_str()),
+            ("ContentVariables", variables.as_str()),
+        ]),
+    )
+    .await?;
+    body["sid"].as_str().map(str::to_string).ok_or_else(|| "Twilio returned no message SID".to_string())
+}
+
+/// Current status of a sent message: queued, sending, sent, delivered, read, failed or undelivered,
+/// plus Twilio's error code when there is one.
+pub async fn whatsapp_status(message_sid: &str) -> Result<(String, Option<i64>), String> {
+    let creds = credentials().ok_or("Twilio is not configured")?;
+    let url = format!("{MESSAGES_BASE}/{}/Messages/{message_sid}.json", creds.account_sid);
+    let body = call(&url, None).await?;
+    Ok((body["status"].as_str().unwrap_or_default().to_string(), body["error_code"].as_i64()))
 }
 
 #[cfg(test)]
@@ -112,5 +180,9 @@ mod tests {
     #[test]
     fn form_values_are_encoded() {
         assert_eq!(form_encode(&[("To", "+919876543210"), ("Channel", "sms")]), "To=%2B919876543210&Channel=sms");
+        assert_eq!(
+            form_encode(&[("To", "whatsapp:+918000192248"), ("ContentVariables", r#"{"1":"123456"}"#)]),
+            "To=whatsapp%3A%2B918000192248&ContentVariables=%7B%221%22%3A%22123456%22%7D"
+        );
     }
 }

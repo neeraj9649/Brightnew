@@ -47,7 +47,8 @@ TEST_DATABASE_URL=postgresql:///bp_scratch \
 | --- | --- | --- |
 | `DATABASE_URL`, `ADDRESS`, `PORT` | yes | Postgres and listen address |
 | `JWT_SECRET`, `REFRESH_TOKEN_SECRET`, `PASSWORD_HASH_SECRET` | yes | Token and code hashing secrets |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | **yes, for sign-in** | Twilio Verify sends the 4-digit sign-in / join code by SMS. Set the Verify Service code length to 4 in the Twilio Console |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | **yes, for sign-in** | Codes go by WhatsApp (Messages API template) and fall back to SMS via Twilio Verify. Set the Verify Service code length to 6 in the Twilio Console |
+| `WHATSAPP_OTP_FROM`, `WHATSAPP_OTP_CONTENT_SID` | optional | Override the built-in WhatsApp sender (`+919252153290`) and template (`otp_code_whatsapp`); `WHATSAPP_OTP_FROM=off` sends SMS only. Not `TWILIO_*`, because the deploy workflow rewrites those lines |
 | `CORS_ALLOWED_ORIGIN` | yes | Comma-separated portal origins (e.g. `https://portal.brightwingstravel.com`) |
 | `PHP_UPLOADER_BASE_URL`, `PHP_UPLOADER_TOKEN` | yes | File uploads (profile images, documents) |
 | `SMS_WEBHOOK_URL` | optional | Welcome SMS for staff-created accounts. | Gateway receiving `POST {"to","message"}`; optional `SMS_WEBHOOK_TOKEN` is sent as a bearer token |
@@ -57,9 +58,11 @@ TEST_DATABASE_URL=postgresql:///bp_scratch \
 | `ENABLE_APP_CORS=true` | optional | Turns on the API's own CORS layer (off by default; leave off when your reverse proxy already sends CORS headers, otherwise browsers see duplicate headers) |
 | `OTP_DEV_ECHO=true` | **never in production** | Returns the sign-in code in the API response for local testing |
 
-Everyone signs in with their phone number and a 4-digit passcode. A 6-digit SMS code is used
-only to confirm the phone when joining and for *Forgot passcode*. Codes go out through Twilio
-Verify; if that fails and the account has an e-mail address, a code is e-mailed instead.
+Everyone signs in with their phone number and a 4-digit passcode. A 6-digit code is used
+only to confirm the phone when joining and for *Forgot passcode*. The first code goes by WhatsApp;
+if Twilio reports it failed/undelivered (e.g. no WhatsApp on that number), or the member taps
+*Resend*, it goes by SMS through Twilio Verify. If that fails too and the account has an e-mail
+address, a code is e-mailed instead.
 **Without Twilio nobody can join or reset a passcode.**
 
 ## Releases

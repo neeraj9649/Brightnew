@@ -1,8 +1,9 @@
 //! One-time codes (6 digits) for joining and for resetting a forgotten passcode.
 //!
-//! Delivery order: Twilio Verify SMS -> e-mail with a locally generated code (only when the
-//! account has an e-mail address) -> error. With `OTP_DEV_ECHO=true` (local development only)
-//! a local code is also returned in the API response.
+//! Delivery order: WhatsApp template with a locally generated code (falls back when Twilio reports
+//! it failed/undelivered; resends skip it) -> Twilio Verify SMS -> e-mail with a local code (only
+//! when the account has an e-mail address) -> error. With `OTP_DEV_ECHO=true` (local development
+//! only) a local code is also returned in the API response.
 
 use base::constants::PASSWORD_HASH_SECRET;
 use base::error::ApiError;
@@ -39,7 +40,7 @@ impl OtpPurpose {
 
 /// What the client is told after a code was sent.
 pub struct OtpSent {
-    /// "sms", "email", or "dev" (development echo).
+    /// "whatsapp", "sms", "email", or "dev" (development echo).
     pub channel: &'static str,
     /// Only with OTP_DEV_ECHO=true on a local machine.
     pub dev_code: Option<String>,
@@ -88,7 +89,47 @@ async fn insert_request(
     Ok(())
 }
 
+fn generate_code() -> String {
+    format!("{:0width$}", rand::thread_rng().gen_range(0..10_u32.pow(OTP_LENGTH as u32)), width = OTP_LENGTH)
+}
+
+/// How a WhatsApp status settles the send: `Some(true)` reached the phone, `Some(false)` failed
+/// (fall back to SMS), `None` still on its way.
+fn whatsapp_outcome(status: &str) -> Option<bool> {
+    match status {
+        "delivered" | "read" => Some(true),
+        "failed" | "undelivered" => Some(false),
+        _ => None,
+    }
+}
+
+const WHATSAPP_STATUS_CHECKS: u32 = 8;
+
+/// Sends `code` by WhatsApp and watches the status for a few seconds. A number without WhatsApp
+/// (or a template problem) fails within a second or two. A message still "sent" after the wait
+/// (phone offline) is accepted; "Resend code" then goes by SMS.
+async fn send_whatsapp(phone: &str, code: &str) -> Result<(), String> {
+    let sid = shared::twilio::send_whatsapp_code(phone, code).await?;
+    for _ in 0..WHATSAPP_STATUS_CHECKS {
+        actix_web::rt::time::sleep(std::time::Duration::from_secs(1)).await;
+        match shared::twilio::whatsapp_status(&sid).await {
+            Ok((status, error_code)) => match whatsapp_outcome(&status) {
+                Some(true) => return Ok(()),
+                Some(false) => return Err(format!("message {sid} {status} (error {error_code:?})")),
+                None => {}
+            },
+            // Can't read the status: the message was accepted, so don't send a second code.
+            Err(err) => {
+                log::warn!("Could not read WhatsApp status of {sid}: {err}");
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Sends a code to `phone` (stored form). `email` is the account's address for the fallback.
+/// Order: WhatsApp (first send only) -> SMS via Twilio Verify -> e-mail.
 pub async fn send_code(
     pool: &PgPool,
     phone: &str,
@@ -107,6 +148,31 @@ pub async fn send_code(
         return Err(ApiError::new("Please wait a minute before requesting another code", 429));
     }
 
+    // A live, unused code already exists, so this is "Resend code": the first message may not have
+    // reached them on WhatsApp, so the resend goes by SMS.
+    let is_resend: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM otp_requests WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL AND expires_at > NOW())",
+    )
+    .bind(phone)
+    .bind(purpose.as_str())
+    .fetch_one(pool)
+    .await
+    .map_err(db_err)?;
+
+    // Our own code: used for WhatsApp and the e-mail fallback (SMS via Verify makes its own).
+    let code = generate_code();
+
+    if !is_resend && shared::twilio::whatsapp_configured() {
+        match send_whatsapp(phone, &code).await {
+            Ok(()) => {
+                // ponytail: stored as channel 'local' (we hold the hash), the value the 0034 CHECK allows.
+                insert_request(pool, phone, purpose, "local", Some(code_hash(&code, phone, purpose))).await?;
+                return Ok(OtpSent { channel: "whatsapp", dev_code: dev_echo().then(|| code.clone()) });
+            }
+            Err(err) => log::warn!("WhatsApp code to {phone} failed, falling back to SMS: {err}"),
+        }
+    }
+
     if shared::twilio::verify_configured() {
         match shared::twilio::send_code(phone).await {
             Ok(()) => {
@@ -118,7 +184,6 @@ pub async fn send_code(
     }
 
     // Fallback: our own code, by e-mail (or echoed back on a development machine).
-    let code = format!("{:0width$}", rand::thread_rng().gen_range(0..10_u32.pow(OTP_LENGTH as u32)), width = OTP_LENGTH);
     let mut channel = None;
     if let Some(email) = email {
         let to = email.to_string();
@@ -207,5 +272,22 @@ mod tests {
         assert!(!is_valid_otp_format("0421"));
         assert!(!is_valid_otp_format("0421135"));
         assert!(!is_valid_otp_format("04a113"));
+    }
+
+    #[test]
+    fn generated_codes_have_the_right_length() {
+        for _ in 0..100 {
+            assert!(is_valid_otp_format(&generate_code()));
+        }
+    }
+
+    #[test]
+    fn whatsapp_statuses() {
+        assert_eq!(whatsapp_outcome("delivered"), Some(true));
+        assert_eq!(whatsapp_outcome("read"), Some(true));
+        assert_eq!(whatsapp_outcome("failed"), Some(false));
+        assert_eq!(whatsapp_outcome("undelivered"), Some(false));
+        assert_eq!(whatsapp_outcome("sent"), None);
+        assert_eq!(whatsapp_outcome("queued"), None);
     }
 }
