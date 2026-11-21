@@ -110,9 +110,20 @@ const WHATSAPP_STATUS_CHECKS: u32 = 8;
 /// (phone offline) is accepted; "Resend code" then goes by SMS.
 async fn send_whatsapp(phone: &str, code: &str) -> Result<(), String> {
     let sid = shared::twilio::send_whatsapp_code(phone, code).await?;
+    // Bound the whole wait: each status call may take up to its own 15 s timeout.
+    match actix_web::rt::time::timeout(std::time::Duration::from_secs(12), watch_whatsapp(&sid)).await {
+        Ok(result) => result,
+        Err(_) => {
+            log::warn!("WhatsApp status of {sid} still unknown after 12 s, keeping it");
+            Ok(())
+        }
+    }
+}
+
+async fn watch_whatsapp(sid: &str) -> Result<(), String> {
     for _ in 0..WHATSAPP_STATUS_CHECKS {
         actix_web::rt::time::sleep(std::time::Duration::from_secs(1)).await;
-        match shared::twilio::whatsapp_status(&sid).await {
+        match shared::twilio::whatsapp_status(sid).await {
             Ok((status, error_code)) => match whatsapp_outcome(&status) {
                 Some(true) => return Ok(()),
                 Some(false) => return Err(format!("message {sid} {status} (error {error_code:?})")),
@@ -211,19 +222,23 @@ pub async fn check_code(pool: &PgPool, phone: &str, purpose: OtpPurpose, code: &
     if !is_valid_otp_format(code) {
         return Err(invalid());
     }
-    let request: Option<(Uuid, String, Option<String>)> = sqlx::query_as(
+    // Every live code counts, not only the newest: after "Resend" (by SMS) the first WhatsApp
+    // message may still arrive, and the member may type that one.
+    let live: Vec<(Uuid, String, Option<String>)> = sqlx::query_as(
         r#"SELECT id, channel, code_hash FROM otp_requests
            WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL AND expires_at > NOW()
-           ORDER BY created_at DESC LIMIT 1"#,
+           ORDER BY created_at DESC LIMIT 10"#,
     )
     .bind(phone)
     .bind(purpose.as_str())
-    .fetch_optional(pool)
+    .fetch_all(pool)
     .await
     .map_err(db_err)?;
-    let Some((id, channel, stored_hash)) = request else {
+    // Attempts are counted on the newest request (a resend starts a fresh count, as before).
+    let Some((id, _, _)) = live.first() else {
         return Err(invalid());
     };
+    let id = *id;
 
     // Claim an attempt atomically, so parallel guesses cannot all slip under the limit.
     let claimed: Option<i32> = sqlx::query_scalar(
@@ -238,21 +253,26 @@ pub async fn check_code(pool: &PgPool, phone: &str, purpose: OtpPurpose, code: &
         return Err(ApiError::new("Too many attempts. Please request a new code", 429));
     }
 
-    let approved = if channel == "twilio" {
-        shared::twilio::check_code(phone, code).await.map_err(|err| {
+    // Our own codes (WhatsApp / e-mail) first: no network call. Then Twilio Verify, if an SMS went out.
+    let hash = code_hash(code, phone, purpose);
+    let mut approved = live
+        .iter()
+        .any(|(_, channel, stored)| channel == "local" && stored.as_deref() == Some(hash.as_str()));
+    if !approved && live.iter().any(|(_, channel, _)| channel == "twilio") {
+        approved = shared::twilio::check_code(phone, code).await.map_err(|err| {
             log::error!("Twilio Verify check failed for {phone}: {err}");
             ApiError::new("We couldn't check your code right now. Please try again.", 503)
-        })?
-    } else {
-        stored_hash.as_deref() == Some(code_hash(code, phone, purpose).as_str())
-    };
+        })?;
+    }
     if !approved {
         return Err(invalid());
     }
 
-    // Used once: only the request that just passed can be consumed, and only one caller wins.
-    let consumed = sqlx::query("UPDATE otp_requests SET consumed_at = NOW() WHERE id = $1 AND consumed_at IS NULL")
-        .bind(id)
+    // Used once: consuming every live code means the other one (WhatsApp vs SMS) can't be used
+    // later, and of two parallel correct submissions only the first wins.
+    let ids: Vec<Uuid> = live.iter().map(|(id, _, _)| *id).collect();
+    let consumed = sqlx::query("UPDATE otp_requests SET consumed_at = NOW() WHERE id = ANY($1) AND consumed_at IS NULL")
+        .bind(&ids)
         .execute(pool)
         .await
         .map_err(db_err)?;

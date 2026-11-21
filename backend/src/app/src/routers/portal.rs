@@ -869,8 +869,23 @@ async fn public_program_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<V
     })))
 }
 
+/// Unauthenticated list of active airports for the flight form's From / To suggestions
+/// (table `airports`, migration 0035).
+async fn public_airports_handler(pool: web::Data<PgPool>) -> Result<ApiResponse<Value>, ApiError> {
+    let rows: Vec<(String, String)> =
+        sqlx::query_as("SELECT code, name FROM airports WHERE is_active ORDER BY sort_order, name")
+            .fetch_all(pool.get_ref())
+            .await
+            .map_err(db_err)?;
+    Ok(ApiResponse(json!(rows
+        .into_iter()
+        .map(|(code, name)| json!({ "code": code, "name": name }))
+        .collect::<Vec<_>>())))
+}
+
 pub fn portal_routes(cfg: &mut ServiceConfig) {
     cfg.route("/public/program", web::get().to(public_program_handler))
+        .route("/public/airports", web::get().to(public_airports_handler))
         .route("/public/offers", web::get().to(super::workflow::public_offers_handler))
     .service(
         web::scope("/preferences")

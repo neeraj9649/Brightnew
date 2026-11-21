@@ -65,6 +65,26 @@ export function ServiceSelect() {
 
 const flatten = (fields) => fields.flat();
 
+// Airports for the flight From / To suggestions, loaded once per page load from the `airports`
+// table. Until it arrives (or if the call fails) the built-in CITIES list is used.
+let airportCache = null;
+function AirportDatalist({ id }) {
+  const [options, setOptions] = useState(airportCache || CITIES);
+  useEffect(() => {
+    if (airportCache) return undefined;
+    let live = true;
+    api.get('/public/airports')
+      .then((rows) => {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        airportCache = rows.map((a) => `${a.name} (${a.code})`);
+        if (live) setOptions(airportCache);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+  return <datalist id={id}>{options.map((c) => <option key={c} value={c} />)}</datalist>;
+}
+
 export function FieldView({ def, form, set, error }) {
   const value = form[def.key];
   const label = def.label;
@@ -82,11 +102,11 @@ export function FieldView({ def, form, set, error }) {
       return (
         <div style={{ position: 'relative' }}>
           <div className="pt-grid2" style={{ gap: 14 }}>
-            <Field label="From" error={error?.from}><Input icon={MapPin} list="bw-cities" value={form.from || ''} onChange={(e) => set('from', e.target.value)} placeholder="Jaipur (JAI)" error={error?.from} /></Field>
-            <Field label="To" error={error?.to}><Input icon={MapPin} list="bw-cities" value={form.to || ''} onChange={(e) => set('to', e.target.value)} placeholder="Goa (GOI)" error={error?.to} /></Field>
+            <Field label="From" error={error?.from}><Input icon={MapPin} list="bw-airports" value={form.from || ''} onChange={(e) => set('from', e.target.value)} placeholder="Jaipur (JAI)" error={error?.from} /></Field>
+            <Field label="To" error={error?.to}><Input icon={MapPin} list="bw-airports" value={form.to || ''} onChange={(e) => set('to', e.target.value)} placeholder="Goa (GOI)" error={error?.to} /></Field>
           </div>
           <button type="button" aria-label="Swap" className="pt-icon-btn" style={{ position: 'absolute', left: 'calc(50% - 19px)', top: 27, width: 38, height: 38, background: '#fff', border: '1px solid var(--pt-line-strong)' }} onClick={() => { const f = form.from; set('from', form.to); set('to', f); }}><ArrowLeftRight size={16} /></button>
-          <datalist id="bw-cities">{CITIES.map((c) => <option key={c} value={c} />)}</datalist>
+          <AirportDatalist id="bw-airports" />
         </div>
       );
     case 'city':
