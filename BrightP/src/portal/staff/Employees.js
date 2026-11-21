@@ -92,18 +92,19 @@ export default function Employees() {
           </div>
         )}
       </div>
-      <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} onDone={() => { setInviteOpen(false); loadAllUsers(); }} />
+      <InviteModal open={inviteOpen} onClose={() => setInviteOpen(false)} onDone={() => { setInviteOpen(false); loadAllUsers(); }} allUsers={allUsers} />
     </StaffShell>
   );
 }
 
-function InviteModal({ open, onClose, onDone }) {
+function InviteModal({ open, onClose, onDone, allUsers }) {
   const { isSuperAdmin } = useAuth();
   const [form, setForm] = useState({ name: '', phone: '', email: '', hr: '', role: 'employee' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
-  const close = () => { setForm({ name: '', phone: '', email: '', hr: '', role: 'employee' }); setErrors({}); setDone(null); onClose(); };
+  const [existing, setExisting] = useState(null);
+  const close = () => { setForm({ name: '', phone: '', email: '', hr: '', role: 'employee' }); setErrors({}); setDone(null); setExisting(null); onClose(); };
   const submit = async (e) => {
     e.preventDefault();
     const next = {};
@@ -112,6 +113,10 @@ function InviteModal({ open, onClose, onDone }) {
     if (!form.hr.trim()) next.hr = 'HR code is required';
     setErrors(next);
     if (Object.keys(next).length) return;
+    // Deactivating never frees up the phone number: the account still exists (usually as a
+    // customer). Creating a new account would just 409 on it, so offer to promote it instead.
+    const match = allUsers.find((u) => u.profile?.phone === toStoredPhone(form.phone));
+    if (match) { setExisting(match); return; }
     setBusy(true);
     try {
       const [first, ...rest] = form.name.trim().split(/\s+/);
@@ -120,12 +125,27 @@ function InviteModal({ open, onClose, onDone }) {
       setDone(user);
     } catch (err) { setErrors({ form: err.status === 409 ? 'That phone number or HR code is already in use.' : err.message }); } finally { setBusy(false); }
   };
+  const confirmPromote = async () => {
+    setBusy(true);
+    try {
+      const user = await api.patch('/admin/users', { id: existing.uid, role: form.role, is_active: true });
+      setExisting(null);
+      setDone(user);
+    } catch (err) { toast.error(err.message); } finally { setBusy(false); }
+  };
   return (
     <Modal open={open} onClose={close} side label="Invite employee">
-      {done ? (
+      {existing ? (
+        <div className="pt-stack lg">
+          <ModalHead title="This phone already has an account" sub="Reactivate and promote it instead of creating a new one." onClose={close} />
+          <Notice tone="red" icon={CircleAlert}>{existing.displayName} ({formatPhone(existing.profile?.phone)}) already has an account — currently {ROLE_LABEL[existing.role] || 'Customer'}, {existing.isActive ? 'active' : 'inactive'}.</Notice>
+          <p className="pt-small">Reactivating will restore sign-in access and set their role to {ROLE_LABEL[form.role]}. Their Wings, bookings and account history are kept as they are, and their HR code (if any) does not change.</p>
+          <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={() => setExisting(null)}>Back</button><button type="button" className="pt-btn" disabled={busy} onClick={confirmPromote}>{busy ? 'Working…' : `Make ${ROLE_LABEL[form.role]}`}</button></div>
+        </div>
+      ) : done ? (
         <div className="pt-stack lg" style={{ textAlign: 'center', paddingTop: 30 }}>
           <div className="pt-success-mark"><CircleCheck size={44} /></div>
-          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name} has been added</h2><p className="pt-sub" style={{ marginTop: 6 }}>To sign in the first time, they tap “Forgot passcode” on the sign-in page, enter {formatPhone(done.phone)} and set their own 4-digit passcode with the code we text them.</p></div>
+          <div><h2 className="pt-h1" style={{ fontSize: 22 }}>{done.first_name} has been added</h2><p className="pt-sub" style={{ marginTop: 6 }}>To sign in, they tap “Forgot passcode” on the sign-in page, enter {formatPhone(done.phone)} and set their own 4-digit passcode with the code we text them (or sign in directly if they already remember an existing one).</p></div>
           <Notice icon={ShieldCheck}>There is no passcode to share. Only the owner of that phone can set one.</Notice>
           <button type="button" className="pt-btn full" onClick={() => { setDone(null); onDone(); }}>Done</button>
         </div>
