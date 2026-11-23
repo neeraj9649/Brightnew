@@ -2,32 +2,24 @@
 
 import TextAnimation from "@/components/common/AnimatedText/TextAnimation";
 import { blogData } from "@/data/blogFiveData";
-import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { blogDate, blogLink, getBlogPosts, type BlogPostSummary } from "@/lib/api";
 import { Col, Container, Row } from "react-bootstrap";
 
-interface BlogPost {
-  id: number;
-  image: string;
-  title: string;
-  link: string;
-  date: string;
-  day: string;
-  month: string;
-  author: string;
-  category: string;
-}
-
-// Define the interface for the blog data
-interface BlogData {
+// Section heading text stays in blogFiveData; the posts come from the admin portal.
+interface BlogHeading {
   subTitle: string;
   title: string;
   titleSpan: string;
-  description: string;
-  posts: BlogPost[];
 }
 const BlogFive: React.FC = () => {
-  const { posts, subTitle, title, titleSpan }: BlogData = blogData;
+  const { subTitle, title, titleSpan }: BlogHeading = blogData;
+  const [posts, setPosts] = useState<BlogPostSummary[]>([]);
+  useEffect(() => {
+    // The home page still works if the blog can't load; the section just has no cards.
+    getBlogPosts().then((all) => setPosts(all.slice(0, 4))).catch(() => setPosts([]));
+  }, []);
   return (
     <section className='blog-five section-space-top' id='blog'>
       <Container className='container'>
@@ -45,65 +37,52 @@ const BlogFive: React.FC = () => {
         </div>
 
         <Row className='gutter-y-30'>
-          {posts.map((post) => (
-            <Col
-              xl={3}
-              className='col-xl-3 col-lg-4 col-md-6 col-sm-6'
-              key={post.id}
-            >
-              <div
-                className='blog-card-two blog-card-two--two wow fadeInUp'
-                data-wow-duration='1500ms'
-                data-wow-delay={`${100 * post.id}ms`}
+          {posts.map((post, index) => {
+            const date = blogDate(post.published_on);
+            const link = blogLink(post.slug);
+            return (
+              <Col
+                xl={3}
+                className='col-xl-3 col-lg-4 col-md-6 col-sm-6'
+                key={post.slug}
               >
-                <div className='blog-card-two__image'>
-                  <img src={post.image} alt={post.title} width={200} height={200}/>
-                  <Link href={post.link} className='blog-card-two__image__link'>
-                    <span className='sr-only'>{post.title}</span>
-                  </Link>
-                </div>
-                <div className='blog-card-two__content'>
-                  <div className='blog-card-two__top'>
-                    <div className='blog-card-two__date'>
-                      <span className='blog-card-two__date__day'>
-                        {post.day}
-                      </span>
-                      <span className='blog-card-two__date__month'>
-                        {post.month}
-                      </span>
-                    </div>
-                    <ul className='list-unstyled blog-card-two__meta'>
-                      <li>
-                        <Link href={post.link}>
-                          <span className='blog-card-two__meta__icon'>
-                            <i className='icon-user'></i>
-                          </span>
-                          By {post.author}
-                        </Link>
-                      </li>
-                      <li>
-                        <Link href={post.link}>
-                          <span className='blog-card-two__meta__icon'>
-                            <i className='icon-price-tag'></i>
-                          </span>
-                          {post.category}
-                        </Link>
-                      </li>
-                    </ul>
+                <div
+                  className='blog-card-two blog-card-two--two wow fadeInUp'
+                  data-wow-duration='1500ms'
+                  data-wow-delay={`${100 * (index + 1)}ms`}
+                >
+                  <div className='blog-card-two__image'>
+                    <img src={post.cover_image} alt={post.title} width={200} height={200}/>
+                    <Link href={link} className='blog-card-two__image__link'>
+                      <span className='sr-only'>{post.title}</span>
+                    </Link>
                   </div>
-                  <h3 className='blog-card-two__title'>
-                    <Link href={post.link}>{post.title}</Link>
-                  </h3>
-                  <Link
-                    href={post.link}
-                    className='blog-card-two__content__btn'
-                  >
-                    Read More <i className='icon-arrow-right'></i>
-                  </Link>
+                  <div className='blog-card-two__content'>
+                    <div className='blog-card-two__top'>
+                      <div className='blog-card-two__date'>
+                        <span className='blog-card-two__date__day'>{date.day}</span>
+                        <span className='blog-card-two__date__month'>{date.month}</span>
+                      </div>
+                      <ul className='list-unstyled blog-card-two__meta'>
+                        <li>
+                          <span className='blog-card-two__meta__icon'>
+                            <i className='icon-calendar'></i>
+                          </span>
+                          <small>{date.full}</small>
+                        </li>
+                      </ul>
+                    </div>
+                    <h3 className='blog-card-two__title'>
+                      <Link href={link}>{post.title}</Link>
+                    </h3>
+                    <Link href={link} className='blog-card-two__content__btn'>
+                      Read More <i className='icon-arrow-right'></i>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            </Col>
-          ))}
+              </Col>
+            );
+          })}
         </Row>
       </Container>
     </section>

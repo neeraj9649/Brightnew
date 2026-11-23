@@ -145,3 +145,24 @@ body.rtl .main-slider-one__destinations__hover {
 .contact-page__submit:disabled::after {
   width: 0;
 }
+
+/* Blog comments: a letter avatar instead of the template's stock photos. */
+.comments-one__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-color: var(--gotur-primary, #f7921e);
+  color: var(--gotur-white, #fff);
+  font-size: 36px;
+  font-weight: 700;
+}
+/* Blog cards and post: the full date ("17 Mar 2026") in small text where author and category were. */
+.blog-card__meta small,
+.blog-card-two__meta small,
+.blog-details-card__meta small {
+  font-size: 13px;
+  margin-left: 6px;
+}

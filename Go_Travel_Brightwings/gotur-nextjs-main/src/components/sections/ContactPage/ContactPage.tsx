@@ -43,7 +43,6 @@ const ContactPage: React.FC = () => {
         phone: value("phone"),
         message: value("message"),
         source: "contact",
-        page_url: window.location.href,
       });
       form.reset();
       setResult({ ok: true, text: "Thank you! Your message has been sent. We'll get back to you soon." });

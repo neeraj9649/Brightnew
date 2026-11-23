@@ -1,86 +1,73 @@
 "use client";
 
-import Pagination from "@/components/common/Pagination/Pagination";
-import { blogGridData } from "@/data/blogGridData";
-import Image from "next/image";
+import { useEffect, useState } from "react";
 import { Col, Container, Row } from "react-bootstrap";
 import Link from "next/link";
-interface BlogPost {
-  id: number;
-  image: string;
-  title: string;
-  link: string;
-  date: string;
-  day: string;
-  month: string;
-  author: string;
-  category: string;
-}
+import { blogDate, blogLink, getBlogPosts, type BlogPostSummary } from "@/lib/api";
 
-// Define the interface for the blog data
-interface BlogData {
-  posts: BlogPost[];
-}
-
+// Blog page: every published post from the admin portal, newest first.
 const BlogGrid: React.FC = () => {
-  const { posts }: BlogData = blogGridData;
+  const [posts, setPosts] = useState<BlogPostSummary[] | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getBlogPosts().then(setPosts).catch((e: Error) => setError(e.message));
+  }, []);
+
   return (
     <section className='blog-page section-space'>
       <Container className='container'>
         <Row className='gutter-y-30'>
-          {posts.map((post: BlogPost) => (
-            <Col lg={4} md={6} key={post.id}>
-              <div
-                className='blog-card wow fadeInUp'
-                data-wow-duration='1500ms'
-                data-wow-delay={`${100 * post.id}ms`}
-              >
-                <div className='blog-card__image'>
-                  <Image src={post.image} alt={post.title} width={150} height={150}/>
-                  <Link href={post.link} className='blog-card-two__image__link'>
-                    <span className='sr-only'>{post.title}</span>
-                  </Link>
-                </div>
-                <div className='blog-card__content'>
-                  <div className='blog-card__content__top'>
-                    <div className='blog-card__date'>
-                      <span className='blog-card__date__day'>{post.day}</span>
-                      <span className='blog-card__date__month'>
-                        {post.month}
-                      </span>
+          {error ? (
+            <Col lg={12}><p className='text-center'>{error}</p></Col>
+          ) : !posts ? (
+            <Col lg={12}><p className='text-center'>Loading posts…</p></Col>
+          ) : !posts.length ? (
+            <Col lg={12}><p className='text-center'>No blog posts yet. Please check back soon.</p></Col>
+          ) : (
+            posts.map((post, index) => {
+              const date = blogDate(post.published_on);
+              const link = blogLink(post.slug);
+              return (
+                <Col lg={4} md={6} key={post.slug}>
+                  <div
+                    className='blog-card wow fadeInUp'
+                    data-wow-duration='1500ms'
+                    data-wow-delay={`${100 * ((index % 3) + 1)}ms`}
+                  >
+                    <div className='blog-card__image'>
+                      <img src={post.cover_image} alt={post.title} />
+                      <Link href={link} className='blog-card-two__image__link'>
+                        <span className='sr-only'>{post.title}</span>
+                      </Link>
                     </div>
-                    <ul className='list-unstyled blog-card__meta'>
-                      <li>
-                        <Link href={post.link}>
-                          <span className='blog-card__meta__icon'>
-                            <i className='icon-user'></i>
-                          </span>
-                          By {post.author}
-                        </Link>
-                      </li>
-                      <li>
-                        <Link href={post.link}>
-                          <span className='blog-card__meta__icon'>
-                            <i className='icon-price-tag'></i>
-                          </span>
-                          {post.category}
-                        </Link>
-                      </li>
-                    </ul>
+                    <div className='blog-card__content'>
+                      <div className='blog-card__content__top'>
+                        <div className='blog-card__date'>
+                          <span className='blog-card__date__day'>{date.day}</span>
+                          <span className='blog-card__date__month'>{date.month}</span>
+                        </div>
+                        <ul className='list-unstyled blog-card__meta'>
+                          <li>
+                            <span className='blog-card__meta__icon'>
+                              <i className='icon-calendar'></i>
+                            </span>
+                            <small>{date.full}</small>
+                          </li>
+                        </ul>
+                      </div>
+                      <h3 className='blog-card__title'>
+                        <Link href={link}>{post.title}</Link>
+                      </h3>
+                      <Link href={link} className='blog-card__content__btn'>
+                        Read More <i className='icon-arrow-right'></i>
+                      </Link>
+                    </div>
                   </div>
-                  <h3 className='blog-card__title'>
-                    <Link href={post.link}>{post.title}</Link>
-                  </h3>
-                  <Link href={post.link} className='blog-card__content__btn'>
-                    Read More <i className='icon-arrow-right'></i>
-                  </Link>
-                </div>
-              </div>
-            </Col>
-          ))}
-          <Col lg={12}>
-            <Pagination />
-          </Col>
+                </Col>
+              );
+            })
+          )}
         </Row>
       </Container>
     </section>

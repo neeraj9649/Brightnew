@@ -1,6 +1,7 @@
 pub mod admin_portal;
 pub mod analytics;
 pub mod auth;
+pub mod blog;
 pub mod bookings;
 pub mod cards;
 pub mod crm;

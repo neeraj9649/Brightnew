@@ -20,6 +20,7 @@ import Customers, { CustomerDetail } from './portal/staff/Customers';
 import Employees from './portal/staff/Employees';
 import { RewardCatalogAdmin, Redemptions } from './portal/staff/Rewards';
 import StaffOffers from './portal/staff/Offers';
+import StaffBlog from './portal/staff/Blog';
 import WingsApprovals from './portal/staff/WingsApprovals';
 import CustomerOffers from './portal/customer/Offers';
 import Crm from './portal/staff/Crm';
@@ -158,6 +159,7 @@ const AppRoutes = () => {
       <Route path="/admin/redemptions" element={<ProtectedRoute staffOnly><Redemptions /></ProtectedRoute>} />
       <Route path="/admin/rewards" element={<ProtectedRoute adminOnly><RewardCatalogAdmin /></ProtectedRoute>} />
       <Route path="/admin/offers" element={<ProtectedRoute staffOnly><StaffOffers /></ProtectedRoute>} />
+      <Route path="/admin/blog" element={<ProtectedRoute adminOnly><StaffBlog /></ProtectedRoute>} />
       <Route path="/admin/wings-approvals" element={<ProtectedRoute adminOnly><WingsApprovals /></ProtectedRoute>} />
       <Route path="/admin/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
       <Route path="/admin/analytics" element={<ProtectedRoute adminOnly><Analytics /></ProtectedRoute>} />

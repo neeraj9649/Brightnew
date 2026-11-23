@@ -29,9 +29,6 @@ pub struct EnquiryDTO {
     /// Which form sent it (e.g. "contact"). Optional.
     #[serde(default)]
     pub source: Option<String>,
-    /// The page the visitor was on. Optional, for context in the e-mail.
-    #[serde(default)]
-    pub page_url: Option<String>,
 }
 
 struct Enquiry {
@@ -40,10 +37,9 @@ struct Enquiry {
     phone: String,
     message: String,
     source: String,
-    page_url: Option<String>,
 }
 
-fn plausible_email(value: &str) -> bool {
+pub(crate) fn plausible_email(value: &str) -> bool {
     let mut parts = value.split('@');
     matches!((parts.next(), parts.next(), parts.next()), (Some(l), Some(d), None) if !l.is_empty() && d.contains('.') && !d.starts_with('.') && !d.ends_with('.') && !value.contains(' '))
 }
@@ -83,12 +79,8 @@ fn validate(body: EnquiryDTO) -> Result<Enquiry, ApiError> {
         .map(|s| s.trim().to_lowercase())
         .filter(|s| !s.is_empty() && s.len() <= 50 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
         .unwrap_or_else(|| "contact".to_string());
-    let page_url = body
-        .page_url
-        .map(|u| u.trim().chars().take(500).collect::<String>())
-        .filter(|u| !u.is_empty() && !u.chars().any(char::is_control));
 
-    Ok(Enquiry { name, email, phone, message, source, page_url })
+    Ok(Enquiry { name, email, phone, message, source })
 }
 
 fn email_text(e: &Enquiry, received: &str) -> String {
@@ -100,9 +92,6 @@ fn email_text(e: &Enquiry, received: &str) -> String {
          Form:    {}\n",
         e.name, e.email, e.phone, e.source
     );
-    if let Some(url) = &e.page_url {
-        text.push_str(&format!("Page:    {url}\n"));
-    }
     text.push_str(&format!("Received: {received}\n\nMessage:\n{}\n\n-- \nReply to this e-mail to answer {} directly.\n", e.message, e.name));
     text
 }
@@ -118,15 +107,14 @@ async fn create_enquiry_handler(
     base::rate_limit::LIMITER.hit(&format!("enquiry:{ip}"), MAX_PER_HOUR, Duration::from_secs(60 * 60))?;
 
     let id: Uuid = sqlx::query_scalar(
-        "INSERT INTO enquiries (name, email, phone, message, source, page_url, ip_address)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+        "INSERT INTO enquiries (name, email, phone, message, source, ip_address)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
     )
     .bind(&enquiry.name)
     .bind(&enquiry.email)
     .bind(&enquiry.phone)
     .bind(&enquiry.message)
     .bind(&enquiry.source)
-    .bind(&enquiry.page_url)
     .bind(ip.chars().take(64).collect::<String>())
     .fetch_one(pool.get_ref())
     .await
@@ -180,7 +168,6 @@ mod tests {
             phone: phone.into(),
             message: message.into(),
             source: None,
-            page_url: None,
         }
     }
 
