@@ -32,9 +32,6 @@ pub struct EnquiryDTO {
     /// The page the visitor was on. Optional, for context in the e-mail.
     #[serde(default)]
     pub page_url: Option<String>,
-    /// Honeypot: a hidden field people never fill in. Anything here means a bot.
-    #[serde(default)]
-    pub website: Option<String>,
 }
 
 struct Enquiry {
@@ -115,12 +112,7 @@ async fn create_enquiry_handler(
     req: HttpRequest,
     body: web::Json<EnquiryDTO>,
 ) -> Result<ApiResponse<Value>, ApiError> {
-    let body = body.into_inner();
-    // Bots that fill the hidden field get a normal-looking reply, and nothing is saved or sent.
-    if body.website.as_deref().is_some_and(|w| !w.trim().is_empty()) {
-        return Ok(ApiResponse(json!({ "id": Value::Null, "email_sent": false })));
-    }
-    let enquiry = validate(body)?;
+    let enquiry = validate(body.into_inner())?;
 
     let ip = req.connection_info().realip_remote_addr().unwrap_or("unknown").to_string();
     base::rate_limit::LIMITER.hit(&format!("enquiry:{ip}"), MAX_PER_HOUR, Duration::from_secs(60 * 60))?;
@@ -189,7 +181,6 @@ mod tests {
             message: message.into(),
             source: None,
             page_url: None,
-            website: None,
         }
     }
 

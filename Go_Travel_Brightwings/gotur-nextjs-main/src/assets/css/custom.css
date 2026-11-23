@@ -110,3 +110,38 @@ body.rtl .main-slider-one__destinations__hover {
   top: -18px;
   z-index: 1;
 } */
+
+/* Contact page "Send Message": white sweep on hover with a fixed size.
+   .main-header__btn:hover adds a 1px border and .gotur-btn animates every property,
+   which made the button grow and shrink back. Keep the border at 0 and animate colour only. */
+.contact-page__submit,
+.contact-page__submit:hover,
+.contact-page__submit:focus-visible {
+  border: 0;
+  transform: none;
+}
+.contact-page__submit {
+  overflow: hidden;
+  background-color: var(--gotur-primary, #f7921e);
+  transition: color 0.3s;
+}
+.contact-page__submit::before,
+.contact-page__submit::after {
+  border-radius: inherit;
+  height: 51%;
+  background-color: var(--gotur-white, #fff);
+}
+.contact-page__submit:hover,
+.contact-page__submit:focus-visible {
+  color: var(--gotur-primary, #f7921e);
+  background-color: var(--gotur-white, #fff);
+  transition: background-color 0s linear 0.5s, color 0.3s;
+  /* Orange edge on the white button. An outline takes no space, so the size stays the same
+     (.gotur-btn sets `outline: none !important`, hence !important here). */
+  outline: 1px solid var(--gotur-primary, #f7921e) !important;
+  outline-offset: -1px;
+}
+.contact-page__submit:disabled::before,
+.contact-page__submit:disabled::after {
+  width: 0;
+}

@@ -44,7 +44,6 @@ const ContactPage: React.FC = () => {
         message: value("message"),
         source: "contact",
         page_url: window.location.href,
-        website: value("website"),
       });
       form.reset();
       setResult({ ok: true, text: "Thank you! Your message has been sent. We'll get back to you soon." });
@@ -126,13 +125,8 @@ const ContactPage: React.FC = () => {
                       )}
                     </div>
                   ))}
-                  {/* Honeypot: hidden from people, bots fill it in and get ignored by the API. */}
-                  <div className='form-one__honeypot' aria-hidden='true'>
-                    <label htmlFor='website'>Website</label>
-                    <input type='text' name='website' id='website' tabIndex={-1} autoComplete='off' />
-                  </div>
                   <div className='form-one__control form-one__control--full'>
-                    <button type='submit' className='gotur-btn main-header__btn' disabled={sending}>
+                    <button type='submit' className='gotur-btn main-header__btn contact-page__submit' disabled={sending}>
                       {sending ? "Sending..." : "Send Message"} <i className='icon-arrow-right'></i>
                     </button>
                     {result && (

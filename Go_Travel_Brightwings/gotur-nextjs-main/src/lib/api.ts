@@ -59,23 +59,28 @@ export interface EnquiryInput {
   message: string;
   source?: string; // which form sent it, e.g. "contact"
   page_url?: string;
-  website?: string; // hidden honeypot field; real visitors leave it empty
 }
 
 /**
  * Website contact form. The API saves the enquiry and e-mails it to the office inbox
  * (POST /public/enquiries, no sign-in). Throws with the API's plain-language message on error.
  */
-export async function submitEnquiry(input: EnquiryInput): Promise<{ id: string | null; email_sent: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/public/enquiries`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+export async function submitEnquiry(input: EnquiryInput): Promise<{ id: string; email_sent: boolean }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/public/enquiries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    // Network failure / server unreachable: the browser only says "Failed to fetch".
+    throw new Error("We couldn't reach our server. Please check your connection and try again, or call us.");
+  }
   const body = (await response.json().catch(() => null)) as {
     success?: boolean;
     msg?: string;
-    data?: { id: string | null; email_sent: boolean };
+    data?: { id: string; email_sent: boolean };
   } | null;
   if (!response.ok || body?.success !== true || !body.data) {
     throw new Error(body?.msg || "We couldn't send your message. Please try again or call us.");

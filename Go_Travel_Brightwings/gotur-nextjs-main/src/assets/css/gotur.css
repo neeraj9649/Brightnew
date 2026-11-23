@@ -19254,14 +19254,7 @@ img {
   margin-left: 2px;
 }
 
-/* Contact form: hidden anti-spam field, and the sent / error message under the button */
-.form-one__honeypot {
-  position: absolute;
-  left: -10000px;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
+/* Contact form: the sent / error message under the button */
 .form-one__result {
   margin: 16px 0 0;
   font-weight: 500;
