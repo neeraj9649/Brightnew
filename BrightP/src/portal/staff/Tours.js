@@ -122,8 +122,6 @@ function Reviews({ onChange }) {
 const lines = (text) => text.split('\n').map((s) => s.trim()).filter(Boolean);
 
 function TourDrawer({ tour, onClose, onSaved }) {
-  // Other tours, for the "Related tours" picker. ponytail: first 100 tours, add search past that.
-  const others = useAsync(() => api.get('/admin/tours/items?limit=100&offset=0'), []);
   const [f, setF] = useState({
     title: tour?.title || '', headline: tour?.headline || '', card_image: tour?.card_image || '', location: tour?.location || '',
     duration: tour?.duration || '', activity_type: tour?.activity_type || '', active_days: tour?.active_days || '',
@@ -132,13 +130,12 @@ function TourDrawer({ tour, onClose, onSaved }) {
     thumb_1: tour?.thumb_images?.[0] || '', thumb_2: tour?.thumb_images?.[1] || '',
     highlights: (tour?.highlights || []).join('\n'), included: (tour?.included || []).join('\n'), excluded: (tour?.excluded || []).join('\n'),
     faqs: tour?.faqs?.length ? tour.faqs : [{ question: '', answer: '' }], map_embed_url: tour?.map_embed_url || '',
-    related_slugs: tour?.related_slugs || [], is_featured: tour?.is_featured || false, is_published: tour ? tour.is_published : true, sort_order: tour?.sort_order ?? 0,
+    is_featured: tour?.is_featured || false, is_published: tour ? tour.is_published : true, sort_order: tour?.sort_order ?? 0,
   });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const set = (k, v) => { setF((old) => ({ ...old, [k]: v })); setErrors((old) => ({ ...old, [k]: undefined })); };
   const setFaq = (i, k, v) => set('faqs', f.faqs.map((q, j) => (j === i ? { ...q, [k]: v } : q)));
-  const toggleRelated = (slug, on) => set('related_slugs', on ? [...f.related_slugs, slug] : f.related_slugs.filter((s) => s !== slug));
 
   const save = async () => {
     const next = {};
@@ -155,7 +152,7 @@ function TourDrawer({ tour, onClose, onSaved }) {
       discount: f.discount === '' ? null : Number(f.discount), rating: Number(f.rating), video_id: f.video_id.trim(), overview: f.overview,
       slider_images: f.slider_images.filter(Boolean), thumb_images: [f.thumb_1, f.thumb_2].filter(Boolean),
       highlights: lines(f.highlights), included: lines(f.included), excluded: lines(f.excluded),
-      faqs: f.faqs.filter((q) => q.question.trim()), map_embed_url: f.map_embed_url.trim(), related_slugs: f.related_slugs,
+      faqs: f.faqs.filter((q) => q.question.trim()), map_embed_url: f.map_embed_url.trim(),
       is_featured: f.is_featured, is_published: f.is_published, sort_order: Number(f.sort_order) || 0,
     };
     try {
@@ -165,7 +162,6 @@ function TourDrawer({ tour, onClose, onSaved }) {
     } catch (err) { toast.error(err.message || 'Could not save'); } finally { setBusy(false); }
   };
 
-  const candidates = (others.data?.items || []).filter((t) => t.id !== tour?.id);
   return (
     <Modal open onClose={onClose} side label="Tour">
       <ModalHead title={tour ? 'Edit tour' : 'New tour'} sub="Laid out like the website's tour page, top to bottom." onClose={onClose} />
@@ -218,16 +214,7 @@ function TourDrawer({ tour, onClose, onSaved }) {
           </div>
         </Field>
         <Field label="Google Maps embed link" optional hint="Google Maps > Share > Embed a map, then copy only the link inside src=&quot;…&quot;."><Input value={f.map_embed_url} onChange={(e) => set('map_embed_url', e.target.value)} placeholder="https://www.google.com/maps/embed?pb=…" /></Field>
-        <Field label="Related tours" optional hint="Shown at the bottom of the tour page (up to 6).">
-          {others.loading && !others.data ? <Skeleton h={60} /> : !candidates.length ? <span className="pt-tiny">No other tours yet.</span> : (
-            <div className="pt-stack" style={{ gap: 6 }}>
-              {candidates.map((t) => (
-                <Check2 key={t.slug} checked={f.related_slugs.includes(t.slug)} disabled={!f.related_slugs.includes(t.slug) && f.related_slugs.length >= 6} onChange={(on) => toggleRelated(t.slug, on)}>{t.title}</Check2>
-              ))}
-            </div>
-          )}
-        </Field>
-        <Field label="Order" hint="Lower numbers come first on the Tours page."><Input type="number" value={f.sort_order} onChange={(e) => set('sort_order', e.target.value)} /></Field>
+        <Field label="Order" hint="Position on the Tours page and the home page slider: 1 shows first, then 2, 3… Tours with the same number show oldest first. The tour page's Related Tour List picks 2 other tours at random."><Input type="number" value={f.sort_order} onChange={(e) => set('sort_order', e.target.value)} /></Field>
         <Check2 checked={f.is_featured} onChange={(on) => set('is_featured', on)}>Show on the home page (Most Popular Tours)</Check2>
         <Check2 checked={f.is_published} onChange={(on) => set('is_published', on)}>Published — visible on the website</Check2>
         <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={onClose}>Cancel</button><button type="button" className="pt-btn" disabled={busy} onClick={save}>{busy ? 'Saving…' : tour ? 'Save changes' : 'Publish tour'}</button></div>

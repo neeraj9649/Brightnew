@@ -2,7 +2,7 @@
 //!
 //! Public, no sign-in:
 //!   GET  /public/tours?limit=15&offset=0[&featured=true]   published tour cards + total
-//!   GET  /public/tours/{slug}                              one tour page, related tours, approved reviews
+//!   GET  /public/tours/{slug}                              one tour page, 2 random other tours, approved reviews
 //!   POST /public/tours/{slug}/reviews                      new review, saved as `pending`
 //! Admin only (`/admin/tours`):
 //!   GET  /items?limit&offset, POST /items, PUT /items/{id}   write and edit tours (hide = is_published false)
@@ -102,10 +102,10 @@ async fn get_public_handler(pool: web::Data<PgPool>, slug: web::Path<String>) ->
              'thumb_images', t.thumb_images, 'highlights', t.highlights, 'included', t.included,
              'excluded', t.excluded, 'faqs', t.faqs, 'map_embed_url', t.map_embed_url,
              'related', COALESCE((
-                 SELECT json_agg(x ORDER BY x.pos) FROM (
-                     SELECT {fields}, s.pos
-                     FROM unnest(t.related_slugs) WITH ORDINALITY AS s(slug, pos)
-                     JOIN tours c ON c.slug = s.slug AND c.is_published AND c.id <> t.id
+                 SELECT json_agg(x) FROM (
+                     SELECT {fields} FROM tours c
+                     WHERE c.is_published AND c.id <> t.id
+                     ORDER BY random() LIMIT 2
                  ) x
              ), '[]'::json),
              'reviews', COALESCE((
@@ -234,8 +234,6 @@ pub struct TourDTO {
     #[serde(default)]
     pub map_embed_url: String,
     #[serde(default)]
-    pub related_slugs: Vec<String>,
-    #[serde(default)]
     pub is_featured: bool,
     #[serde(default = "yes")]
     pub is_published: bool,
@@ -328,16 +326,12 @@ fn validate_tour(mut t: TourDTO) -> Result<TourDTO, ApiError> {
     if !t.map_embed_url.is_empty() && !t.map_embed_url.starts_with("https://www.google.com/maps/embed") {
         return Err(ApiError::new("Paste the Google Maps embed link (Share > Embed a map > the src link)", 400));
     }
-    t.related_slugs = clean_list(t.related_slugs, 6, 160, "related tours")?;
-    if !t.related_slugs.iter().all(|s| slugify(s) == *s) {
-        return Err(ApiError::new("A related tour is not valid", 400));
-    }
     Ok(t)
 }
 
 const ADMIN_TOUR_FIELDS: &str = "t.id, t.slug, t.title, t.headline, t.card_image, t.location, t.duration, t.activity_type,
      t.active_days, t.travelers, t.price, t.discount, t.rating, t.video_id, t.overview, t.slider_images, t.thumb_images,
-     t.highlights, t.included, t.excluded, t.faqs, t.map_embed_url, t.related_slugs, t.is_featured, t.is_published,
+     t.highlights, t.included, t.excluded, t.faqs, t.map_embed_url, t.is_featured, t.is_published,
      t.sort_order, t.created_at, t.updated_at,
      (SELECT COUNT(*) FROM tour_reviews r WHERE r.tour_id = t.id AND r.status = 'pending') AS pending_reviews";
 
@@ -395,7 +389,6 @@ macro_rules! bind_tour {
             .bind(&$t.excluded)
             .bind(sqlx::types::Json(&$t.faqs))
             .bind(&$t.map_embed_url)
-            .bind(&$t.related_slugs)
             .bind($t.is_featured)
             .bind($t.is_published)
             .bind($t.sort_order)
@@ -420,8 +413,8 @@ async fn create_tour_handler(pool: web::Data<PgPool>, body: web::Json<TourDTO>) 
         sqlx::query_scalar(
             "INSERT INTO tours (slug, title, headline, card_image, location, duration, activity_type, active_days, travelers,
                  price, discount, rating, video_id, overview, slider_images, thumb_images, highlights, included, excluded,
-                 faqs, map_embed_url, related_slugs, is_featured, is_published, sort_order)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                 faqs, map_embed_url, is_featured, is_published, sort_order)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
              RETURNING id",
         )
         .bind(&slug),
@@ -445,7 +438,7 @@ async fn update_tour_handler(
             "UPDATE tours SET title = $2, headline = $3, card_image = $4, location = $5, duration = $6, activity_type = $7,
                  active_days = $8, travelers = $9, price = $10, discount = $11, rating = $12, video_id = $13, overview = $14,
                  slider_images = $15, thumb_images = $16, highlights = $17, included = $18, excluded = $19, faqs = $20,
-                 map_embed_url = $21, related_slugs = $22, is_featured = $23, is_published = $24, sort_order = $25,
+                 map_embed_url = $21, is_featured = $22, is_published = $23, sort_order = $24,
                  updated_at = NOW()
              WHERE id = $1",
         )
@@ -564,9 +557,6 @@ mod tests {
         assert!(validate_tour(t).is_err());
         let mut t = tour();
         t.video_id = "https://youtube.com/watch?v=x".into();
-        assert!(validate_tour(t).is_err());
-        let mut t = tour();
-        t.related_slugs = vec!["Not A Slug".into()];
         assert!(validate_tour(t).is_err());
     }
 

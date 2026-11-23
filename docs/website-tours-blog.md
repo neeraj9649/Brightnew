@@ -14,6 +14,9 @@ Next.js export. Its tours, blog posts and contact form now talk to the backend A
 - Tour reviews and blog comments are saved as `pending` and appear on the website only after an admin approves them.
 - Nothing is deleted from the admin pages: tours and posts are hidden (`is_published = false`), reviews and comments rejected.
 - A tour's "Show on the home page" tick puts it in the home page slider.
+- "Order" (`sort_order`) sets the position on the Tours page and the home slider: lower first, ties oldest first.
+- "Related Tour List" on a tour page shows 2 other published tours picked at random on each visit
+  (never the tour itself). The old `tours.related_slugs` column is no longer used.
 - A tour's link (`slug`) is made from its title when it is created and never changes, so shared links keep working.
 
 ## Required nginx rule (tour pages)
