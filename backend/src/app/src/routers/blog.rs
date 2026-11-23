@@ -158,7 +158,7 @@ fn yes() -> bool {
     true
 }
 
-fn is_image_url(url: &str) -> bool {
+pub(crate) fn is_image_url(url: &str) -> bool {
     (url.starts_with("https://") || url.starts_with("http://")) && url.len() <= 1000 && !url.chars().any(|c| c.is_whitespace())
 }
 
@@ -190,7 +190,7 @@ fn validate_post(mut p: PostDTO) -> Result<PostDTO, ApiError> {
 }
 
 /// "Sakura Dreams & Tales!" -> "sakura-dreams-tales".
-fn slugify(title: &str) -> String {
+pub(crate) fn slugify(title: &str) -> String {
     let mut slug = String::new();
     for c in title.to_lowercase().chars() {
         if c.is_ascii_alphanumeric() {

@@ -18,3 +18,4 @@ pub mod rewards;
 pub mod uploads;
 pub mod workflow;
 pub mod support;
+pub mod tours;

@@ -1,7 +1,7 @@
 use crate::container::Container;
 use crate::routers::{
     admin_portal, analytics, auth, blog, bookings, cards, crm, enquiries, financials, health, loyalty, member,
-    notifications, portal, redemptions, referral, rewards, support, uploads, workflow,
+    notifications, portal, redemptions, referral, rewards, support, tours, uploads, workflow,
 };
 use actix_cors::Cors;
 use actix_web::body::MessageBody;
@@ -89,6 +89,7 @@ pub fn create_app(
         .configure(portal::portal_routes)
         .configure(enquiries::enquiries_routes)
         .configure(blog::blog_routes)
+        .configure(tours::tours_routes)
         .configure(member::member_routes)
         .configure(admin_portal::admin_portal_routes)
         .configure(workflow::workflow_routes)

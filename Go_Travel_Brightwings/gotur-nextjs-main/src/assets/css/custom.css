@@ -166,3 +166,40 @@ body.rtl .main-slider-one__destinations__hover {
   font-size: 13px;
   margin-left: 6px;
 }
+
+/* Tour page Share button: hide the template's hover list of social links, and the "Link copied" toast. */
+.tour-listing-details__destination__social__list {
+  display: none !important;
+}
+.share-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  z-index: 9999;
+  max-width: calc(100% - 32px);
+  padding: 12px 20px;
+  border-radius: 8px;
+  background-color: #1c231f;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.share-toast--error {
+  background-color: #e53935;
+}
+
+/* Tour review form: clickable rating stars. */
+.tour-review__star {
+  background: none;
+  border: 0;
+  padding: 0 3px;
+  color: var(--gotur-primary, #f7921e);
+  font-size: 18px;
+  cursor: pointer;
+}
+.tour-review__star:focus-visible {
+  outline: 2px solid var(--gotur-primary, #f7921e);
+  border-radius: 4px;
+}

@@ -167,6 +167,71 @@ export function blogDate(iso: string) {
   return { day, month: name, full: `${Number(day)} ${name} ${year}` };
 }
 
+// ---------------------------------------------------------------------------
+// Tours (written in the admin portal, GET/POST /public/tours...)
+// ---------------------------------------------------------------------------
+
+export interface TourCardData {
+  slug: string;
+  title: string;
+  card_image: string;
+  location: string;
+  duration: string;
+  price: string;
+  discount: number | null;
+  rating: number;
+  video_id: string;
+  is_featured: boolean;
+  review_count: number;
+}
+
+export interface TourReview {
+  name: string;
+  rating: number;
+  message: string;
+  created_at: string;
+}
+
+export interface Tour extends Omit<TourCardData, "is_featured" | "review_count"> {
+  headline: string;
+  activity_type: string;
+  active_days: string;
+  travelers: number;
+  overview: string;
+  slider_images: string[];
+  thumb_images: string[];
+  highlights: string[];
+  included: string[];
+  excluded: string[];
+  faqs: { question: string; answer: string }[];
+  map_embed_url: string;
+  related: TourCardData[];
+  reviews: TourReview[]; // approved only
+}
+
+export interface TourPage {
+  items: TourCardData[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** One page of published tours (newest admin order). `featured` = only "show on home page" tours. */
+export const getTours = (limit = 15, offset = 0, featured = false) =>
+  publicJson<TourPage>(`/public/tours?limit=${limit}&offset=${offset}${featured ? "&featured=true" : ""}`);
+
+export const getTour = (slug: string) => publicJson<Tour>(`/public/tours/${encodeURIComponent(slug)}`);
+
+/** Sends a review; it shows on the tour only after an admin approves it. */
+export const postTourReview = (slug: string, input: { name: string; email: string; rating: number; message: string }) =>
+  publicJson<{ status: string }>(`/public/tours/${encodeURIComponent(slug)}/reviews`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+/** A tour's page. Tours added later have no page file, so nginx serves /tour/_/ for them (see docs). */
+export const tourLink = (slug: string) => `/tour/${encodeURIComponent(slug)}/`;
+
 // Backend envelope: { data, msg, success, statusCode }. Errors carry HTTP status + msg.
 async function unwrap(res: Response) {
   const body = await res.json().catch(() => ({} as Record<string, unknown>));

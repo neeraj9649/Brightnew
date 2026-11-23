@@ -91,7 +91,7 @@ function Comments({ onChange }) {
 }
 
 /** One image picker: uploads to the file store and keeps the public URL. */
-function ImagePick({ value, onChange, label }) {
+export function ImagePick({ value, onChange, label }) {
   const ref = useRef(null);
   const [up, setUp] = useState(false);
   const upload = async (e) => {
