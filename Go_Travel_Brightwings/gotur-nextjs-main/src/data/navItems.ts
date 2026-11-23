@@ -4,11 +4,12 @@ export const navItems = [
     title: "about us",
     link: "/about",
   },
-  {
-    id: 2,
-    title: "Destination",
-    link: "/destination",
-  },
+  // Destination is hidden from the navbar for now; the /destination page still works.
+  // {
+  //   id: 2,
+  //   title: "Destination",
+  //   link: "/destination",
+  // },
   {
     id: 3,
     title: "tours list",

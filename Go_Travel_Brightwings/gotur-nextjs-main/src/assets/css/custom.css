@@ -203,3 +203,44 @@ body.rtl .main-slider-one__destinations__hover {
   outline: 2px solid var(--gotur-primary, #f7921e);
   border-radius: 4px;
 }
+
+/* About page: team members, one row each, photo and text swapping sides. */
+.team-intro__row + .team-intro__row {
+  margin-top: 60px;
+}
+.team-intro__photo img {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 4 / 5;
+  margin: 0 auto;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+}
+.team-intro__role {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 100px;
+  background-color: var(--gotur-primary, #f7921e);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.team-intro__name {
+  margin: 12px 0 16px;
+  font-size: 32px;
+  font-weight: 700;
+}
+.team-intro__text {
+  margin-bottom: 14px;
+  line-height: 1.8;
+}
+.team-intro .sec-title__title {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}

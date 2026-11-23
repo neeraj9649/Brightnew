@@ -5,6 +5,8 @@ import Layout from "@/components/layout/Layout/Layout";
 import HeaderOne from "@/components/layout/HeaderOne/HeaderOne";
 import PageHeader from "@/components/sections/PageHeader/PageHeader";
 import AboutOne from "@/components/sections/AboutOne/AboutOne";
+import AboutTwo from "@/components/sections/AboutTwo/AboutTwo";
+import TeamIntro from "@/components/sections/TeamIntro/TeamIntro";
 import CtaTwo from "@/components/sections/CtaTwo/CtaTwo";
 import HowItWorks from "@/components/sections/HowItWorks/HowItWorks";
 import AboutTestimonials from "@/components/sections/AboutTestimonials/AboutTestimonials";
@@ -16,7 +18,7 @@ export const metadata = {
   description:
     "Gotur is a modern travel & tour booking NextJS Template. It is perfect for travel agencies, tour operators, trip holiday booking websites, adventure and booking companies looking for a unique and intuitive search function and all other travel & tourism websites and businesses.",
   icons: {
-    icon: "/favicon-32x32.png",
+    icon: "/BrightLogo.png",
   },
 };
 
@@ -28,10 +30,13 @@ export default function About() {
       {/* <HeaderOne /> */}
       <HeaderInnerCloned/>
       <PageHeader title='About Us' subTitle='About Us' />
+      <TeamIntro />
       <AboutOne />
       <CtaTwo />
       <HowItWorks />
       <AboutTestimonials />
+      {/* Same "Great Opportunity for Adventure & Travels" block as the home page, with its side shapes and animations */}
+      <AboutTwo cta={true} extraClass="about-two--two" />
       <InstagramOne />
       <FooterOne />
     </Layout>

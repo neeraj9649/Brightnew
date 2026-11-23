@@ -6,7 +6,6 @@ import { aboutOneData } from "@/data/aboutOne";
 import { Col, Container, Row } from "react-bootstrap";
 import Link from "next/link";
 import TextAnimation from "@/components/common/AnimatedText/TextAnimation";
-import TeamPage from "../TeamPage/TeamPage";
 
 // interfaces.ts
 export interface Feature {
@@ -173,7 +172,6 @@ const AboutOne: React.FC<AboutOneProps> = ({ extraclass }) => {
           </Col>
         </Row>
       </Container>
-      <TeamPage/>
       <div className='about-one__element-one'>
         <Image src={images.shape1} alt='element' width={164} height={143}/>
       </div>
