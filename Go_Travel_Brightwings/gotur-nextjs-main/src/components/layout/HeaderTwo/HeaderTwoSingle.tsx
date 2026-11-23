@@ -10,6 +10,7 @@ import useStore from "@/store/useStore";
 
 import SingleNavItems from "../SingleNavItems/SingleNavItems";
 import Link from "next/link";
+import { contactPhones } from "@/data/contactPhones";
 interface NavItem {
   id: number;
   title: string;
@@ -98,7 +99,9 @@ const HeaderTwoSingle: React.FC = () => {
               </div>
               <div className='main-header__call__content'>
                 <span className='main-header__call__subtitle'>Call Us Now</span>
-                <Link href='tel:+917732957732'>+91 7732957732</Link>
+                {contactPhones.map((p) => (
+                  <Link key={p.href} href={p.href} style={{ display: "block" }}>{p.label}</Link>
+                ))}
               </div>
             </div>
             <div

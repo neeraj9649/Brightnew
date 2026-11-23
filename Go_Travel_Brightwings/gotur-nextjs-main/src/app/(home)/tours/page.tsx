@@ -15,7 +15,7 @@ export const metadata = {
   },
 };
 
-export default function TourListingOneLeftPage() {
+export default function ToursPage() {
   return (
     <Layout>
       <TopbarOne />

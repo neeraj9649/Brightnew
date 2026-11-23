@@ -4,6 +4,7 @@ pub mod auth;
 pub mod bookings;
 pub mod cards;
 pub mod crm;
+pub mod enquiries;
 pub mod financials;
 pub mod health;
 pub mod notifications;

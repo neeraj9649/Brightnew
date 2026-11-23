@@ -1,13 +1,16 @@
+import { contactPhones } from "@/data/contactPhones";
+import { officeAddresses } from "@/data/officeAddresses";
+
 // app/data/topbarOne.ts
 
 export const topbarOne = {
     contactInfo: [
-      {
+      ...contactPhones.map((p) => ({
         type: "phone",
         iconClass: "icon-telephone",
-        label: "+91 7732957732",
-        href: "tel:+917732957732",
-      },
+        label: p.label,
+        href: p.href,
+      })),
       {
         type: "email",
         iconClass: "icon-email",
@@ -22,19 +25,19 @@ export const topbarOne = {
         label: "Info@brightwingstravel.com",
         href: "mailto:info@brightwingstravel.com",
       },
-      {
+      ...officeAddresses.map((a) => ({
         type: "loc",
         iconClass: "icon-maps-and-flags",
-        label: "Office No G-2,Vinayak residency, Jaipur-302021",
-      href: "https://maps.app.goo.gl/5sowvbHrWAakXqydA",
-      },
+        label: a.short,
+        href: a.mapUrl,
+      })),
       
     ],
-    address: {
+    addresses: officeAddresses.map((a) => ({
       iconClass: "icon-maps-and-flags",
-      label: "Office No G-2,Vinayak residency, Jaipur-302021",
-      href: "https://maps.app.goo.gl/5sowvbHrWAakXqydA",
-    },
+      label: a.short,
+      href: a.mapUrl,
+    })),
     socialLinks: [
       {
         platform: "Facebook",

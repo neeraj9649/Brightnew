@@ -8,6 +8,8 @@ interface ContactItem {
   title: string;
   text: string;
   link?: string;
+  phones?: { label: string; href: string }[];
+  lines?: { label: string; text: string }[];
 }
 const ContactTop: React.FC = () => {
   return (
@@ -33,7 +35,30 @@ const ContactTop: React.FC = () => {
                     
                   )}
                 </h3>
-                <p className='contact-top__item__text'>{item.text}</p>
+                {item.phones ? (
+                  <>
+                    {item.phones.map((p) => (
+                      <p className='contact-top__item__text' key={p.href} style={{ marginBottom: 6 }}>
+                        <Link href={p.href}>
+                          <strong>{p.label}</strong>
+                        </Link>
+                      </p>
+                    ))}
+                    <p className='contact-top__item__text' style={{ marginTop: 12 }}>{item.text}</p>
+                  </>
+                ) : item.lines ? (
+                  item.lines.map((line, i) => (
+                    <p
+                      className='contact-top__item__text'
+                      key={line.label}
+                      style={{ marginBottom: i < item.lines!.length - 1 ? 12 : 0 }}
+                    >
+                      <strong>{line.label}:</strong> {line.text}
+                    </p>
+                  ))
+                ) : (
+                  <p className='contact-top__item__text'>{item.text}</p>
+                )}
               </div>
             </div>
           ))}

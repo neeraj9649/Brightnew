@@ -35,7 +35,7 @@ interface SocialLink {
 interface TopbarOneData {
   contactInfo: ContactInfoItem[];
   contactInfoTwo: ContactInfoItemTwo[];
-  address: AddressInfo;
+  addresses: AddressInfo[];
   socialLinks: SocialLink[];
 }
 interface TopbarOneProps {
@@ -43,7 +43,7 @@ interface TopbarOneProps {
 }
 
 const TopbarOne: React.FC<TopbarOneProps> = ({ extraClass }) => {
-  const { contactInfo, contactInfoTwo, address, socialLinks }: TopbarOneData =
+  const { contactInfo, contactInfoTwo, addresses, socialLinks }: TopbarOneData =
     topbarOne;
   return (
     <div className={`top-one ${extraClass || ""}`}>
@@ -69,10 +69,16 @@ const TopbarOne: React.FC<TopbarOneProps> = ({ extraClass }) => {
           <div className='top-one__right'>
             {/* Address Section */}
             {extraClass === "top-one--two" ? (
-              <div className='top-one__info__item'>
-                <i className={address.iconClass}></i>
-                <Link href={address.href}>{address.label}</Link>
-              </div>
+              <>
+                {addresses.map((address) => (
+                  <div className='top-one__info__item' key={address.label}>
+                    <i className={address.iconClass}></i>
+                    <Link href={address.href} target='_blank' rel='noopener noreferrer'>
+                      {address.label}
+                    </Link>
+                  </div>
+                ))}
+              </>
             ) : (
               <LanguageSelector />
             )}

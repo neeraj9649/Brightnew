@@ -7,6 +7,7 @@ import Image, { StaticImageData } from "next/image";
 import { navItems } from "@/data/navItems";
 // import { demoPages } from "@/data/demoPages";
 import MegaMenu from "@/components/common/MegaMenu/MegaMenu";
+import { contactPhones } from "@/data/contactPhones";
 
 interface SubMenu {
   id: number;
@@ -186,12 +187,14 @@ const DrawerTwo: React.FC = () => {
             </span>
             <Link href='mailto:info@brightwingstravel.com'>Info@brightwingstravel.com</Link>
           </li>
-          <li>
-            <span className='mobile-nav__contact__icon'>
-              <i className='fa fa-phone-alt'></i>
-            </span>
-            <Link href='tel:+917732957732'>+91 7732957732</Link>
-          </li>
+          {contactPhones.map((p) => (
+            <li key={p.href}>
+              <span className='mobile-nav__contact__icon'>
+                <i className='fa fa-phone-alt'></i>
+              </span>
+              <Link href={p.href}>{p.label}</Link>
+            </li>
+          ))}
         </ul>
 
         <div className='mobile-nav__social'>

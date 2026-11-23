@@ -7,12 +7,12 @@ export const navItems = [
   {
     id: 2,
     title: "Destination",
-    link: "/destination-one",
+    link: "/destination",
   },
   {
     id: 3,
     title: "tours list",
-    link: "/tour-listing-1-left",
+    link: "/tours",
     // subMenu: [
     //   {
     //     id: 15,

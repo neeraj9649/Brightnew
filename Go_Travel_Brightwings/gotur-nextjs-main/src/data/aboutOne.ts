@@ -1,3 +1,5 @@
+import { contactPhones } from "@/data/contactPhones";
+
 // data.ts
 // import aboutImg1 from "@/assets/images/about/about-1-1.jpg";
 // import aboutImg2 from "@/assets/images/about/about-s-1-1.jpg";
@@ -30,7 +32,7 @@ export const aboutOneData = {
     link: "/blog-details-left",
     callIcon: "icon-telephone",
     callText: "Call Us Now",
-    phone: "+91 7732957732",
+    phones: contactPhones,
   },
   images: {
     mainImage: '/images/about/about-1-1.jpg',

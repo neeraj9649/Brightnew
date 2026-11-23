@@ -22,11 +22,12 @@ interface FooterDataType {
   shape2: string;
   contact: {
     email: string;
-    phone: string;
+    phones: { label: string; href: string }[];
     hours: string;
   };
   about: {
     text: string;
+    lines: string[];
     socials: {
       icon: string;
       link: string;
@@ -90,9 +91,11 @@ const FooterOne: React.FC = () => {
                   <span className='footer-widget__list__subtitle'>
                     call agent
                   </span>
-                  <Link href={`tel:${data.contact.phone}`}>
-                    {data.contact.phone}
-                  </Link>
+                  {data.contact.phones.map((p) => (
+                    <Link key={p.href} href={p.href} style={{ display: "block" }}>
+                      {p.label}
+                    </Link>
+                  ))}
                 </div>
               </li>
               <li>
@@ -121,7 +124,9 @@ const FooterOne: React.FC = () => {
                 data-wow-delay='00ms'
               >
                 <h2 className='footer-widget__title'>about BrightWings</h2>
-                <p className='footer-widget__about-text'>{data.about.text}</p>
+                {data.about.lines.map((line) => (
+                  <p className='footer-widget__about-text' key={line}>{line}</p>
+                ))}
                 <div className='footer-widget__social'>
                   {data.about.socials.map((social: SocialLink, idx) => (
                     <Link key={idx} href={social.link}>

@@ -53,10 +53,10 @@ export const headerData = {
       link: "#",
       dropdown: [
         {
-          label: "Destination 01",
-          link: "/destination-one",
+          label: "Destinations",
+          link: "/destination",
           options: [
-            { label: "Grid", link: "/destination-one" },
+            { label: "Grid", link: "/destination" },
             { label: "Left", link: "/destination-one-left" },
             { imageSrc: "/images/home-showcase/home-showcase-3.jpg", alt: "Destination Showcase 3" },
           ],

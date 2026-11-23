@@ -1,7 +1,10 @@
 import { useAuth, type User } from "@/store/auth";
 
-// Baked at build time for static export; falls back to the local Bright Wings API.
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:9010";
+// Baked at build time for static export. Without NEXT_PUBLIC_API_URL, production builds use
+// the live Bright Wings API and `npm run dev` uses a local one.
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === "production" ? "https://bp.nsiif.in" : "http://localhost:9010");
 
 type Body = Record<string, unknown>;
 
@@ -47,6 +50,37 @@ export async function getPublicOffers(): Promise<PublicOffer[]> {
     throw new Error(body?.msg || `Request failed (${response.status})`);
   }
   return Array.isArray(body.data) ? (body.data as PublicOffer[]) : [];
+}
+
+export interface EnquiryInput {
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+  source?: string; // which form sent it, e.g. "contact"
+  page_url?: string;
+  website?: string; // hidden honeypot field; real visitors leave it empty
+}
+
+/**
+ * Website contact form. The API saves the enquiry and e-mails it to the office inbox
+ * (POST /public/enquiries, no sign-in). Throws with the API's plain-language message on error.
+ */
+export async function submitEnquiry(input: EnquiryInput): Promise<{ id: string | null; email_sent: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/public/enquiries`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = (await response.json().catch(() => null)) as {
+    success?: boolean;
+    msg?: string;
+    data?: { id: string | null; email_sent: boolean };
+  } | null;
+  if (!response.ok || body?.success !== true || !body.data) {
+    throw new Error(body?.msg || "We couldn't send your message. Please try again or call us.");
+  }
+  return body.data;
 }
 
 // Backend envelope: { data, msg, success, statusCode }. Errors carry HTTP status + msg.

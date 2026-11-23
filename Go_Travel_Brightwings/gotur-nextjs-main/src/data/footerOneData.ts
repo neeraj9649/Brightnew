@@ -1,4 +1,6 @@
 import { StaticImageData } from 'next/image';
+import { contactPhones } from "@/data/contactPhones";
+import { officeAddresses } from "@/data/officeAddresses";
 
 // import logo from "@/assets/images/logo-light.png";
 // import cardImage from "@/assets/images/shapes/footer-card-1-1.png";
@@ -15,11 +17,12 @@ export interface FooterDataType {
   shape2: string;
   contact: {
     email: string;
-    phone: string;
+    phones: { label: string; href: string }[];
     hours: string;
   };
   about: {
     text: string;
+    lines: string[];
     socials: {
       icon: string;
       link: string;
@@ -47,11 +50,12 @@ export const footerOneData: FooterDataType = {
   shape2: "/images/shapes/footer-shape-1-2.png",
   contact: {
     email: "info@brightwingstravel.com",
-    phone: "+91 7732957732",
+    phones: contactPhones,
     hours: "Hours: Mon-Sat: 8am – 9pm",
   },
   about: {
-    text: "Office No G-2,Vinayak residency Shiv Vihar AB Lalarpura Gandhi Path West Jaipur-302021",
+    text: officeAddresses.map((a) => `${a.city}: ${a.full}`).join(" | "),
+    lines: officeAddresses.map((a) => `${a.city}: ${a.full}`),
     socials: [
       { icon: "icon-facebook", link: "https://www.facebook.com/BrightwingsTravelTourism/", label: "Facebook" },
       // { icon: "fab fa-twitter", link: "https://twitter.com", label: "Twitter" },
@@ -62,13 +66,13 @@ export const footerOneData: FooterDataType = {
   destinations: [
     { title: "Dubai", href: "/allDestionation/destination-dubai" },
     { title: "Thailand", href: "/allDestionation/destination-thailand" },
-    { title: "San Franc Rica", href: "/destination-one" },
-    { title: "New York", href: "/destination-one" },
-    { title: "Tokyo", href: "/destination-one" },
+    { title: "San Franc Rica", href: "/destination" },
+    { title: "New York", href: "/destination" },
+    { title: "Tokyo", href: "/destination" },
   ],
   usefulLinks: [
     { title: "About Us", href: "/about" },
-    { title: "Destination", href: "/destination-one" },
+    { title: "Destination", href: "/destination" },
     { title: "News & blog", href: "/blog-grid" },
     { title: "Meet the Guide", href: "/team" },
     { title: "Contacts", href: "/contact" },

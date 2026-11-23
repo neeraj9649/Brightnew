@@ -19184,3 +19184,95 @@ img {
     margin: 0 20px;
   }
 }
+
+/* Bright Wings: the call blocks show two phone numbers, so the call icon is centred
+   vertically against the whole number block instead of being pinned to the first line. */
+.main-header__call,
+.about-one__button__call {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+/* Don't let the header squeeze the call box narrower than its numbers. */
+.main-header__call {
+  flex-shrink: 0;
+}
+.main-header__call .main-header__call__icon,
+.about-one__button__call .about-one__button__call__icon {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  flex-shrink: 0;
+}
+/* A fixed width (not "100%, max 44px") so the box is sized with the real icon width. */
+.main-header__call .main-header__call__icon {
+  width: 44px;
+}
+.about-one__button__call .about-one__button__call__icon {
+  width: 48px;
+}
+.main-header__call .main-header__call__content,
+.about-one__button__call .about-one__button__call__content {
+  padding-left: 0;
+  padding-right: 0;
+}
+.footer-widget__list li {
+  align-items: center;
+}
+.footer-widget__list li .footer-widget__list__icon {
+  flex-shrink: 0;
+}
+/* Keep each number on one line ("+91" and the digits must not split). */
+.main-header__call__content a,
+.about-one__button__call__content a,
+.footer-widget__list__content a,
+.mobile-nav__contact li a,
+.top-one__info__item a {
+  white-space: nowrap;
+}
+/* Two office addresses side by side in the top bar. */
+.top-one__right .top-one__info__item + .top-one__info__item {
+  margin-left: 24px;
+}
+/* Contact page: the three cards hold different amounts of text (two addresses, two phones),
+   so stretch them to the height of the tallest card in the row. */
+.contact-top .row > [class*="col-"] {
+  display: flex;
+}
+.contact-top .row > [class*="col-"] > .contact-top__item {
+  flex: 1;
+}
+/* A long title (the e-mail address) wraps inside the card instead of running past its border. */
+.contact-top__item__title {
+  overflow-wrap: anywhere;
+}
+
+/* Red asterisk on required form labels (Contact page) */
+.form-one__required {
+  color: #e53935;
+  margin-left: 2px;
+}
+
+/* Contact form: hidden anti-spam field, and the sent / error message under the button */
+.form-one__honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.form-one__result {
+  margin: 16px 0 0;
+  font-weight: 500;
+}
+.form-one__result--ok {
+  color: #2e7d32;
+}
+.form-one__result--error {
+  color: #e53935;
+}
+.gotur-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

@@ -25,7 +25,7 @@ export interface Button {
   link: string;
   callIcon: string;
   callText: string;
-  phone: string;
+  phones: { label: string; href: string }[];
 }
 
 export interface AboutData {
@@ -163,7 +163,9 @@ const AboutOne: React.FC<AboutOneProps> = ({ extraclass }) => {
                   </div>
                   <div className='about-one__button__call__content'>
                     <span>{button.callText}</span>
-                    <Link href={`tel:${button.phone}`}>{button.phone}</Link>
+                    {button.phones.map((p) => (
+                      <Link key={p.href} href={p.href} style={{ display: "block" }}>{p.label}</Link>
+                    ))}
                   </div>
                 </div>
               </div>

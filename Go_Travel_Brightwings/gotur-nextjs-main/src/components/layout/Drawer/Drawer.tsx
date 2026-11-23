@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image, { StaticImageData } from "next/image";
 // import logo from "/images/logo-light.png";
 import { navItems } from "@/data/navItems";
+import { contactPhones } from "@/data/contactPhones";
 // import { demoPages } from "@/data/demoPages";
 // import { Col, Container, Row } from "react-bootstrap";
 
@@ -245,12 +246,14 @@ const Drawer: React.FC = () => {
             </span>
             <Link href='mailto:info@brightwingstravel.com'>Info@brightwingstravel.com</Link>
           </li>
-          <li>
-            <span className='mobile-nav__contact__icon'>
-              <i className='fa fa-phone-alt'></i>
-            </span>
-            <Link href='tel:+917732957732'>+91 7732957732</Link>
-          </li>
+          {contactPhones.map((p) => (
+            <li key={p.href}>
+              <span className='mobile-nav__contact__icon'>
+                <i className='fa fa-phone-alt'></i>
+              </span>
+              <Link href={p.href}>{p.label}</Link>
+            </li>
+          ))}
         </ul>
 
         <div className='mobile-nav__social'>

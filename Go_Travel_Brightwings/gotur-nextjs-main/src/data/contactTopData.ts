@@ -1,8 +1,12 @@
+import { officeAddresses } from "@/data/officeAddresses";
+import { contactPhones } from "@/data/contactPhones";
+
 export const contactItems = [
   {
     icon: "icon-pin",
     title: "Our Address",
-    text: "Office No G-2,Vinayak residency, Jaipur-302021",
+    text: officeAddresses.map((a) => `${a.city}: ${a.full}`).join(" | "),
+    lines: officeAddresses.map((a) => ({ label: a.city, text: a.full })),
   },
   {
     icon: "icon-mail-3",
@@ -12,8 +16,8 @@ export const contactItems = [
   },
   {
     icon: "icon-call-3",
-    title: "Hot: +91 7732957732",
+    title: "Contact No.",
     text: "Call us for any support, we are here to help.",
-    link: "tel:+917732957732",
+    phones: contactPhones,
   },
 ];

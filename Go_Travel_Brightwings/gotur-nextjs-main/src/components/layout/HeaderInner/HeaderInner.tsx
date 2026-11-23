@@ -7,6 +7,7 @@ import { navItems } from "@/data/navItems";
 import { usePathname } from "next/navigation";
 import useStore from "@/store/useStore";
 import Preloader from "@/components/common/Preloader/Preloader";
+import { contactPhones } from "@/data/contactPhones";
 // import MegaMenu from "@/components/common/MegaMenu/MegaMenu";
 
 interface NavItem {
@@ -118,7 +119,9 @@ const HeaderInner: React.FC = () => {
               </div>
               <div className='main-header__call__content'>
                 <span className='main-header__call__subtitle'>Call Us Now</span>
-                <Link href='tel:+917732957732'>+91 7732957732</Link>
+                {contactPhones.map((p) => (
+                  <Link key={p.href} href={p.href} style={{ display: "block" }}>{p.label}</Link>
+                ))}
               </div>
             </div>
             <div

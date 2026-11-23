@@ -20,8 +20,8 @@ export const aboutTwoData = {
     funFactCount: 25,
     funFactText: " of Experience",
     author:{
-        image: '/images/resources/about-author-1-1.jpg',
-        name: "Monika nemiwal",
+        image: '/images/team/ceo.jpeg',
+        name: "Monika Nemiwal",
         desc: "Co, Founder"
 
     },
