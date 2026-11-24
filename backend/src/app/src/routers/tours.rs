@@ -4,6 +4,7 @@
 //!   GET  /public/tours?limit=15&offset=0[&featured=true]   published tour cards + total
 //!   GET  /public/tours/{slug}                              one tour page, 2 random other tours, approved reviews
 //!   POST /public/tours/{slug}/reviews                      new review, saved as `pending`
+//!   GET  /public/tour-reviews?limit=20&offset=0            approved reviews from every tour (home page)
 //! Admin only (`/admin/tours`):
 //!   GET  /items?limit&offset, POST /items, PUT /items/{id}   write and edit tours (hide = is_published false)
 //!   GET  /reviews?status&limit&offset, PUT /reviews/{id}     approve or reject reviews
@@ -120,6 +121,33 @@ async fn get_public_handler(pool: web::Data<PgPool>, slug: web::Path<String>) ->
     .await
     .map_err(internal)?;
     tour.map(ApiResponse).ok_or_else(|| ApiError::new("This tour was not found", 404))
+}
+
+/// Home page testimonials: approved reviews from every published tour, newest first.
+/// Only name and message are returned; e-mail addresses are never public.
+async fn list_public_reviews_handler(pool: web::Data<PgPool>, query: web::Query<PageQuery>) -> Result<ApiResponse<Value>, ApiError> {
+    let (limit, offset) = query.page();
+    let items: Value = sqlx::query_scalar(
+        "SELECT COALESCE(json_agg(json_build_object('name', x.name, 'message', x.message) ORDER BY x.created_at DESC), '[]'::json)
+         FROM (
+             SELECT r.name, r.message, r.created_at
+             FROM tour_reviews r JOIN tours t ON t.id = r.tour_id
+             WHERE r.status = 'approved' AND t.is_published
+             ORDER BY r.created_at DESC LIMIT $1 OFFSET $2
+         ) x",
+    )
+    .bind(limit)
+    .bind(offset)
+    .fetch_one(pool.get_ref())
+    .await
+    .map_err(internal)?;
+    let total: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM tour_reviews r JOIN tours t ON t.id = r.tour_id WHERE r.status = 'approved' AND t.is_published",
+    )
+    .fetch_one(pool.get_ref())
+    .await
+    .map_err(internal)?;
+    Ok(ApiResponse(json!({ "items": items, "total": total, "limit": limit, "offset": offset })))
 }
 
 #[derive(Debug, Deserialize)]
@@ -515,6 +543,7 @@ pub fn tours_routes(cfg: &mut ServiceConfig) {
     cfg.route("/public/tours", web::get().to(list_public_handler))
         .route("/public/tours/{slug}", web::get().to(get_public_handler))
         .route("/public/tours/{slug}/reviews", web::post().to(create_review_handler))
+        .route("/public/tour-reviews", web::get().to(list_public_reviews_handler))
         .service(
             web::scope("/admin/tours")
                 .wrap(from_fn(|req, next| async move {

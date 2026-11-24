@@ -125,7 +125,8 @@ async function publicJson<T>(path: string, init?: RequestInit): Promise<T> {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       cache: "no-store",
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      // Content-Type only when sending a body: a plain GET then needs no CORS preflight request.
+      headers: init?.body ? { "Content-Type": "application/json", ...init.headers } : init?.headers,
     });
   } catch {
     throw new Error("We couldn't reach our server. Please check your connection and try again.");
@@ -228,6 +229,12 @@ export const postTourReview = (slug: string, input: { name: string; email: strin
     method: "POST",
     body: JSON.stringify(input),
   });
+
+/** Home page testimonials: approved reviews from every tour, newest first (name and message only). */
+export const getAllTourReviews = (limit = 20, offset = 0) =>
+  publicJson<{ items: { name: string; message: string }[]; total: number }>(
+    `/public/tour-reviews?limit=${limit}&offset=${offset}`
+  );
 
 /** A tour's page. Tours added later have no page file, so nginx serves /tour/_/ for them (see docs). */
 export const tourLink = (slug: string) => `/tour/${encodeURIComponent(slug)}/`;

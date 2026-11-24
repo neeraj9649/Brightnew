@@ -59,10 +59,6 @@ const BlogFive: React.FC = () => {
                   </div>
                   <div className='blog-card-two__content'>
                     <div className='blog-card-two__top'>
-                      <div className='blog-card-two__date'>
-                        <span className='blog-card-two__date__day'>{date.day}</span>
-                        <span className='blog-card-two__date__month'>{date.month}</span>
-                      </div>
                       <ul className='list-unstyled blog-card-two__meta'>
                         <li>
                           <span className='blog-card-two__meta__icon'>

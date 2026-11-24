@@ -7,7 +7,7 @@ Next.js export. Its tours, blog posts and contact form now talk to the backend A
 
 | Website part | Admin portal page | API | Tables (migration) |
 |---|---|---|---|
-| Tours page (`/tours/`, 15 per page), home "Most Popular Tours", tour pages (`/tour/<slug>/`) | Admin → **Tours** | `GET /public/tours?limit=15&offset=0[&featured=true]`, `GET /public/tours/{slug}`, `POST /public/tours/{slug}/reviews`; admin `/admin/tours/items`, `/admin/tours/reviews` | `tours`, `tour_reviews` (0038) |
+| Tours page (`/tours/`, 15 per page), home "Most Popular Tours", tour pages (`/tour/<slug>/`) | Admin → **Tours** | `GET /public/tours?limit=15&offset=0[&featured=true]`, `GET /public/tours/{slug}`, `POST /public/tours/{slug}/reviews`, `GET /public/tour-reviews` (home page testimonials: approved reviews from all tours, name + message); admin `/admin/tours/items`, `/admin/tours/reviews` | `tours`, `tour_reviews` (0038) |
 | Blog page, home blog cards, post page (`/blog-details/?slug=`) | Admin → **Blog** | `GET /public/blog`, `GET /public/blog/{slug}`, `POST /public/blog/{slug}/comments`; admin `/admin/blog/*` | `blog_posts`, `blog_comments` (0037) |
 | Contact page form | — (e-mailed to `ENQUIRY_TO_EMAIL`) | `POST /public/enquiries` | `enquiries` (0036) |
 

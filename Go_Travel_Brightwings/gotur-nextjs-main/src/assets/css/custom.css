@@ -244,3 +244,42 @@ body.rtl .main-slider-one__destinations__hover {
   justify-content: center;
   text-align: center;
 }
+
+/* Home testimonials: narrower photo on the left (template had it at about half the width).
+   The template places the photo, arrows and white wedge by % of the section, so they move together. */
+@media (min-width: 1200px) {
+  .testimonials-three .testimonial_img_box {
+    width: 32%;
+  }
+  .testimonials-three .testimonials-three__bottom__nav {
+    left: 30%;
+  }
+  .testimonials-three::after {
+    width: 32%;
+  }
+}
+/* Review cards without the author photo: keep the name clear of the card's top edge. */
+.testimonials-two-card--text-only .testimonials-two-card__content {
+  padding: 40px 50px 10px 80px;
+}
+
+/* Blog cards (home + Blog page): no coloured day/month box, only the full date, closer to the photo. */
+.blog-card-two--two .blog-card-two__image {
+  margin-bottom: 0;
+}
+.blog-card-two--two .blog-card-two__content {
+  padding-top: 20px;
+}
+.blog-card-two--two .blog-card-two__top {
+  margin-bottom: 8px;
+}
+.blog-card__content {
+  padding-top: 20px;
+}
+.blog-card__content__top {
+  margin-bottom: 8px;
+}
+.blog-card-two__meta small,
+.blog-card__meta small {
+  margin-left: 6px;
+}

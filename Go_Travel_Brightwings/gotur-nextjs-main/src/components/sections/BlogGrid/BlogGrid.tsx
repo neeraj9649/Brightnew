@@ -43,10 +43,6 @@ const BlogGrid: React.FC = () => {
                     </div>
                     <div className='blog-card__content'>
                       <div className='blog-card__content__top'>
-                        <div className='blog-card__date'>
-                          <span className='blog-card__date__day'>{date.day}</span>
-                          <span className='blog-card__date__month'>{date.month}</span>
-                        </div>
                         <ul className='list-unstyled blog-card__meta'>
                           <li>
                             <span className='blog-card__meta__icon'>

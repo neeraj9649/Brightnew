@@ -1,29 +1,26 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { testimonialsThreeData } from "@/data/testimonialsThreeData";
-import Image from "next/image";
+import { getAllTourReviews } from "@/lib/api";
 const TinySlider = dynamic(() => import("tiny-slider-react"), {
   ssr: false,
 });
 
-interface Testimonial {
-  id: number;
-  authorName: string;
-  authorDesc: string;
-  authorImage: string;
-  text: string;
-  rating: number;
-}
-interface TestimonialsThreeData {
-  bgImage: string;
-  cards: Testimonial[];
-  thumb: string;
-}
-
+// Home page testimonials: reviews visitors left on tour pages, shown once an admin approves them.
+// Background and photo still come from testimonialsThreeData.
 const TestimonialsThree: React.FC = () => {
-  const { bgImage, cards, thumb }: TestimonialsThreeData =
-    testimonialsThreeData;
+  const { bgImage, thumb } = testimonialsThreeData;
+  const [reviews, setReviews] = useState<{ name: string; message: string }[] | null>(null);
+  useEffect(() => {
+    getAllTourReviews(20, 0).then((p) => setReviews(p.items)).catch(() => setReviews([]));
+  }, []);
+
+  // The section always shows. With no approved reviews yet (or the API unreachable) one card invites a review.
+  const shown = reviews === null ? null : reviews.length ? reviews : [{
+    name: "Be the first to review",
+    message: "Travelled with Bright Wings? Open your tour from the Tours page and share your experience. Approved reviews appear here.",
+  }];
 
   return (
     <section
@@ -37,7 +34,7 @@ const TestimonialsThree: React.FC = () => {
 
       <div className="container-fluid">
         <div className="row align-items-center gutter-y-40">
-          <div className="col-xl-6">
+          <div className="col-xl-4">
             <div className="testimonials-three__top">
               <div
                 className="testimonials-three__thumb wow fadeInLeft testimonial_img_box"
@@ -72,8 +69,9 @@ const TestimonialsThree: React.FC = () => {
             </div>
           </div>
 
-          <div className="col-xl-6">
+          <div className="col-xl-8">
             <div className="testimonials-three__inner">
+              {shown && (
               <TinySlider
                 settings={{
                   items: 1,
@@ -92,41 +90,15 @@ const TestimonialsThree: React.FC = () => {
                   },
                 }}
               >
-                {cards.map((testimonial: Testimonial) => (
-                  <div key={testimonial.id} className="item">
-                    <div
-                      className="testimonials-two-card testimonials-two-card--two wow fadeInUp"
-                      data-wow-duration="1500ms"
-                      data-wow-delay="00ms"
-                    >
+                {shown.map((review, index) => (
+                  <div key={index} className="item">
+                    <div className="testimonials-two-card testimonials-two-card--two testimonials-two-card--text-only">
                       <div className="testimonials-two-card__inner">
-                        <div className="testimonials-two-card__top">
-                          <img
-                            src={testimonial.authorImage}
-                            alt="testiomonials author"
-                            width={500}
-                            height={400}
-                          />
-                        </div>
                         <div className="testimonials-two-card__content testimonials-two-card__content--two">
                           <div className="testimonials-two-card__author">
-                            <h4 className="testimonials-two-card__author__name">
-                              {testimonial.authorName}
-                            </h4>
-                            <p className="testimonials-two-card__author__dec">
-                              {testimonial.authorDesc}
-                            </p>
+                            <h4 className="testimonials-two-card__author__name">{review.name}</h4>
                           </div>
-                          <p className="testimonials-two-card__text">
-                            {testimonial.text}
-                          </p>
-                        </div>
-                        <div className="testimonials-two-card__star testimonials-two-card__star--two">
-                          <div className="testimonials-two-card__star__item">
-                            {[...Array(testimonial.rating)].map((_, index) => (
-                              <i key={index} className="icon-star"></i>
-                            ))}
-                          </div>
+                          <p className="testimonials-two-card__text">{review.message}</p>
                         </div>
                         <div className="testimonials-two-card__quite">
                           <i className="icon-straight-quotes"></i>
@@ -136,6 +108,7 @@ const TestimonialsThree: React.FC = () => {
                   </div>
                 ))}
               </TinySlider>
+              )}
             </div>
           </div>
         </div>

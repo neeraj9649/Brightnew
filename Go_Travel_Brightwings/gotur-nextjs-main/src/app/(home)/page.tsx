@@ -10,7 +10,6 @@ import FeatureTwo from "@/components/sections/FeatureTwo/FeatureTwo";
 import OfferOne from "@/components/sections/OfferOne/OfferOne";
 import InstagramOne from "@/components/sections/InstagramOne/InstagramOne";
 import FooterOne from "@/components/layout/FooterOne/FooterOne";
-import TestimonialsThree from "@/components/sections/TestimonialsThree/TestimonialsThree";
 import Layout from "@/components/layout/Layout/Layout";
 import HeaderOneCloned from "@/components/layout/HeaderOneCloned/HeaderOneCloned";
 
@@ -39,7 +38,7 @@ export default function Home() {
       <FeatureTwo />
       <OfferOne />
       <WhyChooseOne />
-      <TestimonialsThree />
+      {/* Testimonials hidden for now; put <TestimonialsThree /> back here to show them again. */}
       <BlogFive />
       <InstagramOne extraClass='instagram-one--two' />
       <FooterOne />
