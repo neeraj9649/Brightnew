@@ -42,7 +42,7 @@ services:
       - key: COOKIE_PARTITIONED
         value: "true"
       - key: PHP_UPLOADER_BASE_URL
-        value: https://resource.brightwingstravel.in
+        value: https://resources.brightwingstravel.com
       - key: PHP_UPLOADER_TOKEN
         sync: false
       - key: TWILIO_ACCOUNT_SID

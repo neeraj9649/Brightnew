@@ -87,15 +87,18 @@ if (is_array($allowedExtensions) && !in_array($extension, $allowedExtensions, tr
     json_response(['success' => false, 'message' => 'File extension not allowed'], 400);
 }
 
+// namespace / owner_id are kept in the metadata only: every file is stored flat in uploads/
+// as <file_id>.<ext> (the id is a random UUID, so names never clash). Files stored earlier in
+// uploads/<namespace>/<owner>/ keep working, because file.php reads each file's own relative_path.
 $namespace = clean_segment((string) ($_POST['namespace'] ?? 'files'), 'files');
 $ownerId = clean_segment((string) ($_POST['owner_id'] ?? 'general'), 'general');
 $filename = $fileId . '.' . $extension;
-$relativePath = $namespace . '/' . $ownerId . '/' . $filename;
+$relativePath = $filename;
 
 $uploadRoot = __DIR__ . '/uploads';
 $storageRoot = __DIR__ . '/storage';
 $metaRoot = $storageRoot . '/meta';
-$targetDir = $uploadRoot . '/' . $namespace . '/' . $ownerId;
+$targetDir = $uploadRoot;
 
 if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true)) {
     json_response(['success' => false, 'message' => 'Unable to create upload directory'], 500);
@@ -132,5 +135,6 @@ json_response([
     'id' => $fileId,
     'filename' => $filename,
     'path' => $relativePath,
-    'url' => public_base_url() . '/file.php?id=' . rawurlencode($fileId),
+    // Direct link to the file (served by the web server, cached). file.php?id=<id> also still works.
+    'url' => public_base_url() . '/uploads/' . rawurlencode($filename),
 ]);

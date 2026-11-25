@@ -159,8 +159,12 @@ belongs in `src/app/src/routers/`.
 - **Redemptions:** `requested → approved → voucher_issued → delivered` (or `rejected`/`cancelled`, which refund).
   Wings are deducted at request time. A `voucher_issued` redemption can be used once to book its trip:
   `POST /redemptions/{id}/book` (fully paid, sets `redemptions.booking_id`).
-- **Files:** uploads go through `/uploads/*` to the PHP uploader. Only the `file_id` UUID is stored, and the public URL is
-  `{PHP_UPLOADER_BASE_URL}/file.php?id=<id>` (frontend: `services/storage.js` `fileUrl`).
+- **Files:** uploads go through `/uploads/*` to the PHP uploader on `resources.brightwingstravel.com`
+  (`backend/php_uploader`, deployed by hand on Hostinger). New files are stored flat as `uploads/<uuid>.<ext>`;
+  the upload response's `url` is the direct link `https://resources.brightwingstravel.com/uploads/<uuid>.<ext>`.
+  Tours/blog store that URL; older features store only the `file_id` and use `file.php?id=<id>`
+  (frontend: `services/storage.js` `fileUrl`), which works for old (sub-folder) and new (flat) files.
+  `POST /admin/media/move-site-images` (`routers/media.rs`) copies tour/blog images onto the file server.
 
 ### Route map (prefix → router file)
 `/auth/*` (incl. `/auth/otp/request`), `/users/me`, `/admin/users`, `/staff/users` → `routers/auth/` ·

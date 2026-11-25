@@ -11,6 +11,7 @@ pub mod health;
 pub mod notifications;
 pub mod portal;
 pub mod loyalty;
+pub mod media;
 pub mod member;
 pub mod redemptions;
 pub mod referral;

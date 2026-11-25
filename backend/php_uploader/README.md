@@ -3,6 +3,10 @@
 Small Hostinger-friendly upload service for the Rust API.
 
 The Rust API sends multipart files to `upload.php` with a UUID `file_id`.
+Files are stored flat as `uploads/<file_id>.<ext>`, and `upload.php` returns the direct link
+`https://<host>/uploads/<file_id>.<ext>` as `url`. `file.php?id=<file_id>` also works, including for
+older files stored in `uploads/<namespace>/<owner>/` (each file's metadata keeps its own path).
+Live host: `https://resources.brightwingstravel.com`.
 Only that id is stored in the main database. Files and metadata live on the
 Hostinger server.
 

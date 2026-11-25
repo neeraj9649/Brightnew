@@ -98,7 +98,7 @@ export function ImagePick({ value, onChange, label }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUp(true);
-    try { validateFile(file, 5 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/jpg']); const { file_id: id } = await uploadProfileImage(file); onChange(fileUrl(id)); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); e.target.value = ''; }
+    try { validateFile(file, 5 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/jpg']); const { file_id: id, url } = await uploadProfileImage(file); onChange(url || fileUrl(id)); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); e.target.value = ''; }
   };
   return (
     <div className="pt-row" style={{ gap: 12 }}>

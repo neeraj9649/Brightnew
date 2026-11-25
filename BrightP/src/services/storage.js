@@ -5,7 +5,7 @@ import { api } from './api';
 // `${RESOURCE_BASE}/file.php?id=<uuid>` (no auth; served with its real
 // Content-Type, so it works in <img>, <a> or a new tab).
 const RESOURCE_BASE = (
-  process.env.REACT_APP_RESOURCE_URL || 'https://resource.brightwingstravel.in'
+  process.env.REACT_APP_RESOURCE_URL || 'https://resources.brightwingstravel.com'
 ).replace(/\/$/, '');
 
 export const fileUrl = (fileId) =>

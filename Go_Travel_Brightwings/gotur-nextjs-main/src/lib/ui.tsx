@@ -47,7 +47,7 @@ export const fmtDate = (iso: string) =>
 // subdomain root). Served with its real Content-Type, so it opens/downloads
 // directly — no auth needed.
 const RESOURCE_BASE = (
-  process.env.NEXT_PUBLIC_RESOURCE_URL || "https://resource.brightwingstravel.in"
+  process.env.NEXT_PUBLIC_RESOURCE_URL || "https://resources.brightwingstravel.com"
 ).replace(/\/$/, "");
 export const fileUrl = (fileId: string) =>
   fileId ? `${RESOURCE_BASE}/file.php?id=${encodeURIComponent(fileId)}` : "";

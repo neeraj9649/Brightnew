@@ -112,7 +112,7 @@ async fn upload_to_namespace(
         return Err(ApiError::new("Upload exactly one file per request", 400));
     }
 
-    let file_id = shared::cloud_storage::php_uploader::upload_file_bytes_to_php_uploader(
+    let uploaded = shared::cloud_storage::php_uploader::upload_file_bytes_to_php_uploader(
         bytes.freeze(),
         &filename,
         content_type.as_deref(),
@@ -125,12 +125,13 @@ async fn upload_to_namespace(
         ApiError::new("File upload failed", 502)
     })?;
 
-    let url = shared::cloud_storage::php_uploader::file_url(&file_id).map_err(|err| {
+    // The uploader's direct link (uploads/<id>.<ext>), or file.php?id= when it doesn't send one.
+    let url = uploaded.public_url().map_err(|err| {
         log::error!("PHP file URL configuration failed: {err}");
         ApiError::new("File URL is not configured", 500)
     })?;
 
-    Ok(ApiResponse(UploadedFileDTO { file_id, url }))
+    Ok(ApiResponse(UploadedFileDTO { file_id: uploaded.id, url }))
 }
 
 async fn upload_profile_image_handler(

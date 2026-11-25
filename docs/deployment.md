@@ -74,7 +74,7 @@ Keep the destination path under your SSH account's
 `~/domains/` directory; resolved paths outside it are rejected.
 
 Optional secrets: `REACT_APP_RESOURCE_URL` (default
-`https://resource.brightwingstravel.in`), `REACT_APP_PORTAL_URL` (default
+`https://resources.brightwingstravel.com`), `REACT_APP_PORTAL_URL` (default
 `https://portal.brightwingstravel.com`), and `REACT_APP_CONTACT_EMAIL` /
 `REACT_APP_CONTACT_PHONE` (shown on the inactive-account
 screens; hidden when unset).

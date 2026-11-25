@@ -44,6 +44,12 @@ fn upload_url() -> Result<String, String> {
     Ok(format!("{}/upload.php", base_url))
 }
 
+/// Host of the PHP uploader (from PHP_UPLOADER_UPLOAD_URL / PHP_UPLOADER_BASE_URL), e.g.
+/// "resources.brightwingstravel.com". Used to tell whether a link already points at the file server.
+pub fn uploader_host() -> Option<String> {
+    reqwest::Url::parse(&upload_url().ok()?).ok()?.host_str().map(|h| h.to_lowercase())
+}
+
 pub fn file_url(file_id: &str) -> Result<String, String> {
     let base_url = env_required_any(&["PHP_UPLOADER_BASE_URL"])?;
     let mut url = reqwest::Url::parse(&format!("{}/file.php", base_url))
@@ -92,19 +98,38 @@ fn uuid_filename(file_id: &str, original_filename: &str) -> String {
 struct PhpUploadResponse {
     success: bool,
     id: Option<String>,
+    /// Direct link to the stored file (newer uploader versions); older ones only return the id.
+    url: Option<String>,
     message: Option<String>,
+}
+
+/// A file stored on the PHP uploader: its id and, when the uploader sends one, its direct link.
+#[derive(Debug, Clone)]
+pub struct UploadedFile {
+    pub id: String,
+    pub url: Option<String>,
+}
+
+impl UploadedFile {
+    /// The link to show: the uploader's direct link, else `file.php?id=` from PHP_UPLOADER_BASE_URL.
+    pub fn public_url(&self) -> Result<String, String> {
+        match &self.url {
+            Some(url) => Ok(url.clone()),
+            None => file_url(&self.id),
+        }
+    }
 }
 
 pub async fn upload_external_file_to_php_uploader_if_needed(
     file_url: &str,
     key_namespace: &str,
     owner_id: &str,
-) -> Result<String, String> {
+) -> Result<UploadedFile, String> {
     dotenv::dotenv().ok();
 
     let input_url = file_url.trim();
     if input_url.is_empty() || !is_http_url(input_url) {
-        return Ok(file_url.to_string());
+        return Err(format!("Not a web link: '{}'", input_url));
     }
 
     let client = http_client()?;
@@ -149,7 +174,7 @@ pub async fn upload_file_bytes_to_php_uploader(
     content_type: Option<&str>,
     key_namespace: &str,
     owner_id: &str,
-) -> Result<String, String> {
+) -> Result<UploadedFile, String> {
     dotenv::dotenv().ok();
 
     let file_id = Uuid::new_v4().to_string();
@@ -207,8 +232,10 @@ pub async fn upload_file_bytes_to_php_uploader(
             .unwrap_or_else(|| "PHP uploader rejected the file".to_string()));
     }
 
-    parsed
+    let id = parsed
         .id
         .filter(|id| !id.trim().is_empty())
-        .ok_or_else(|| "PHP uploader response did not include file id".to_string())
+        .ok_or_else(|| "PHP uploader response did not include file id".to_string())?;
+    let url = parsed.url.map(|u| u.trim().to_string()).filter(|u| is_http_url(u));
+    Ok(UploadedFile { id, url })
 }

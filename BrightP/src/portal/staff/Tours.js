@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, ExternalLink, Map as MapIcon, MessageSquare, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ExternalLink, Map as MapIcon, MessageSquare, Pencil, Plus, Star, Trash2, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { Badge, Card, Check2, Empty, ErrorState, Field, Input, Modal, ModalHead, Select, Skeleton, Tabs, TextArea, fmtDateTime, useAsync } from '../ui';
@@ -39,9 +39,43 @@ export default function Tours() {
     try { await api.put(`/admin/tours/items/${t.id}`, { ...t, ...patch }); list.reload(); } catch (e) { toast.error(e.message || 'Could not update'); }
   };
 
+  // Copies every tour and blog image that is not on the file server yet, 20 per call, until none are left.
+  // Links that fail are sent back as `skip`, so one broken image never stops the rest.
+  const [moving, setMoving] = useState(false);
+  const moveImages = async () => {
+    if (!window.confirm('Copy all tour and blog images to the file server and update their links? This can take a minute.')) return;
+    setMoving(true);
+    const skip = [];
+    let moved = 0;
+    const progress = toast.loading('Moving images…');
+    try {
+      for (let round = 0; round < 100; round += 1) {
+        const res = await api.post('/admin/media/move-site-images?limit=20', { skip });
+        moved += res.moved;
+        skip.push(...res.failed.map((f) => f.url));
+        toast.loading(`Moving images… ${moved} moved${res.remaining ? `, ${res.remaining} left` : ''}`, { id: progress });
+        if (!res.remaining || (!res.moved && !res.failed.length)) break;
+      }
+      toast.dismiss(progress);
+      if (skip.length) toast.error(`${moved} images moved. ${skip.length} could not be copied and were left as they are.`, { duration: 8000 });
+      else toast.success(moved ? `${moved} images moved to the file server.` : 'All images are already on the file server.');
+      list.reload();
+    } catch (e) {
+      toast.dismiss(progress);
+      toast.error(e.message || 'Could not move the images');
+    } finally {
+      setMoving(false);
+    }
+  };
+
   return (
     <StaffShell active="tours" title="Tours" sub="Tours you publish here appear on the website's Tours page. Visitors' reviews show only after you approve them."
-      actions={tab === 'tours' && <button type="button" className="pt-btn" onClick={() => setEdit(null)}><Plus size={17} /> New tour</button>}>
+      actions={tab === 'tours' && (
+        <div className="pt-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="pt-btn ghost" disabled={moving} onClick={moveImages} title="Copy tour and blog images to the file server"><Upload size={17} /> {moving ? 'Moving images…' : 'Move images to file server'}</button>
+          <button type="button" className="pt-btn" onClick={() => setEdit(null)}><Plus size={17} /> New tour</button>
+        </div>
+      )}>
       <div style={{ marginBottom: 18 }}>
         <Tabs value={tab} onChange={setTab} tabs={[['tours', 'Tours'], ['reviews', pending ? `Reviews (${pending} waiting)` : 'Reviews']]} />
       </div>

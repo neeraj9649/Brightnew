@@ -9,7 +9,7 @@ import Link from "next/link";
 import { getPublicOffers, type PublicOffer } from "@/lib/api";
 
 const RESOURCE_BASE = (
-  process.env.NEXT_PUBLIC_RESOURCE_URL ?? "https://resource.brightwingstravel.in"
+  process.env.NEXT_PUBLIC_RESOURCE_URL ?? "https://resources.brightwingstravel.com"
 ).replace(/\/$/, "");
 
 const imageFor = (offer: PublicOffer, index: number) =>

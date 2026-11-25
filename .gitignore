@@ -12,3 +12,7 @@ coverage/
 !.env.template
 !BrightP/.env.production
 *.tsbuildinfo
+
+# Build output and zipped builds are never committed or uploaded
+*-build.zip
+build.zip
