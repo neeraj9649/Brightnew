@@ -1351,3 +1351,6 @@
   .ly-status { grid-column: 1 / -1; }
   .ly-actions .pt-btn { width: 100%; padding-inline: 8px; white-space: nowrap; font-size: 13px; }
 }
+
+/* Admin tour form: a wider drawer (the form is long, with photos and a day-by-day plan). */
+.pt-drawer.tour-drawer { max-width: 860px; }

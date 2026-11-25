@@ -125,7 +125,6 @@ const FaqSection: React.FC = () => {
                             {faq.title}
                           </div>
                           <Accordion
-                            defaultActiveKey='0'
                             className=' wow fadeInUp'
                             data-wow-duration='1500ms'
                             data-wow-delay='500ms'

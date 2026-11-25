@@ -65,8 +65,8 @@ pub fn send_plain_email(to: &str, subject: &str, body: &str) -> Result<(), Strin
     SmtpAccount::from_env("SMTP_")?.send(to, None, subject, body)
 }
 
-/// Sends a website enquiry with the `ENQUIRY_SMTP_*` account. `reply_to` is the visitor's
-/// address, so pressing Reply in the inbox answers the visitor directly.
-pub fn send_enquiry_email(to: &str, reply_to: &str, subject: &str, body: &str) -> Result<(), String> {
-    SmtpAccount::from_env("ENQUIRY_SMTP_")?.send(to, Some(reply_to), subject, body)
+/// Sends website mail (contact enquiries, tour booking requests) with the `ENQUIRY_SMTP_*` account.
+/// `reply_to` is the visitor's address when known, so pressing Reply answers the visitor directly.
+pub fn send_enquiry_email(to: &str, reply_to: Option<&str>, subject: &str, body: &str) -> Result<(), String> {
+    SmtpAccount::from_env("ENQUIRY_SMTP_")?.send(to, reply_to, subject, body)
 }

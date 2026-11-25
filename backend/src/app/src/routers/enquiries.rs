@@ -131,7 +131,7 @@ async fn create_enquiry_handler(
     let text = email_text(&enquiry, &received);
     let reply_to = enquiry.email.clone();
 
-    let result = web::block(move || shared::mail::send_enquiry_email(&to, &reply_to, &subject, &text))
+    let result = web::block(move || shared::mail::send_enquiry_email(&to, Some(reply_to.as_str()), &subject, &text))
         .await
         .map_err(|e| e.to_string())
         .and_then(|r| r);

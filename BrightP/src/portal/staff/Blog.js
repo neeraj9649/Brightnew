@@ -7,7 +7,7 @@ import { Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Skeleto
 import StaffShell from './StaffShell';
 
 // Posts appear on the public website's Blog page; this links an admin straight to one.
-const WEBSITE = 'https://brightwingstravel.in';
+const WEBSITE = 'https://brightwingstravel.com';
 const postLink = (slug) => `${WEBSITE}/blog-details/?slug=${encodeURIComponent(slug)}`;
 
 /** Admin: write website blog posts and approve visitors' comments. */

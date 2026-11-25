@@ -184,7 +184,6 @@ export default function DestinationDetails({
                 </h3>
                 <div className="faq-page__accordion faq-accordion gotur-accordion">
                   <Accordion
-                    defaultActiveKey="0"
                     //    onSelect={(k) => setActiveKey(k)}
                   >
                     {destination.faqs.map((faq, idx) => (

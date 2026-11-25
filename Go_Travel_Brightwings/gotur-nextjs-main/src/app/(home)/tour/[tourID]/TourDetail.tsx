@@ -1,18 +1,17 @@
 "use client";
 
-import React, { FormEvent, useEffect, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useState } from "react";
 import DatePicker from "react-datepicker"; // Date range picker
 import dynamic from "next/dynamic";
 import { Accordion, Col, Container } from "react-bootstrap";
 const TinySlider = dynamic(() => import("tiny-slider-react"), {
   ssr: false,
 });
-import VideoModal from "@/components/common/VideoModal/VideoModal";
 import TourCard from "@/components/common/TourCard/TourCard";
-import { Gallery as PhotoSwipeGallery } from "react-photoswipe-gallery";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { blogDate, getTour, postTourReview, type Tour } from "@/lib/api";
+import TourEnquiryModal, { BOOKING_INCLUDES, type TourBooking } from "@/components/common/TourEnquiryModal/TourEnquiryModal";
 
 /**
  * One tour page, loaded from the API by the slug in the address (/tour/<slug>/).
@@ -26,11 +25,12 @@ const TourDetail: React.FC<{ tourID?: string }> = () => {
   const [loadError, setLoadError] = useState("");
 
   const [startDate, setStartDate] = useState<Date | null>();
-  const [startTime, setStartTime] = useState<Date | null>();
-  const [isOpen, setOpen] = useState(false);
-  const [videoId, setVideoId] = useState("");
-  const [extraBooking, setExtraBooking] = useState({ perBooking: false, perPerson: false });
-  const [ticketMessage, setTicketMessage] = useState("Please, Select Date First");
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [travellers, setTravellers] = useState("");
+  const [bookingError, setBookingError] = useState("");
+  const [enquiry, setEnquiry] = useState<TourBooking | null>(null); // set = enquiry popup open
+  const closeEnquiry = useCallback(() => setEnquiry(null), []);
+  const [includes, setIncludes] = useState<string[]>([]); // ticked BOOKING_INCLUDES
   const [rating, setRating] = useState(0);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -76,27 +76,22 @@ const TourDetail: React.FC<{ tourID?: string }> = () => {
     }
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, checked } = e.target;
-    setExtraBooking((prev) => ({
-      ...prev,
-      perBooking: id === "check8" ? checked : prev.perBooking,
-      perPerson: id === "check9" ? checked : prev.perPerson,
-    }));
-  };
+  const toggleInclude = (option: string, on: boolean) =>
+    setIncludes((prev) => (on ? [...prev, option] : prev.filter((o) => o !== option)));
 
+  // Book Now: checks the trip fields, then opens the enquiry popup (it asks for contact details and
+  // e-mails the quotation request to the office).
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!startDate || !startTime) {
-      alert("Please select both date and time.");
-      return;
-    }
-    console.log("Booking Submitted:", {
-      date: startDate.toISOString(),
-      time: startTime.toISOString(),
-      extras: extraBooking,
-      tickets: ticketMessage,
-    });
+    if (!tour) return;
+    const count = Number(travellers);
+    if (!startDate || !endDate) return setBookingError("Please choose both From and To dates.");
+    if (endDate < startDate) return setBookingError("The To date can't be before the From date.");
+    if (!Number.isInteger(count) || count < 1 || count > 500) return setBookingError("Please enter the number of travellers (1 to 500).");
+    setBookingError("");
+
+    // Keep the website's order whatever order the boxes were ticked in.
+    setEnquiry({ from: startDate, to: endDate, travellers: count, includes: BOOKING_INCLUDES.filter((o) => includes.includes(o)) });
   };
 
   const handleReview = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -226,57 +221,6 @@ const TourDetail: React.FC<{ tourID?: string }> = () => {
           </div>
         )}
 
-        {/* Info Section */}
-        <div
-          className="tour-listing-details__info-area wow fadeInUp"
-          data-wow-duration="1500ms"
-          data-wow-delay="500ms"
-        >
-          <Container>
-            <ul className="tour-listing-details__info-area__info list-unstyled">
-              <li>
-                <div className="tour-listing-details__info-area__icon">
-                  <i className="icon-location"></i>
-                </div>
-                <div className="tour-listing-details__info-area__content">
-                  <h5 className="tour-listing-details__info-area__title">Location</h5>
-                  <p className="tour-listing-details__info-area__text">{tour.location}</p>
-                </div>
-              </li>
-              <li>
-                <div className="tour-listing-details__info-area__icon">
-                  <i className="icon-travel-and-tourism"></i>
-                </div>
-                <div className="tour-listing-details__info-area__content">
-                  <h5 className="tour-listing-details__info-area__title">Activities Type</h5>
-                  <p className="tour-listing-details__info-area__text">{tour.activity_type}</p>
-                </div>
-              </li>
-              <li>
-                <div className="tour-listing-details__info-area__icon">
-                  <i className="icon-clock"></i>
-                </div>
-                <div className="tour-listing-details__info-area__content">
-                  <h5 className="tour-listing-details__info-area__title">Activate Day</h5>
-                  <p className="tour-listing-details__info-area__text">{tour.active_days}</p>
-                </div>
-              </li>
-              <li>
-                <div className="tour-listing-details__info-area__icon">
-                  <i className="icon-group"></i>
-                </div>
-                <div className="tour-listing-details__info-area__content">
-                  <h5 className="tour-listing-details__info-area__title">Traveler</h5>
-                  <p className="tour-listing-details__info-area__text">{tour.travelers}</p>
-                </div>
-              </li>
-              <li>
-                <span className="gotur-btn">{tour.price}</span>
-              </li>
-            </ul>
-          </Container>
-        </div>
-
         <Container>
           <div className="row gutter-y-30">
             <div className="col-lg-4">
@@ -291,50 +235,71 @@ const TourDetail: React.FC<{ tourID?: string }> = () => {
                     <form className="sidebar-two__form__inner contact-form-validated" onSubmit={handleSubmit}>
                       <div className="sidebar-two__form__control ">
                         <label htmlFor="checkin">From:</label>
-                        <DatePicker selected={startDate} onChange={(date) => setStartDate(date)} />
+                        <DatePicker
+                          id="checkin"
+                          selected={startDate}
+                          onChange={(date) => {
+                            setStartDate(date);
+                            if (date && endDate && endDate < date) setEndDate(null);
+                          }}
+                          dateFormat="dd/MM/yyyy"
+                          placeholderText="dd/mm/yyyy"
+                          minDate={new Date()}
+                        />
                         <i className="icon-calendar"></i>
                       </div>
                       <div className="sidebar-two__form__control">
-                        <label htmlFor="checkout">Time:</label>
-                        <DatePicker selected={startTime} onChange={(date) => setStartTime(date)} />
+                        <label htmlFor="checkout">To:</label>
+                        <DatePicker
+                          id="checkout"
+                          selected={endDate}
+                          onChange={(date) => setEndDate(date)}
+                          dateFormat="dd/MM/yyyy"
+                          placeholderText="dd/mm/yyyy"
+                          minDate={startDate ?? new Date()}
+                        />
+                        <i className="icon-calendar"></i>
                       </div>
                       <div className="sidebar-two__form__control">
-                        <label htmlFor="checkout">Tickets:</label>
+                        <label htmlFor="travellers">Travellers:</label>
                         <input
-                          id="checkout"
+                          id="travellers"
                           type="text"
-                          name="checkout"
-                          placeholder="Please, Select Date Fist"
-                          onChange={(e) => setTicketMessage(e.target.value)}
+                          inputMode="numeric"
+                          name="travellers"
+                          placeholder="Number of travellers"
+                          maxLength={3}
+                          value={travellers}
+                          onChange={(e) => setTravellers(e.target.value.replace(/\D/g, ""))}
                         />
                       </div>
                       <div className="sidebar-two__form__control sidebar-two__form__control--two">
-                        <label className="sidebar-two__form__control--title" htmlFor="guests">
-                          Add Extra:
+                        <label className="sidebar-two__form__control--title" htmlFor="include-0">
+                          Includes:
                         </label>
                         <ul className="list-unstyled sidebar-two__form__checkbox">
-                          <li>
-                            <input type="checkbox" name="check8" id="check8" onChange={handleCheckboxChange} />
-                            <label htmlFor="check8">
-                              {" "}
-                              <span> Services per booking</span>
-                            </label>
-                          </li>
-                          <li>
-                            <input type="checkbox" name="check9" id="check9" onChange={handleCheckboxChange} />
-                            <label htmlFor="check9">
-                              <span>Services per person</span>
-                            </label>
-                          </li>
+                          {BOOKING_INCLUDES.map((option, i) => (
+                            <li key={option}>
+                              <input
+                                type="checkbox"
+                                name={`include-${i}`}
+                                id={`include-${i}`}
+                                checked={includes.includes(option)}
+                                onChange={(e) => toggleInclude(option, e.target.checked)}
+                              />
+                              <label htmlFor={`include-${i}`}>
+                                <span>{option}</span>
+                              </label>
+                            </li>
+                          ))}
                         </ul>
                       </div>
-                      <button
-                        type="submit"
-                        className="gotur-btn gotur-btn--base"
-                        onClick={() => window.open("https://wa.me/917732957732?text=Hello%20I%20want%20to%20book%20a%20tour", "_blank")}
-                      >
+                      <button type="submit" className="gotur-btn gotur-btn--base">
                         Book Now <i className="icon-right"></i>
                       </button>
+                      {bookingError && (
+                        <p role="alert" className="form-one__result form-one__result--error">{bookingError}</p>
+                      )}
                     </form>
                   </div>
                 </div>
@@ -435,7 +400,7 @@ const TourDetail: React.FC<{ tourID?: string }> = () => {
                   <div className="tour-listing-details__content__item tour-listing-details__ture-plan">
                     <h4 className="tour-listing-details__title">Tour Plan</h4>
                     <div className="faq-page__accordion faq-accordion gotur-accordion">
-                      <Accordion defaultActiveKey="0">
+                      <Accordion>
                         {tour.faqs.map((faq, idx) => (
                           <Accordion.Item eventKey={idx.toString()} key={idx}>
                             <Accordion.Header>
@@ -464,21 +429,15 @@ const TourDetail: React.FC<{ tourID?: string }> = () => {
                 {tour.related.length > 0 && (
                   <div className="tour-listing-details__content__item tour-listing-details__ture-list">
                     <h4 className="tour-listing-details__title">Related Tour List</h4>
-                    <PhotoSwipeGallery>
+                    <>
                       <div className="row">
                         {tour.related.map((item) => (
                           <Col lg={6} md={6} key={item.slug}>
-                            <TourCard
-                              tour={item}
-                              onVideo={(id) => {
-                                setVideoId(id);
-                                setOpen(true);
-                              }}
-                            />
+                            <TourCard tour={item} />
                           </Col>
                         ))}
                       </div>
-                    </PhotoSwipeGallery>
+                    </>
                   </div>
                 )}
 
@@ -579,7 +538,7 @@ const TourDetail: React.FC<{ tourID?: string }> = () => {
           </div>
         </Container>
       </section>
-      <VideoModal isOpen={isOpen} setOpen={setOpen} id={videoId} />
+      <TourEnquiryModal open={!!enquiry} onClose={closeEnquiry} tour={tour} booking={enquiry} />
       {copied && (
         <div className={`share-toast ${copied === "fail" ? "share-toast--error" : ""}`} role="status">
           {copied === "ok" ? "Link copied! Paste it anywhere to share this tour." : "Couldn't copy the link. Please copy it from the address bar."}

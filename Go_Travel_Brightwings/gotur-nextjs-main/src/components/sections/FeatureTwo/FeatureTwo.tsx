@@ -5,8 +5,6 @@ import dynamic from "next/dynamic";
 
 import TextAnimation from "@/components/common/AnimatedText/TextAnimation";
 import { featurePackageData } from "@/data/featureTwoData";
-import VideoModal from "@/components/common/VideoModal/VideoModal";
-import { Gallery as PhotoSwipeGallery } from "react-photoswipe-gallery";
 import TourCard from "@/components/common/TourCard/TourCard";
 import { getTours, type TourCardData } from "@/lib/api";
 
@@ -25,8 +23,6 @@ const FeatureTwo: React.FC<FeatureTwoProps> = ({
   id,
   homeThree,
 }) => {
-  const [isOpen, setOpen] = useState(false);
-  const [videoId, setVideoId] = useState("");
   // Tours the admin marked "Show on the home page".
   const [tours, setTours] = useState<TourCardData[]>([]);
   useEffect(() => {
@@ -100,7 +96,7 @@ const FeatureTwo: React.FC<FeatureTwoProps> = ({
         <div className='container-fluid'>
           <div className='feature-package__inner'>
             <div className='feature-package__carousel gotur-owl__carousel gotur-owl__carousel--custom-nav gotur-owl__carousel--with-shadow owl-carousel owl-theme owl-loaded owl-drag'>
-              <PhotoSwipeGallery >
+              <>
                 {tours.length > 0 && (
                 <TinySlider
                   settings={{
@@ -124,18 +120,12 @@ const FeatureTwo: React.FC<FeatureTwoProps> = ({
                 >
                   {tours.map((tour) => (
                     <div className='item' key={tour.slug}>
-                      <TourCard
-                        tour={tour}
-                        onVideo={(id) => {
-                          setVideoId(id);
-                          setOpen(true);
-                        }}
-                      />
+                      <TourCard tour={tour} />
                     </div>
                   ))}
                 </TinySlider>
                 )}
-              </PhotoSwipeGallery>
+              </>
             </div>
           </div>
         </div>
@@ -147,7 +137,6 @@ const FeatureTwo: React.FC<FeatureTwoProps> = ({
           </div>
         )}
       </section>
-      <VideoModal isOpen={isOpen} setOpen={setOpen} id={videoId} />
     </>
   );
 };

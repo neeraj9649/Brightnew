@@ -174,7 +174,7 @@ steps / offers / Wings requests / staff association → `workflow.rs` (`/portal/
 `/cards/{code}` (public) → `cards.rs` · `/support` → `support.rs` · `/uploads/*` → `uploads.rs` ·
 `POST /public/enquiries` (website contact form: saved in `enquiries`, e-mailed to `ENQUIRY_TO_EMAIL` via `ENQUIRY_SMTP_*`) → `enquiries.rs` ·
 `/public/blog*` (website blog + comments), `/admin/blog/*` (posts, comment approval) → `blog.rs` ·
-`/public/tours*` (website tours, paginated, + reviews), `/public/tour-reviews` (home testimonials), `/admin/tours/*` (tours, review approval) → `tours.rs` (see `docs/website-tours-blog.md`) ·
+`/public/tours*` (website tours, paginated, + reviews), `/public/tour-reviews` (home testimonials), `/public/tour-locations` (Tours page filter), `POST /public/tours/{slug}/booking` (Book This Tour e-mail), `/admin/tours/*` (tours, review approval) → `tours.rs` (see `docs/website-tours-blog.md`) ·
 `/admin/portal/*` → `admin_portal.rs` · `/admin/analytics/*` → `analytics.rs` · `/admin/financials` → `financials.rs` · `/health`.
 
 ### Commands

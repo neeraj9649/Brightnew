@@ -2,9 +2,10 @@ import { useAuth, type User } from "@/store/auth";
 
 // Baked at build time for static export. Without NEXT_PUBLIC_API_URL, production builds use
 // the live Bright Wings API and `npm run dev` uses a local one.
-export const API_BASE_URL =
+export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ??
-  (process.env.NODE_ENV === "production" ? "https://bp.nsiif.in" : "http://localhost:9010");
+  (process.env.NODE_ENV === "production" ? "https://bp.nsiif.in" : "http://localhost:9010")
+).replace(/\/+$/, ""); // a trailing "/" in .env would otherwise give "//public/..."
 
 type Body = Record<string, unknown>;
 
@@ -177,11 +178,8 @@ export interface TourCardData {
   title: string;
   card_image: string;
   location: string;
-  duration: string;
-  price: string;
   discount: number | null;
   rating: number;
-  video_id: string;
   is_featured: boolean;
   review_count: number;
 }
@@ -195,9 +193,6 @@ export interface TourReview {
 
 export interface Tour extends Omit<TourCardData, "is_featured" | "review_count"> {
   headline: string;
-  activity_type: string;
-  active_days: string;
-  travelers: number;
   overview: string;
   slider_images: string[];
   thumb_images: string[];
@@ -217,9 +212,19 @@ export interface TourPage {
   offset: number;
 }
 
-/** One page of published tours (newest admin order). `featured` = only "show on home page" tours. */
-export const getTours = (limit = 15, offset = 0, featured = false) =>
-  publicJson<TourPage>(`/public/tours?limit=${limit}&offset=${offset}${featured ? "&featured=true" : ""}`);
+/**
+ * One page of published tours (admin order). `featured` = only "show on home page" tours,
+ * `location` = only tours in that location ("" = all).
+ */
+export const getTours = (limit = 15, offset = 0, featured = false, location = "") =>
+  publicJson<TourPage>(
+    `/public/tours?limit=${limit}&offset=${offset}${featured ? "&featured=true" : ""}${
+      location ? `&location=${encodeURIComponent(location)}` : ""
+    }`
+  );
+
+/** Locations that have at least one published tour, A to Z (Tours page filter). */
+export const getTourLocations = () => publicJson<string[]>("/public/tour-locations");
 
 export const getTour = (slug: string) => publicJson<Tour>(`/public/tours/${encodeURIComponent(slug)}`);
 
@@ -235,6 +240,26 @@ export const getAllTourReviews = (limit = 20, offset = 0) =>
   publicJson<{ items: { name: string; message: string }[]; total: number }>(
     `/public/tour-reviews?limit=${limit}&offset=${offset}`
   );
+
+/** "Book This Tour" quotation request: the API e-mails it to the office. Throws the API's message on failure. */
+export const requestTourQuote = (
+  slug: string,
+  booking: {
+    name: string;
+    email: string;
+    phone: string; // phone or WhatsApp number
+    departure_address: string;
+    message: string; // optional, may be ""
+    from: string; // YYYY-MM-DD
+    to: string;
+    travellers: number;
+    includes: string[]; // ticked BOOKING_INCLUDES
+  }
+) =>
+  publicJson<{ status: string }>(`/public/tours/${encodeURIComponent(slug)}/booking`, {
+    method: "POST",
+    body: JSON.stringify(booking),
+  });
 
 /** A tour's page. Tours added later have no page file, so nginx serves /tour/_/ for them (see docs). */
 export const tourLink = (slug: string) => `/tour/${encodeURIComponent(slug)}/`;

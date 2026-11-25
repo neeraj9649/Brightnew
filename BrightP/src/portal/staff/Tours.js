@@ -7,7 +7,7 @@ import StaffShell from './StaffShell';
 import { ImagePick } from './Blog';
 
 // Tours appear on the public website (Tours list, home page, tour pages).
-const WEBSITE = 'https://brightwingstravel.in';
+const WEBSITE = 'https://brightwingstravel.com';
 const tourLink = (slug) => `${WEBSITE}/tour/${encodeURIComponent(slug)}/`;
 const PAGE = 15;
 
@@ -60,7 +60,7 @@ export default function Tours() {
                 </div>
                 <div style={{ padding: 16 }}>
                   <strong style={{ fontSize: 16, color: 'var(--pt-navy)' }}>{t.title}</strong>
-                  <div className="pt-tiny" style={{ marginTop: 6 }}>{[t.location, t.duration, t.price].filter(Boolean).join(' · ')}{Number(t.pending_reviews) ? <> · <b>{t.pending_reviews} review{Number(t.pending_reviews) > 1 ? 's' : ''} waiting</b></> : null}</div>
+                  <div className="pt-tiny" style={{ marginTop: 6 }}>{t.location}{Number(t.pending_reviews) ? <> · <b>{t.pending_reviews} review{Number(t.pending_reviews) > 1 ? 's' : ''} waiting</b></> : null}</div>
                   <div className="pt-row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                     <button type="button" className="pt-btn ghost sm" onClick={() => setEdit(t)}><Pencil size={14} /> Edit</button>
                     <button type="button" className="pt-btn ghost sm" onClick={() => save(t, { is_published: !t.is_published })}>{t.is_published ? 'Hide' : 'Publish'}</button>
@@ -124,9 +124,7 @@ const lines = (text) => text.split('\n').map((s) => s.trim()).filter(Boolean);
 function TourDrawer({ tour, onClose, onSaved }) {
   const [f, setF] = useState({
     title: tour?.title || '', headline: tour?.headline || '', card_image: tour?.card_image || '', location: tour?.location || '',
-    duration: tour?.duration || '', activity_type: tour?.activity_type || '', active_days: tour?.active_days || '',
-    travelers: tour?.travelers ?? 1, price: tour?.price || 'Contact Us', discount: tour?.discount ?? '', rating: tour?.rating ?? 5,
-    video_id: tour?.video_id || '', overview: tour?.overview || '', slider_images: tour?.slider_images || [],
+    discount: tour?.discount ?? '', rating: tour?.rating ?? 5, overview: tour?.overview || '', slider_images: tour?.slider_images || [],
     thumb_1: tour?.thumb_images?.[0] || '', thumb_2: tour?.thumb_images?.[1] || '',
     highlights: (tour?.highlights || []).join('\n'), included: (tour?.included || []).join('\n'), excluded: (tour?.excluded || []).join('\n'),
     faqs: tour?.faqs?.length ? tour.faqs : [{ question: '', answer: '' }], map_embed_url: tour?.map_embed_url || '',
@@ -142,14 +140,13 @@ function TourDrawer({ tour, onClose, onSaved }) {
     if (!f.title.trim()) next.title = 'Give the tour a title';
     if (!f.card_image) next.card_image = 'Upload a card image';
     if (f.discount !== '' && !(Number(f.discount) >= 1 && Number(f.discount) <= 99)) next.discount = 'Between 1 and 99';
-    if (!(Number(f.travelers) >= 1)) next.travelers = 'At least 1';
+    if (!f.location.trim()) next.location = 'Enter the location';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
     const body = {
-      title: f.title.trim(), headline: f.headline, card_image: f.card_image, location: f.location, duration: f.duration,
-      activity_type: f.activity_type, active_days: f.active_days, travelers: Number(f.travelers), price: f.price,
-      discount: f.discount === '' ? null : Number(f.discount), rating: Number(f.rating), video_id: f.video_id.trim(), overview: f.overview,
+      title: f.title.trim(), headline: f.headline, card_image: f.card_image, location: f.location.trim(),
+      discount: f.discount === '' ? null : Number(f.discount), rating: Number(f.rating), overview: f.overview,
       slider_images: f.slider_images.filter(Boolean), thumb_images: [f.thumb_1, f.thumb_2].filter(Boolean),
       highlights: lines(f.highlights), included: lines(f.included), excluded: lines(f.excluded),
       faqs: f.faqs.filter((q) => q.question.trim()), map_embed_url: f.map_embed_url.trim(),
@@ -163,23 +160,17 @@ function TourDrawer({ tour, onClose, onSaved }) {
   };
 
   return (
-    <Modal open onClose={onClose} side label="Tour">
+    <Modal open onClose={onClose} side label="Tour" className="tour-drawer">
       <ModalHead title={tour ? 'Edit tour' : 'New tour'} sub="Laid out like the website's tour page, top to bottom." onClose={onClose} />
       <div className="pt-stack">
         <Field label="Card title *" error={errors.title} hint="Shown on the Tours list and home page cards."><Input value={f.title} onChange={(e) => set('title', e.target.value)} maxLength={200} placeholder="The Burj Khalifa" error={errors.title} /></Field>
         <Field label="Page title" optional hint="The big title at the top of the tour page. Leave empty to use the card title."><Input value={f.headline} onChange={(e) => set('headline', e.target.value)} maxLength={300} /></Field>
         <Field label="Card image *" error={errors.card_image}><ImagePick value={f.card_image} onChange={(v) => set('card_image', v)} label="card image" /></Field>
+        <Field label="Location *" error={errors.location} hint="Shown on the tour cards and under the tour's title."><Input value={f.location} onChange={(e) => set('location', e.target.value)} maxLength={120} placeholder="Dubai" error={errors.location} /></Field>
         <div className="pt-grid2">
-          <Field label="Location" optional><Input value={f.location} onChange={(e) => set('location', e.target.value)} maxLength={120} placeholder="Dubai" /></Field>
-          <Field label="Duration" optional><Input value={f.duration} onChange={(e) => set('duration', e.target.value)} maxLength={120} placeholder="2 Days, 1 Night" /></Field>
-          <Field label="Activity type" optional><Input value={f.activity_type} onChange={(e) => set('activity_type', e.target.value)} maxLength={120} placeholder="Adventure" /></Field>
-          <Field label="Active days" optional><Input value={f.active_days} onChange={(e) => set('active_days', e.target.value)} maxLength={120} placeholder="Mon - Sun" /></Field>
-          <Field label="Price" optional hint="Shown as written, e.g. Contact Us or AED 499"><Input value={f.price} onChange={(e) => set('price', e.target.value)} maxLength={60} /></Field>
-          <Field label="Travelers" error={errors.travelers}><Input type="number" min={1} value={f.travelers} onChange={(e) => set('travelers', e.target.value)} error={errors.travelers} /></Field>
           <Field label="Discount %" optional error={errors.discount}><Input type="number" min={1} max={99} value={f.discount} onChange={(e) => set('discount', e.target.value)} error={errors.discount} /></Field>
           <Field label="Stars on the card"><Select value={f.rating} onChange={(e) => set('rating', e.target.value)}>{[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} stars</option>)}</Select></Field>
         </div>
-        <Field label="YouTube video id" optional hint="The part after v= in the video link, e.g. 0MuL8fd3pb8"><Input value={f.video_id} onChange={(e) => set('video_id', e.target.value)} maxLength={40} /></Field>
         <Field label="Slider images" optional hint="The big photos at the top of the tour page (up to 12).">
           <div className="pt-stack">
             {f.slider_images.map((url, i) => (
@@ -199,18 +190,19 @@ function TourDrawer({ tour, onClose, onSaved }) {
         <Field label="Two photos" optional hint="Shown side by side under the amenities.">
           <div className="pt-stack"><ImagePick value={f.thumb_1} onChange={(v) => set('thumb_1', v)} label="photo 1" /><ImagePick value={f.thumb_2} onChange={(v) => set('thumb_2', v)} label="photo 2" /></div>
         </Field>
-        <Field label="Tour plan" optional hint="Each step opens like a question and answer, e.g. Day 1 / Arrival and city tour.">
+        <Field label="Tour plan" optional hint="One step per day: a title and the plan for that day. Visitors open each day like a dropdown.">
           <div className="pt-stack">
             {f.faqs.map((q, i) => (
               <div key={i} className="pt-stack" style={{ padding: 12, border: '1px solid var(--pt-line, #e5e7eb)', borderRadius: 12 }}>
+                <span className="pt-badge gold" style={{ alignSelf: 'flex-start' }}>Day {i + 1}</span>
                 <div className="pt-row" style={{ gap: 8 }}>
-                  <div style={{ flex: 1 }}><Input value={q.question} onChange={(e) => setFaq(i, 'question', e.target.value)} maxLength={300} placeholder={`Step ${i + 1} title`} /></div>
-                  <button type="button" className="pt-icon-btn" aria-label="Remove step" onClick={() => set('faqs', f.faqs.filter((_, j) => j !== i))}><Trash2 size={16} /></button>
+                  <div style={{ flex: 1 }}><Input value={q.question} onChange={(e) => setFaq(i, 'question', e.target.value)} maxLength={300} placeholder={`Day ${i + 1} title, e.g. Arrival and city tour`} /></div>
+                  <button type="button" className="pt-icon-btn" aria-label={`Remove day ${i + 1}`} onClick={() => set('faqs', f.faqs.filter((_, j) => j !== i))}><Trash2 size={16} /></button>
                 </div>
-                <TextArea value={q.answer} onChange={(e) => setFaq(i, 'answer', e.target.value)} rows={3} max={5000} placeholder="Details" />
+                <TextArea value={q.answer} onChange={(e) => setFaq(i, 'answer', e.target.value)} rows={3} max={5000} placeholder={`What happens on day ${i + 1}`} />
               </div>
             ))}
-            {f.faqs.length < 20 && <button type="button" className="pt-btn soft sm" onClick={() => set('faqs', [...f.faqs, { question: '', answer: '' }])}><Plus size={15} /> Add a step</button>}
+            {f.faqs.length < 20 && <button type="button" className="pt-btn soft sm" onClick={() => set('faqs', [...f.faqs, { question: '', answer: '' }])}><Plus size={15} /> Add day {f.faqs.length + 1}</button>}
           </div>
         </Field>
         <Field label="Google Maps embed link" optional hint="Google Maps > Share > Embed a map, then copy only the link inside src=&quot;…&quot;."><Input value={f.map_embed_url} onChange={(e) => set('map_embed_url', e.target.value)} placeholder="https://www.google.com/maps/embed?pb=…" /></Field>
