@@ -28,7 +28,7 @@ Ordering starts with the display order configured in admin, with older records f
 
 ### Tour enquiry WhatsApp template
 
-Set `WHATSAPP_TOUR_ENQUIRY_CONTENT_SID` to an approved Twilio Content SID (`HX…`) with these six variables in order. During demo testing, tour notifications go from `+919252153290` to `+918000192248`, and tour emails go to `hemant05kumawat@gmail.com`. Switch the tour recipients back to the office after the owner approves delivery.
+The backend uses `bright_wings_tour_enquiry` (`HX3a61dfb446ff277339f7524eda4c26be`) after Twilio reports WhatsApp approval. Override the SID with `WHATSAPP_TOUR_ENQUIRY_CONTENT_SID` if needed. During demo testing, tour notifications go from `+919252153290` to `+918000192248`, and tour emails go to `hemant05kumawat@gmail.com`. Switch the tour recipients back to the office after the owner approves delivery.
 
 ```text
 New tour enquiry from the Bright Wings website
@@ -45,6 +45,8 @@ Please contact the visitor to follow up.
 
 When the date is blank, the notification says “Not specified”. Migration `0043_tour_enquiry_delivery.sql` stores the tour ID and the Twilio outcome alongside the enquiry.
 The tour form confirms submission once the enquiry is saved. Notification failures are recorded for staff follow-up.
+
+For visitors who opt in, migration `0044_tour_whatsapp_greetings.sql` stores the WhatsApp number and greeting progress. The backend checks the office message's Twilio status and sends the greeting only after `delivered` or `read`. The greeting uses `bright_wings_tour_greeting` (`HXa35576af9f780a4216a7dd8b1c351c47`), with the visitor's name as variable 1. Override this with `WHATSAPP_TOUR_GREETING_CONTENT_SID` if needed. Pending greetings are checked for up to 48 hours. A greeting send is attempted once to avoid duplicates.
 
 ## Blog and contact
 

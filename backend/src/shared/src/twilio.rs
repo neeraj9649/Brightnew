@@ -13,10 +13,13 @@ use std::time::Duration;
 
 const VERIFY_BASE: &str = "https://verify.twilio.com/v2/Services";
 const MESSAGES_BASE: &str = "https://api.twilio.com/2010-04-01/Accounts";
+const CONTENT_BASE: &str = "https://content.twilio.com/v1/Content";
 /// Bright Wings' WhatsApp sender (connected in WhatsApp Manager and Twilio).
 const DEFAULT_WHATSAPP_FROM: &str = "+919252153290";
 /// Template `otp_code_whatsapp` (Authentication): "{{1}} is your verification code..." + Copy code button.
 const DEFAULT_WHATSAPP_CONTENT_SID: &str = "HX611fe1a9d4dae2ff54ef7bfddaec21db";
+const TOUR_ENQUIRY_CONTENT_SID: &str = "HX3a61dfb446ff277339f7524eda4c26be";
+const TOUR_GREETING_CONTENT_SID: &str = "HXa35576af9f780a4216a7dd8b1c351c47";
 
 struct Credentials {
     account_sid: String,
@@ -161,16 +164,42 @@ pub async fn send_whatsapp_code(stored_phone: &str, code: &str) -> Result<String
 /// Sends a tour enquiry to the demo recipient using its approved notification template.
 pub async fn send_tour_enquiry_whatsapp(fields: [&str; 6]) -> Result<String, String> {
     let content_sid = env_optional("WHATSAPP_TOUR_ENQUIRY_CONTENT_SID")
-        .ok_or("WHATSAPP_TOUR_ENQUIRY_CONTENT_SID is not configured")?;
+        .unwrap_or_else(|| TOUR_ENQUIRY_CONTENT_SID.into());
+    require_whatsapp_approval(&content_sid).await?;
+    send_whatsapp_content("+918000192248", &content_sid, &fields).await
+}
+
+pub async fn approved_tour_greeting_template() -> Result<String, String> {
+    let content_sid = env_optional("WHATSAPP_TOUR_GREETING_CONTENT_SID")
+        .unwrap_or_else(|| TOUR_GREETING_CONTENT_SID.into());
+    require_whatsapp_approval(&content_sid).await?;
+    Ok(content_sid)
+}
+
+pub async fn send_tour_greeting_whatsapp(to: &str, name: &str, approved_content_sid: &str) -> Result<String, String> {
+    send_whatsapp_content(to, approved_content_sid, &[name]).await
+}
+
+async fn require_whatsapp_approval(content_sid: &str) -> Result<(), String> {
     if content_sid.len() != 34
         || !content_sid.strip_prefix("HX").is_some_and(|suffix| suffix.bytes().all(|b| b.is_ascii_hexdigit()))
     {
-        return Err("Invalid WhatsApp tour enquiry Content SID".into());
+        return Err("Invalid WhatsApp tour Content SID".into());
     }
+    let approval = call(&format!("{CONTENT_BASE}/{content_sid}/ApprovalRequests"), None).await?;
+    let status = approval["whatsapp"]["status"].as_str().unwrap_or("unsubmitted");
+    if !status.eq_ignore_ascii_case("approved") {
+        return Err(format!("WhatsApp template {content_sid} is {status}"));
+    }
+    Ok(())
+}
+
+async fn send_whatsapp_content(to: &str, content_sid: &str, fields: &[&str]) -> Result<String, String> {
     let creds = credentials().ok_or("Twilio is not configured")?;
     let from = format!("whatsapp:{DEFAULT_WHATSAPP_FROM}");
+    let to = format!("whatsapp:{to}");
     let variables: serde_json::Map<String, serde_json::Value> = fields
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(i, value)| ((i + 1).to_string(), value.split_whitespace().collect::<Vec<_>>().join(" ").into()))
         .collect();
@@ -179,8 +208,8 @@ pub async fn send_tour_enquiry_whatsapp(fields: [&str; 6]) -> Result<String, Str
         &format!("{MESSAGES_BASE}/{}/Messages.json", creds.account_sid),
         Some(&[
             ("From", from.as_str()),
-            ("To", "whatsapp:+918000192248"),
-            ("ContentSid", content_sid.as_str()),
+            ("To", to.as_str()),
+            ("ContentSid", content_sid),
             ("ContentVariables", variables.as_str()),
         ]),
     )

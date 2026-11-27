@@ -13,6 +13,7 @@ async fn main() -> std::io::Result<()> {
     app::bootstrap::promote_super_admins(&container.sqlx_pool).await;
     app::bootstrap::log_sign_in_code_delivery();
     app::bootstrap::spawn_refresh_token_cleanup(container.sqlx_pool.clone());
+    app::bootstrap::spawn_tour_whatsapp_greetings(container.sqlx_pool.clone());
     let server = HttpServer::new(move || create_app(container.clone())).bind((address, port))?;
     server.run().await
 }

@@ -52,6 +52,18 @@ struct TourEnquiryDTO {
     phone: String,
     date: Option<chrono::NaiveDate>,
     travellers: String,
+    #[serde(default)]
+    whatsapp_opt_in: bool,
+}
+
+fn greeting_phone(phone: &str) -> Result<String, ApiError> {
+    use auth::api::utils::phone::{is_valid_phone, normalize_phone};
+
+    let stored = normalize_phone(phone);
+    if !is_valid_phone(phone) || (!stored.starts_with('+') && stored.len() != 10) {
+        return Err(ApiError::new("Enter a valid WhatsApp number with its country code", 400));
+    }
+    Ok(shared::twilio::to_e164(&stored))
 }
 
 fn traveller_group(value: &str) -> Result<&'static str, ApiError> {
@@ -213,6 +225,7 @@ async fn create_tour_enquiry_handler(
         subject: Some("Tour enquiry".into()),
         source: Some("tour".into()),
     })?;
+    let greeting_to = body.whatsapp_opt_in.then(|| greeting_phone(&enquiry.phone)).transpose()?;
     let ip = req.connection_info().realip_remote_addr().unwrap_or("unknown").to_string();
     base::rate_limit::LIMITER.hit(&format!("tour-enquiry:{ip}"), MAX_PER_HOUR, Duration::from_secs(60 * 60))?;
 
@@ -228,8 +241,8 @@ async fn create_tour_enquiry_handler(
     enquiry.message = format!("Tour: {tour}\nTour ID: {}\n{}", *tour_id, enquiry.message);
 
     let id: Uuid = sqlx::query_scalar(
-        "INSERT INTO enquiries (name, email, phone, message, source, ip_address, subject, tour_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+        "INSERT INTO enquiries (name, email, phone, message, source, ip_address, subject, tour_id, whatsapp_greeting_to)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
     )
     .bind(&enquiry.name)
     .bind(&enquiry.email)
@@ -239,6 +252,7 @@ async fn create_tour_enquiry_handler(
     .bind(ip.chars().take(64).collect::<String>())
     .bind(&enquiry.subject)
     .bind(*tour_id)
+    .bind(greeting_to)
     .fetch_one(pool.get_ref())
     .await
     .map_err(base::error::internal)?;
@@ -265,7 +279,9 @@ async fn create_tour_enquiry_handler(
     }
     // Do not tell the visitor to resubmit an already-saved enquiry if only the delivery metadata write fails.
     if let Err(error) = sqlx::query(
-        "UPDATE enquiries SET email_sent = $2, email_error = $3, whatsapp_message_sid = $4, whatsapp_error = $5 WHERE id = $1",
+        "UPDATE enquiries SET email_sent = $2, email_error = $3, whatsapp_message_sid = $4, whatsapp_error = $5,
+            whatsapp_greeting_check_at = CASE WHEN $4 IS NOT NULL AND whatsapp_greeting_to IS NOT NULL THEN NOW() END
+         WHERE id = $1",
     )
     .bind(id)
     .bind(email_sent)
@@ -297,6 +313,13 @@ mod tests {
         assert_eq!(traveller_group("3–5").unwrap(), "3–5 travellers");
         assert_eq!(traveller_group("6+").unwrap(), "6 or more travellers");
         assert!(traveller_group("arbitrary").is_err());
+    }
+
+    #[test]
+    fn greeting_number_uses_country_code() {
+        assert_eq!(greeting_phone("98765 43210").unwrap(), "+919876543210");
+        assert_eq!(greeting_phone("+44 7700 900123").unwrap(), "+447700900123");
+        assert!(greeting_phone("7700900").is_err());
     }
 
     fn dto(name: &str, email: &str, phone: &str, message: &str) -> EnquiryDTO {
