@@ -28,7 +28,7 @@ Ordering starts with the display order configured in admin, with older records f
 
 ### Tour enquiry WhatsApp template
 
-Set `WHATSAPP_TOUR_ENQUIRY_CONTENT_SID` to an approved Twilio Content SID (`HX…`) with these six variables in order. The notification is sent from `+919252153290` to `+917732957732` and the email goes to `info@brightwingstravel.com`.
+Set `WHATSAPP_TOUR_ENQUIRY_CONTENT_SID` to an approved Twilio Content SID (`HX…`) with these six variables in order. During demo testing, tour notifications go from `+919252153290` to `+918000192248`, and tour emails go to `hemant05kumawat@gmail.com`. Switch the tour recipients back to the office after the owner approves delivery.
 
 ```text
 New tour enquiry from the Bright Wings website
@@ -44,6 +44,7 @@ Please contact the visitor to follow up.
 ```
 
 When the date is blank, the notification says “Not specified”. Migration `0043_tour_enquiry_delivery.sql` stores the tour ID and the Twilio outcome alongside the enquiry.
+The tour form confirms submission once the enquiry is saved. Notification failures are recorded for staff follow-up.
 
 ## Blog and contact
 

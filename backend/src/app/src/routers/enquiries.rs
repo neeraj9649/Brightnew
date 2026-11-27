@@ -17,6 +17,8 @@ use uuid::Uuid;
 use base::error::{ApiError, ApiResponse};
 
 const CONTACT_TO: &str = "info@brightwingstravel.com";
+// Keep tour enquiries on the demo inbox until the owner approves the switch.
+const TOUR_ENQUIRY_TO: &str = "hemant05kumawat@gmail.com";
 const OTHER_ENQUIRY_DEFAULT_TO: &str = "info@brightwingstravel.in";
 /// Enquiries one IP address may send per hour; stops a bot from flooding the inbox.
 const MAX_PER_HOUR: u32 = 5;
@@ -246,7 +248,7 @@ async fn create_tour_enquiry_handler(
     let text = email_text(&enquiry, &received);
     let subject = format!("Bright Wings tour enquiry - {title}");
     let reply_to = enquiry.email.clone();
-    let email = web::block(move || shared::mail::send_enquiry_email(CONTACT_TO, Some(&reply_to), &subject, &text));
+    let email = web::block(move || shared::mail::send_enquiry_email(TOUR_ENQUIRY_TO, Some(&reply_to), &subject, &text));
     let whatsapp = shared::twilio::send_tour_enquiry_whatsapp([
         &tour, &enquiry.name, &enquiry.email, &enquiry.phone, &date, group,
     ]);

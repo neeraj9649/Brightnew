@@ -158,7 +158,7 @@ pub async fn send_whatsapp_code(stored_phone: &str, code: &str) -> Result<String
     body["sid"].as_str().map(str::to_string).ok_or_else(|| "Twilio returned no message SID".to_string())
 }
 
-/// Sends a tour enquiry to Bright Wings' office using its approved notification template.
+/// Sends a tour enquiry to the demo recipient using its approved notification template.
 pub async fn send_tour_enquiry_whatsapp(fields: [&str; 6]) -> Result<String, String> {
     let content_sid = env_optional("WHATSAPP_TOUR_ENQUIRY_CONTENT_SID")
         .ok_or("WHATSAPP_TOUR_ENQUIRY_CONTENT_SID is not configured")?;
@@ -179,7 +179,7 @@ pub async fn send_tour_enquiry_whatsapp(fields: [&str; 6]) -> Result<String, Str
         &format!("{MESSAGES_BASE}/{}/Messages.json", creds.account_sid),
         Some(&[
             ("From", from.as_str()),
-            ("To", "whatsapp:+917732957732"),
+            ("To", "whatsapp:+918000192248"),
             ("ContentSid", content_sid.as_str()),
             ("ContentVariables", variables.as_str()),
         ]),
