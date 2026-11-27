@@ -7,7 +7,9 @@ The `bright/` website loads tour content from the API. The `BrightP/` admin port
 | Package type | Website placement |
 |---|---|
 | Individual package | `/experiences`, and Top Experiences on the matching destination page. Featuring it also puts it in the home page Featured Experiences section. |
-| Holiday package | `/packages`. Featuring it also puts it in Featured Holiday Packages on the matching destination page. |
+| Holiday package | `/packages` and up to three cards in Featured Holiday Packages on the matching destination page, with featured packages shown first. |
+
+Destination pages show each catalogue section only when the API returns published packages of that type for the destination.
 
 Both types use `/packages/{id}` for the detail page, where `id` is the tour's stable UUID. A title change does not change the URL. A draft or hidden tour does not appear on public lists or resolve by UUID.
 
@@ -31,6 +33,7 @@ Ordering starts with the display order configured in admin, with older records f
 | Contact form | Email to `ENQUIRY_TO_EMAIL` | `POST /public/enquiries` |
 
 Blog comments are pending until approved. Admins can hide posts and reject comments.
+Migration `0041_clear_blog_data.sql` clears existing blog posts and comments once at backend start-up. The admin can create new posts afterward.
 
 ## Deployment
 
