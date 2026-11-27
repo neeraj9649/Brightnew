@@ -71,6 +71,7 @@ pub fn log_sign_in_code_delivery() {
 }
 
 pub fn spawn_tour_whatsapp_greetings(pool: PgPool) {
+    crate::routers::enquiries::spawn_notification_worker(pool.clone());
     actix_web::rt::spawn(async move {
         let mut tick = actix_web::rt::time::interval(std::time::Duration::from_secs(30));
         loop {

@@ -158,15 +158,15 @@ pub async fn send_whatsapp_code(stored_phone: &str, code: &str) -> Result<String
         ]),
     )
     .await?;
-    body["sid"].as_str().map(str::to_string).ok_or_else(|| "Twilio returned no message SID".to_string())
+    whatsapp_message_sid(&body)
 }
 
-/// Sends a tour enquiry to the demo recipient using its approved notification template.
+/// Notifies the office of a verified enquiry with the approved WhatsApp template.
 pub async fn send_tour_enquiry_whatsapp(fields: [&str; 6]) -> Result<String, String> {
     let content_sid = env_optional("WHATSAPP_TOUR_ENQUIRY_CONTENT_SID")
         .unwrap_or_else(|| TOUR_ENQUIRY_CONTENT_SID.into());
     require_whatsapp_approval(&content_sid).await?;
-    send_whatsapp_content("+918000192248", &content_sid, &fields).await
+    send_whatsapp_content("+917732957732", &content_sid, &fields).await
 }
 
 pub async fn approved_tour_greeting_template() -> Result<String, String> {
@@ -214,8 +214,12 @@ async fn send_whatsapp_content(to: &str, content_sid: &str, fields: &[&str]) -> 
         ]),
     )
     .await?;
+    whatsapp_message_sid(&body)
+}
+
+fn whatsapp_message_sid(body: &serde_json::Value) -> Result<String, String> {
     if matches!(body["status"].as_str(), Some("failed" | "undelivered" | "canceled")) {
-        return Err(format!("Twilio rejected the notification (code {})", body["error_code"]));
+        return Err(format!("Twilio rejected the WhatsApp message (code {})", body["error_code"]));
     }
     body["sid"].as_str().map(str::to_string).ok_or_else(|| "Twilio returned no message SID".into())
 }
@@ -232,6 +236,16 @@ pub async fn whatsapp_status(message_sid: &str) -> Result<(String, Option<i64>),
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_failed_whatsapp_response_is_not_counted_as_sent() {
+        for status in ["failed", "undelivered", "canceled"] {
+            let result = whatsapp_message_sid(&serde_json::json!({ "sid": "SMtest", "status": status }));
+            assert!(result.is_err());
+        }
+        let result = whatsapp_message_sid(&serde_json::json!({ "sid": "SMtest", "status": "queued" }));
+        assert_eq!(result.unwrap(), "SMtest");
+    }
 
     #[test]
     fn phones_become_e164() {

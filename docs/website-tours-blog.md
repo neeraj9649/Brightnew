@@ -26,11 +26,12 @@ Ordering starts with the display order configured in admin, with older records f
 - Admin `GET /admin/tours/items?catalog=true` lists new catalogue tours including drafts. `POST /admin/tours/items` creates a tour, `PUT /admin/tours/items/{id}` edits it, and `PATCH /admin/tours/items/{id}/publication` sets its publication state.
 - `GET /public/tours/{slug}`, `GET /public/tour-locations`, `POST /public/tours/{slug}/reviews`, `GET /public/tour-reviews` and `/admin/tours/reviews` retain the existing slug and moderation flows. Reviews appear publicly after approval.
 - `POST /public/tours/{slug}/booking` sends a quotation email to `BOOKING_TO_EMAIL` (default `info@brightwingstravel.com`).
-- `POST /public/tours/id/{tour_id}/enquiries` accepts the tour detail form. It looks up the published tour by ID, saves the enquiry, and sends the office an email with the visitor as Reply-To and a Twilio WhatsApp notification. The response reports whether the email was accepted and whether Twilio accepted the notification.
+- `POST /public/tour-enquiries/otp` accepts the destination or tour draft and sends a six-digit code to the visitor's phone via the existing WhatsApp authentication template. The Quick Enquiry card asks for name and phone and sends the page destination. The detail form includes the published tour's UUID, visitor email, optional travel date and group size.
+- `POST /public/tour-enquiries/otp/{challenge_id}/verify` checks the code against the same draft. It saves the enquiry only after verification, then notifies the office. Migration `0045_tour_enquiry_verification.sql` adds the challenge store. Codes expire in ten minutes, have a five-attempt limit and are bound to the original form fields. Repeating verification for the same recent draft, including after an OTP resend, returns the saved enquiry ID.
 
 ### Tour enquiry WhatsApp template
 
-The backend uses `bright_wings_tour_enquiry` (`HX3a61dfb446ff277339f7524eda4c26be`) after Twilio reports WhatsApp approval. Override the SID with `WHATSAPP_TOUR_ENQUIRY_CONTENT_SID` if needed. During demo testing, tour notifications go from `+919252153290` to `+918000192248`, and tour emails go to `hemant05kumawat@gmail.com`. Switch the tour recipients back to the office after the owner approves delivery.
+The backend uses `bright_wings_tour_enquiry` (`HX3a61dfb446ff277339f7524eda4c26be`) after Twilio reports WhatsApp approval. Override the SID with `WHATSAPP_TOUR_ENQUIRY_CONTENT_SID` if needed. Verified destination and tour notifications go from `+919252153290` to `+917732957732`, and emails go to `info@brightwingstravel.com`. The office receives the destination or the specific published tour and its website link. Tour emails include the package type and duration when available and use the visitor address as Reply-To.
 
 ```text
 New tour enquiry from the Bright Wings website
@@ -46,9 +47,9 @@ Please contact the visitor to follow up.
 ```
 
 When the date is blank, the notification says “Not specified”. Migration `0043_tour_enquiry_delivery.sql` stores the tour ID and the Twilio outcome alongside the enquiry.
-The tour form confirms submission once the enquiry is saved. Notification failures are recorded for staff follow-up.
+The tour form confirms submission once the enquiry is saved. Migration `0046_tour_enquiry_reliability.sql` stores pending notifications in PostgreSQL so the worker can resume after a restart. Each failed send can retry up to two times. Accepted channels are skipped on subsequent attempts and delivery errors are recorded for staff follow-up.
 
-For visitors who opt in, migration `0044_tour_whatsapp_greetings.sql` stores the WhatsApp number and greeting progress. The backend checks the office message's Twilio status and sends the greeting only after `delivered` or `read`. The greeting uses `bright_wings_tour_greeting` (`HXa35576af9f780a4216a7dd8b1c351c47`), with the visitor's name as variable 1. Override this with `WHATSAPP_TOUR_GREETING_CONTENT_SID` if needed. Pending greetings are checked for up to 48 hours. A greeting send is attempted once to avoid duplicates.
+For visitors who confirm the WhatsApp notice by verifying the detail enquiry, migration `0044_tour_whatsapp_greetings.sql` stores the WhatsApp number and greeting progress. The backend checks the office message's Twilio status and sends the greeting only after `delivered` or `read`. The greeting uses `bright_wings_tour_greeting` (`HXa35576af9f780a4216a7dd8b1c351c47`), with the visitor's name as variable 1. Override this with `WHATSAPP_TOUR_GREETING_CONTENT_SID` if needed. Pending greetings are checked for up to 48 hours. A greeting send is attempted once to avoid duplicates.
 
 ## Blog and contact
 
@@ -66,6 +67,6 @@ Migration `0041_clear_blog_data.sql` clears existing blog posts and comments onc
 
 ## Deployment
 
-1. Deploy the backend first so its start-up migration adds the catalogue fields and it exposes the UUID detail API. Allow the website's exact origins in the API's CORS settings.
+1. Deploy the backend first so its start-up migration adds the verification table and exposes the OTP routes. Deploy the website immediately after the backend because the old direct tour enquiry endpoint has been replaced. Allow the website's exact origins in the API's CORS settings.
 2. Deploy the `BrightP/` admin portal.
 3. Run the production build in `bright/` and deploy `dist/`, including its `.htaccess`. The SPA fallback serves direct visits to `/packages/{id}` and `/experiences`. The public catalogue defaults to `https://bp.nsiif.in`. Use `VITE_TOURS_API_URL` to target another API.
