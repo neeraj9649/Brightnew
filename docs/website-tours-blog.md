@@ -30,7 +30,11 @@ Ordering starts with the display order configured in admin, with older records f
 | Website part | Admin portal | API |
 |---|---|---|
 | Blog posts and comments | **Blog** | `GET /public/blog`, `GET /public/blog/{slug}`, `POST /public/blog/{slug}/comments`, and `/admin/blog/*` |
-| Contact form | Email to `ENQUIRY_TO_EMAIL` | `POST /public/enquiries` |
+| Contact form | Email to `info@brightwingstravel.com` | `POST /public/enquiries` |
+
+The contact form sends the visitor's name, email, full phone number, subject and message. The API saves the enquiry first and emails it using `ENQUIRY_SMTP_*` with the visitor's email as Reply-To. The form confirms that the message was sent only if the API returns `email_sent: true`. If SMTP fails, the saved enquiry remains available in the database and the visitor sees a delivery notice.
+
+Migration `0042_enquiry_subject.sql` adds the stored subject. Older submitters can omit it, in which case the API uses “General Enquiry”. For local development, set `VITE_PUBLIC_API_URL` in `bright/` to the backend base URL.
 
 Blog comments are pending until approved. Admins can hide posts and reject comments.
 Migration `0041_clear_blog_data.sql` clears existing blog posts and comments once at backend start-up. The admin can create new posts afterward.

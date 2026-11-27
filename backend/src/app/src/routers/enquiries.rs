@@ -1,7 +1,7 @@
-//! Website contact form (brightwingstravel.in / .com, the Go_Travel_Brightwings site).
+//! Website contact form (brightwingstravel.in / .com).
 //!
 //! `POST /public/enquiries` is public (no sign-in). Each enquiry is saved in `enquiries`
-//! (migration 0036) and then e-mailed to `ENQUIRY_TO_EMAIL` from the `ENQUIRY_SMTP_*`
+//! (migrations 0036 and 0042) and then e-mailed to the office from the `ENQUIRY_SMTP_*`
 //! mailbox, with Reply-To set to the visitor so staff can answer straight from the inbox.
 //! Saving comes first, so an enquiry is never lost when the mail server is down.
 
@@ -16,7 +16,8 @@ use uuid::Uuid;
 
 use base::error::{ApiError, ApiResponse};
 
-const DEFAULT_TO: &str = "info@brightwingstravel.in";
+const CONTACT_TO: &str = "info@brightwingstravel.com";
+const OTHER_ENQUIRY_DEFAULT_TO: &str = "info@brightwingstravel.in";
 /// Enquiries one IP address may send per hour; stops a bot from flooding the inbox.
 const MAX_PER_HOUR: u32 = 5;
 
@@ -26,6 +27,8 @@ pub struct EnquiryDTO {
     pub email: String,
     pub phone: String,
     pub message: String,
+    #[serde(default)]
+    pub subject: Option<String>,
     /// Which form sent it (e.g. "contact"). Optional.
     #[serde(default)]
     pub source: Option<String>,
@@ -36,6 +39,7 @@ struct Enquiry {
     email: String,
     phone: String,
     message: String,
+    subject: String,
     source: String,
 }
 
@@ -55,7 +59,7 @@ fn validate(body: EnquiryDTO) -> Result<Enquiry, ApiError> {
     }
 
     let email = body.email.trim().to_lowercase();
-    if email.len() > 200 || !plausible_email(&email) {
+    if email.len() > 200 || email.chars().any(char::is_control) || !plausible_email(&email) {
         return Err(ApiError::new("Please enter a valid e-mail address", 400));
     }
 
@@ -74,26 +78,49 @@ fn validate(body: EnquiryDTO) -> Result<Enquiry, ApiError> {
         return Err(ApiError::new("Your message is too long. Please keep it under 5000 characters.", 400));
     }
 
+    let subject = body.subject.as_deref().map(str::trim).filter(|value| !value.is_empty()).unwrap_or("General Enquiry");
+    if subject.chars().count() > 120 || subject.chars().any(char::is_control) {
+        return Err(ApiError::new("Please enter a subject of up to 120 characters on one line", 400));
+    }
+
     let source = body
         .source
         .map(|s| s.trim().to_lowercase())
         .filter(|s| !s.is_empty() && s.len() <= 50 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
         .unwrap_or_else(|| "contact".to_string());
 
-    Ok(Enquiry { name, email, phone, message, source })
+    Ok(Enquiry { name, email, phone, message, subject: subject.to_string(), source })
 }
 
 fn email_text(e: &Enquiry, received: &str) -> String {
-    let mut text = format!(
-        "New enquiry from the Bright Wings website.\n\n\
-         Name:    {}\n\
-         E-mail:  {}\n\
-         Phone:   {}\n\
-         Form:    {}\n",
-        e.name, e.email, e.phone, e.source
-    );
-    text.push_str(&format!("Received: {received}\n\nMessage:\n{}\n\n-- \nReply to this e-mail to answer {} directly.\n", e.message, e.name));
-    text
+    let source = if e.source == "contact" { "Website contact form" } else { e.source.as_str() };
+    format!(
+        "BRIGHT WINGS TRAVEL\n\
+         New website contact enquiry\n\n\
+         CUSTOMER DETAILS\n\
+         Full name            {}\n\
+         Email address        {}\n\
+         WhatsApp / phone     {}\n\n\
+         ENQUIRY\n\
+         Subject              {}\n\
+         Source               {source}\n\
+         Received             {received}\n\n\
+         MESSAGE\n\
+         {}\n\n\
+         Reply to this email to answer {} directly.\n",
+        e.name, e.email, e.phone, e.subject, e.message, e.name
+    )
+}
+
+fn recipient(source: &str) -> String {
+    if source == "contact" {
+        return CONTACT_TO.to_string();
+    }
+    std::env::var("ENQUIRY_TO_EMAIL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| OTHER_ENQUIRY_DEFAULT_TO.to_string())
 }
 
 async fn create_enquiry_handler(
@@ -107,8 +134,8 @@ async fn create_enquiry_handler(
     base::rate_limit::LIMITER.hit(&format!("enquiry:{ip}"), MAX_PER_HOUR, Duration::from_secs(60 * 60))?;
 
     let id: Uuid = sqlx::query_scalar(
-        "INSERT INTO enquiries (name, email, phone, message, source, ip_address)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+        "INSERT INTO enquiries (name, email, phone, message, source, ip_address, subject)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
     )
     .bind(&enquiry.name)
     .bind(&enquiry.email)
@@ -116,18 +143,15 @@ async fn create_enquiry_handler(
     .bind(&enquiry.message)
     .bind(&enquiry.source)
     .bind(ip.chars().take(64).collect::<String>())
+    .bind(&enquiry.subject)
     .fetch_one(pool.get_ref())
     .await
     .map_err(base::error::internal)?;
 
-    let to = std::env::var("ENQUIRY_TO_EMAIL")
-        .ok()
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| DEFAULT_TO.to_string());
+    let to = recipient(&enquiry.source);
     let ist = FixedOffset::east_opt(5 * 3600 + 30 * 60).expect("valid IST offset");
     let received = Utc::now().with_timezone(&ist).format("%d %b %Y, %I:%M %p IST").to_string();
-    let subject = format!("Website enquiry from {}", enquiry.name);
+    let subject = format!("Bright Wings website enquiry - {}", enquiry.subject);
     let text = email_text(&enquiry, &received);
     let reply_to = enquiry.email.clone();
 
@@ -137,7 +161,7 @@ async fn create_enquiry_handler(
         .and_then(|r| r);
     let email_error = result.as_ref().err().cloned();
     if let Some(err) = &email_error {
-        // Saved already, so the visitor still gets a success; staff can find it in the table.
+        // The frontend can distinguish a saved enquiry from a delivered email.
         log::error!("enquiry {id}: e-mail not sent: {err}");
     }
     sqlx::query("UPDATE enquiries SET email_sent = $2, email_error = $3 WHERE id = $1")
@@ -167,6 +191,7 @@ mod tests {
             email: email.into(),
             phone: phone.into(),
             message: message.into(),
+            subject: None,
             source: None,
         }
     }
@@ -178,6 +203,7 @@ mod tests {
         assert_eq!(e.email, "asha@example.com");
         assert_eq!(e.message, "Hi");
         assert_eq!(e.source, "contact");
+        assert_eq!(e.subject, "General Enquiry");
     }
 
     #[test]
@@ -191,11 +217,31 @@ mod tests {
     }
 
     #[test]
-    fn email_text_includes_every_field() {
-        let e = validate(dto("Asha", "asha@example.com", "9876543210", "Dubai trip")).unwrap();
+    fn email_text_uses_the_approved_sections_and_contact_recipient() {
+        let mut body = dto("Asha", "asha@example.com", "9876543210", "Dubai trip\nPlease share dates.");
+        body.subject = Some(" Dubai Holiday ".into());
+        let e = validate(body).unwrap();
         let text = email_text(&e, "1 Jan 2026");
-        for part in ["Asha", "asha@example.com", "9876543210", "Dubai trip", "1 Jan 2026"] {
+        for part in [
+            "CUSTOMER DETAILS\nFull name            Asha",
+            "Email address        asha@example.com",
+            "WhatsApp / phone     9876543210",
+            "ENQUIRY\nSubject              Dubai Holiday",
+            "Source               Website contact form",
+            "Received             1 Jan 2026",
+            "MESSAGE\nDubai trip\nPlease share dates.",
+        ] {
             assert!(text.contains(part), "missing {part}");
+        }
+        assert_eq!(recipient(&e.source), "info@brightwingstravel.com");
+    }
+
+    #[test]
+    fn rejects_invalid_subjects() {
+        for subject in ["Dubai\nBcc: x@y.z".to_string(), "x".repeat(121)] {
+            let mut body = dto("Asha", "asha@example.com", "9876543210", "Dubai trip");
+            body.subject = Some(subject);
+            assert!(validate(body).is_err());
         }
     }
 }
