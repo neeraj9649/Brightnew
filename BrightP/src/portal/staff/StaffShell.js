@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  BadgeCheck, ChartNoAxesColumn, CalendarDays, ClipboardList, Gift, House, LayoutDashboard, LogOut, Map, Menu, MessageCircleMore, Newspaper, Settings, ShieldCheck, Star, Tag, UserCog, Users, X,
+  BadgeCheck, ChartNoAxesColumn, CalendarDays, ClipboardList, Gift, House, LayoutDashboard, LogOut, Map, Menu, MessageCircleMore, Settings, ShieldCheck, Star, Tag, UserCog, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar, BrightLogo, memberName } from '../ui';
@@ -11,7 +11,7 @@ const ADMIN_NAV = [
   ['group', 'Workspace'],
   ['overview', 'Overview', '/admin', LayoutDashboard], ['bookings', 'Bookings', '/admin/bookings', CalendarDays], ['customers', 'Customers', '/admin/customers', Users], ['crm', 'CRM & follow-ups', '/admin/crm', MessageCircleMore],
   ['group', 'Loyalty & rewards'],
-  ['rewards', 'Rewards', '/admin/rewards', Gift], ['redemptions', 'Redemptions', '/admin/redemptions', ShieldCheck], ['approvals', 'Wings approvals', '/admin/wings-approvals', BadgeCheck], ['offers', 'Offers', '/admin/offers', Tag], ['tours', 'Tours', '/admin/tours', Map], ['blog', 'Blog', '/admin/blog', Newspaper], ['loyalty', 'Loyalty settings', '/admin/loyalty', Settings],
+  ['rewards', 'Rewards', '/admin/rewards', Gift], ['redemptions', 'Redemptions', '/admin/redemptions', ShieldCheck], ['approvals', 'Wings approvals', '/admin/wings-approvals', BadgeCheck], ['offers', 'Offers', '/admin/offers', Tag], ['tours', 'Tours', '/admin/tours', Map], ['loyalty', 'Loyalty settings', '/admin/loyalty', Settings],
   ['group', 'Insights & team'],
   ['analytics', 'Analytics', '/admin/analytics', ChartNoAxesColumn], ['employees', 'Employees & permissions', '/admin/employees', UserCog],
 ];

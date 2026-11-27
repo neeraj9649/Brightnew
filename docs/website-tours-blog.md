@@ -13,6 +13,8 @@ Destination pages show each catalogue section only when the API returns publishe
 
 Both types use `/packages/{id}` for the detail page, where `id` is the tour's stable UUID. A title change does not change the URL. A draft or hidden tour does not appear on public lists or resolve by UUID.
 
+The destination pages are Dubai, Thailand and Jaipur. Select the matching location in the admin tour editor to display the published package on that destination page.
+
 The editor requires a package type, card title and card image. The detail heading can have a different title and hero image. Location controls destination filters and is optional, as are duration, category and audience. The overview, highlights, gallery, hotels, travel information, activities and FAQs are optional. Empty sections and their tabs are omitted. Create a package as a draft, then publish it from the editor or the catalogue.
 
 Ordering starts with the display order configured in admin, with older records first for ties. The public listings fetch published database records without a local tour seed fallback. Migration `0040_tour_catalog.sql` adds the classification and presentation fields. Older records lack a classification and are outside the new catalogue. Existing slug-based review and booking routes still use their existing contract.
@@ -52,15 +54,15 @@ For visitors who opt in, migration `0044_tour_whatsapp_greetings.sql` stores the
 
 | Website part | Admin portal | API |
 |---|---|---|
-| Blog posts and comments | **Blog** | `GET /public/blog`, `GET /public/blog/{slug}`, `POST /public/blog/{slug}/comments`, and `/admin/blog/*` |
+| Blog posts and comments | — | `GET /public/blog`, `GET /public/blog/{slug}`, `POST /public/blog/{slug}/comments`, and `/admin/blog/*` |
 | Contact form | Email to `info@brightwingstravel.com` | `POST /public/enquiries` |
 
 The contact form sends the visitor's name, email, full phone number, subject and message. The API saves the enquiry first and emails it using `ENQUIRY_SMTP_*` with the visitor's email as Reply-To. The form confirms that the message was sent only if the API returns `email_sent: true`. If SMTP fails, the saved enquiry remains available in the database and the visitor sees a delivery notice.
 
 Migration `0042_enquiry_subject.sql` adds the stored subject. Older submitters can omit it, in which case the API uses “General Enquiry”. For local development, set `VITE_PUBLIC_API_URL` in `bright/` to the backend base URL.
 
-Blog comments are pending until approved. Admins can hide posts and reject comments.
-Migration `0041_clear_blog_data.sql` clears existing blog posts and comments once at backend start-up. The admin can create new posts afterward.
+Blog comments are pending until approved. The backend still supports hiding posts and moderating comments through the admin API. The admin portal has no Blog page.
+Migration `0041_clear_blog_data.sql` clears existing blog posts and comments once at backend start-up. New posts can still be created through the admin API.
 
 ## Deployment
 

@@ -156,8 +156,13 @@ export default function TourDrawer({ tour, onClose, onSaved }) {
               <Input {...bind('headline', 'Page title')} maxLength={300} />
             </Field>
             <div className="pt-grid2">
-              <Field label="Location" optional hint="Shown above the heading, on listing cards, and used for destination filters. Use Dubai or Thailand for those destination pages.">
-                <Input {...bind('location', 'Location')} maxLength={120} placeholder="Dubai" />
+              <Field label="Location" optional hint="Shown above the heading, on listing cards, and used for destination filters. Choose Dubai, Thailand, or Jaipur to list the package on its destination page.">
+                <Input {...bind('location', 'Location')} maxLength={120} list="tour-destinations" placeholder="Choose or enter a location" />
+                <datalist id="tour-destinations">
+                  <option value="Dubai" />
+                  <option value="Thailand" />
+                  <option value="Jaipur" />
+                </datalist>
               </Field>
               <Field label="Duration" optional hint="Shown on listing cards and under the heading. Start with a number for duration sorting.">
                 <Input {...bind('duration', 'Duration')} maxLength={120} placeholder="5 days / 4 nights" />
