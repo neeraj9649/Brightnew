@@ -13,6 +13,9 @@ coverage/
 !BrightP/.env.production
 *.tsbuildinfo
 
+# Keep the website workspace local
+/bright/
+
 # Build output and zipped builds are never committed or uploaded
 *-build.zip
 build.zip

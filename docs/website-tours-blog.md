@@ -1,44 +1,39 @@
 # Website tours, blog and contact form
 
-The public website (`Go_Travel_Brightwings/gotur-nextjs-main`, brightwingstravel.in / .com) is a static
-Next.js export. Its tours, blog posts and contact form now talk to the backend API (`https://bp.nsiif.in`).
+The `bright/` website loads tour content from the API. The `BrightP/` admin portal manages it under **Tours**.
 
-## What is managed where
+## Tour catalogue
 
-| Website part | Admin portal page | API | Tables (migration) |
-|---|---|---|---|
-| Tours page (`/tours/`, 15 per page), home "Most Popular Tours", tour pages (`/tour/<slug>/`) | Admin → **Tours** | `GET /public/tours?limit=15&offset=0[&featured=true][&location=…]`, `GET /public/tour-locations` (Tours page location dropdown), `GET /public/tours/{slug}`, `POST /public/tours/{slug}/reviews`, `GET /public/tour-reviews` (home page testimonials: approved reviews from all tours, name + message); admin `/admin/tours/items`, `/admin/tours/reviews` | `tours`, `tour_reviews` (0038) |
-| Blog page, home blog cards, post page (`/blog-details/?slug=`) | Admin → **Blog** | `GET /public/blog`, `GET /public/blog/{slug}`, `POST /public/blog/{slug}/comments`; admin `/admin/blog/*` | `blog_posts`, `blog_comments` (0037) |
-| Tour page "Book This Tour" (From, To, Travellers, Includes: Airport Pickup & Drop / Private AC Cab for All Days / Hindi/English Speaking Tour Guide): Book Now opens an enquiry popup showing the trip with its length ("5 Days, 4 Nights") and asking name, email, phone / WhatsApp, departure address and an optional message; Request Quotation e-mails everything (no WhatsApp) and shows an error if the mail fails. The Includes options must match `BOOKING_INCLUDES` in `tours.rs` and `TourEnquiryModal.tsx` | — (e-mailed to `BOOKING_TO_EMAIL`, default info@brightwingstravel.com) | `POST /public/tours/{slug}/booking` | — (not stored) |
-| Contact page form | — (e-mailed to `ENQUIRY_TO_EMAIL`) | `POST /public/enquiries` | `enquiries` (0036) |
+| Package type | Website placement |
+|---|---|
+| Individual package | `/experiences`, and Top Experiences on the matching destination page. Featuring it also puts it in the home page Featured Experiences section. |
+| Holiday package | `/packages`. Featuring it also puts it in Featured Holiday Packages on the matching destination page. |
 
-- Tour reviews and blog comments are saved as `pending` and appear on the website only after an admin approves them.
-- Nothing is deleted from the admin pages: tours and posts are hidden (`is_published = false`), reviews and comments rejected.
-- A tour's "Show on the home page" tick puts it in the home page slider.
-- "Order" (`sort_order`) sets the position on the Tours page and the home slider: lower first, ties oldest first.
-- "Related Tour List" on a tour page shows 2 other published tours picked at random on each visit
-  (never the tour itself). The old `tours.related_slugs` column is no longer used.
-- A tour's link (`slug`) is made from its title when it is created and never changes, so shared links keep working.
+Both types use `/packages/{id}` for the detail page, where `id` is the tour's stable UUID. A title change does not change the URL. A draft or hidden tour does not appear on public lists or resolve by UUID.
 
-## Required nginx rule (tour pages)
+The editor requires a package type, card title and card image. The detail heading can have a different title and hero image. Location controls destination filters and is optional, as are duration, category and audience. The overview, highlights, gallery, hotels, travel information, activities and FAQs are optional. Empty sections and their tabs are omitted. Create a package as a draft, then publish it from the editor or the catalogue.
 
-Page files exist only for the tours that were in the site when it was built, plus a fallback page `/tour/_/`.
-A tour added later in the admin portal has no page file, so nginx must serve the fallback for it. The page reads
-the slug from the address and loads that tour from the API.
+Ordering starts with the display order configured in admin, with older records first for ties. The public listings fetch published database records without a local tour seed fallback. Migration `0040_tour_catalog.sql` adds the classification and presentation fields. Older records lack a classification and are outside the new catalogue. Existing slug-based review and booking routes still use their existing contract.
 
-Add this inside the website's `server { ... }` block and reload nginx:
+## API
 
-```nginx
-location /tour/ {
-    try_files $uri $uri/ /tour/_/index.html;
-}
-```
+- `GET /public/tours?package_type=individual|holiday&limit=15&offset=0` returns card data and the total. Optional `location` and `featured=true` filters can be combined.
+- `GET /public/tours/id/{id}` returns the published tour details, including optional presentation data. Unknown and hidden tours return 404.
+- Admin `GET /admin/tours/items?catalog=true` lists new catalogue tours including drafts. `POST /admin/tours/items` creates a tour, `PUT /admin/tours/items/{id}` edits it, and `PATCH /admin/tours/items/{id}/publication` sets its publication state.
+- `GET /public/tours/{slug}`, `GET /public/tour-locations`, `POST /public/tours/{slug}/reviews`, `GET /public/tour-reviews` and `/admin/tours/reviews` retain the existing slug and moderation flows. Reviews appear publicly after approval.
+- `POST /public/tours/{slug}/booking` sends a quotation email to `BOOKING_TO_EMAIL` (default `info@brightwingstravel.com`). The current website detail form opens WhatsApp with the selected package and traveller details.
 
-Without it, links to newly added tours (and the Share button on them) give a 404. Tour cards use plain links
-(not the Next.js client router) for the same reason.
+## Blog and contact
 
-## Deploy order
+| Website part | Admin portal | API |
+|---|---|---|
+| Blog posts and comments | **Blog** | `GET /public/blog`, `GET /public/blog/{slug}`, `POST /public/blog/{slug}/comments`, and `/admin/blog/*` |
+| Contact form | Email to `ENQUIRY_TO_EMAIL` | `POST /public/enquiries` |
 
-1. Backend (runs migrations 0036–0038 on start-up).
-2. Admin portal (`BrightP`, auto-deploys from `main`).
-3. Website: `npm run build` in `gotur-nextjs-main`, upload `build/` without its `cache/` folder, and add the nginx rule above.
+Blog comments are pending until approved. Admins can hide posts and reject comments.
+
+## Deployment
+
+1. Deploy the backend first so its start-up migration adds the catalogue fields and it exposes the UUID detail API. Allow the website's exact origins in the API's CORS settings.
+2. Deploy the `BrightP/` admin portal.
+3. Run the production build in `bright/` and deploy `dist/`, including its `.htaccess`. The SPA fallback serves direct visits to `/packages/{id}` and `/experiences`. The public catalogue defaults to `https://bp.nsiif.in`. Use `VITE_TOURS_API_URL` to target another API.

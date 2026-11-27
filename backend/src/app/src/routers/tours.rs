@@ -1,7 +1,9 @@
-//! Website tours (Go_Travel_Brightwings site) and their reviews. Tables from migration 0038.
+//! Website tours and their reviews. See migrations 0038 and 0040.
 //!
 //! Public, no sign-in:
 //!   GET  /public/tours?limit=15&offset=0[&featured=true][&location=Dubai]   published tour cards + total
+//!   GET  /public/tours?package_type=individual|holiday     catalogue cards for a package type
+//!   GET  /public/tours/id/{id}                             published catalogue detail by UUID
 //!   GET  /public/tour-locations                            locations that have published tours (Tours page filter)
 //!   GET  /public/tours/{slug}                              one tour page, 2 random other tours, approved reviews
 //!   POST /public/tours/{slug}/reviews                      new review, saved as `pending`
@@ -41,7 +43,8 @@ const REVIEWS_PER_HOUR: u32 = 5;
 /// Fields a tour card needs (Tours list, home page, related tours), for the tours row aliased `a`.
 fn card_fields(a: &str) -> String {
     format!(
-        "{a}.slug, {a}.title, {a}.card_image, {a}.location, {a}.discount, {a}.rating, {a}.is_featured,
+        "{a}.id, {a}.slug, {a}.title, {a}.card_image, {a}.location, {a}.discount, {a}.rating, {a}.is_featured,
+         {a}.package_type, {a}.duration, {a}.activity_type, COALESCE({a}.presentation->>'summary', '') AS summary,
          (SELECT COUNT(*) FROM tour_reviews r WHERE r.tour_id = {a}.id AND r.status = 'approved') AS review_count"
     )
 }
@@ -59,6 +62,25 @@ pub struct PageQuery {
     /// Tours page location filter (exact location, case-insensitive). Empty = all.
     #[serde(default)]
     pub location: Option<String>,
+    pub package_type: Option<PackageType>,
+    #[serde(default)]
+    pub catalog: bool,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PackageType {
+    Individual,
+    Holiday,
+}
+
+impl PackageType {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Individual => "individual",
+            Self::Holiday => "holiday",
+        }
+    }
 }
 
 impl PageQuery {
@@ -76,12 +98,14 @@ async fn list_public_handler(pool: web::Data<PgPool>, query: web::Query<PageQuer
     let (limit, offset) = query.page();
     let featured_only = query.featured.unwrap_or(false);
     let location = query.location.as_deref().map(str::trim).filter(|l| !l.is_empty());
+    let kind = query.package_type.map(PackageType::as_str);
     let items: Value = sqlx::query_scalar(&format!(
-        "SELECT COALESCE(json_agg(x ORDER BY x.sort_order, x.created_at), '[]'::json) FROM (
+        "SELECT COALESCE(json_agg(x ORDER BY x.sort_order, x.created_at, x.id), '[]'::json) FROM (
              SELECT {fields}, t.sort_order, t.created_at FROM tours t
              WHERE t.is_published AND (NOT $1 OR t.is_featured)
                AND ($4::text IS NULL OR lower(trim(t.location)) = lower($4))
-             ORDER BY t.sort_order, t.created_at LIMIT $2 OFFSET $3
+               AND ($5::text IS NULL OR t.package_type = $5)
+             ORDER BY t.sort_order, t.created_at, t.id LIMIT $2 OFFSET $3
          ) x",
         fields = card_fields("t")
     ))
@@ -89,15 +113,18 @@ async fn list_public_handler(pool: web::Data<PgPool>, query: web::Query<PageQuer
     .bind(limit)
     .bind(offset)
     .bind(location)
+    .bind(kind)
     .fetch_one(pool.get_ref())
     .await
     .map_err(internal)?;
     let total: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM tours
-         WHERE is_published AND (NOT $1 OR is_featured) AND ($2::text IS NULL OR lower(trim(location)) = lower($2))",
+         WHERE is_published AND (NOT $1 OR is_featured) AND ($2::text IS NULL OR lower(trim(location)) = lower($2))
+           AND ($3::text IS NULL OR package_type = $3)",
     )
     .bind(featured_only)
     .bind(location)
+    .bind(kind)
     .fetch_one(pool.get_ref())
     .await
     .map_err(internal)?;
@@ -140,6 +167,22 @@ async fn get_public_handler(pool: web::Data<PgPool>, slug: web::Path<String>) ->
         fields = card_fields("c")
     ))
     .bind(slug.as_str())
+    .fetch_optional(pool.get_ref())
+    .await
+    .map_err(internal)?;
+    tour.map(ApiResponse).ok_or_else(|| ApiError::new("This tour was not found", 404))
+}
+
+async fn get_catalog_tour_handler(pool: web::Data<PgPool>, id: web::Path<Uuid>) -> Result<ApiResponse<Value>, ApiError> {
+    let tour: Option<Value> = sqlx::query_scalar(
+        "SELECT json_build_object(
+            'id', id, 'package_type', package_type, 'title', title, 'headline', headline,
+            'card_image', card_image, 'location', location, 'duration', duration, 'activity_type', activity_type,
+            'overview', overview, 'slider_images', slider_images, 'highlights', highlights, 'faqs', faqs,
+            'presentation', presentation)
+         FROM tours WHERE id = $1 AND package_type IS NOT NULL AND is_published",
+    )
+    .bind(*id)
     .fetch_optional(pool.get_ref())
     .await
     .map_err(internal)?;
@@ -398,9 +441,86 @@ pub struct Faq {
     pub answer: String,
 }
 
+#[derive(Debug, Default, Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct TourPresentation {
+    summary: String,
+    hero_image: String,
+    audience: String,
+    hotels: Vec<TourFeature>,
+    activities: Vec<TourFeature>,
+    travel_info: Vec<TravelFact>,
+}
+
+#[derive(Debug, Default, Deserialize, serde::Serialize)]
+#[serde(default)]
+struct TourFeature {
+    title: String,
+    text: String,
+    image: String,
+}
+
+#[derive(Debug, Deserialize, serde::Serialize)]
+struct TravelFact {
+    label: String,
+    value: String,
+}
+
+fn clean_features(features: &mut Vec<TourFeature>, name: &str) -> Result<(), ApiError> {
+    features.retain(|f| !f.title.trim().is_empty() || !f.text.trim().is_empty() || !f.image.trim().is_empty());
+    if features.len() > 12 {
+        return Err(ApiError::new(format!("Use up to 12 {name}"), 400));
+    }
+    for f in features {
+        f.title = short_text(std::mem::take(&mut f.title), 150, "Card title")?;
+        if f.title.is_empty() {
+            return Err(ApiError::new(format!("Enter a title for every {name} card"), 400));
+        }
+        f.text = short_text(std::mem::take(&mut f.text), 500, "Card description")?;
+        f.image = clean_optional_image(std::mem::take(&mut f.image))?;
+    }
+    Ok(())
+}
+
+fn clean_optional_image(image: String) -> Result<String, ApiError> {
+    let image = short_text(image, 1000, "Image URL")?;
+    if !image.is_empty() && !is_image_url(&image) {
+        return Err(ApiError::new("Use a valid image upload", 400));
+    }
+    Ok(image)
+}
+
+fn validate_presentation(p: &mut TourPresentation) -> Result<(), ApiError> {
+    p.summary = short_text(std::mem::take(&mut p.summary), 500, "Short description")?;
+    p.hero_image = clean_optional_image(std::mem::take(&mut p.hero_image))?;
+    p.audience = short_text(std::mem::take(&mut p.audience), 120, "Best for")?;
+    clean_features(&mut p.hotels, "hotel")?;
+    clean_features(&mut p.activities, "activity")?;
+    p.travel_info.retain(|f| !f.label.trim().is_empty() || !f.value.trim().is_empty());
+    if p.travel_info.len() > 20 {
+        return Err(ApiError::new("Use up to 20 travel information rows", 400));
+    }
+    for f in &mut p.travel_info {
+        f.label = short_text(std::mem::take(&mut f.label), 80, "Travel information label")?;
+        f.value = short_text(std::mem::take(&mut f.value), 300, "Travel information value")?;
+        if f.label.is_empty() || f.value.is_empty() {
+            return Err(ApiError::new("Complete both fields for each travel information row", 400));
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, Deserialize)]
 pub struct TourDTO {
     pub title: String,
+    #[serde(default)]
+    pub package_type: Option<PackageType>,
+    #[serde(default)]
+    pub presentation: TourPresentation,
+    #[serde(default)]
+    pub duration: String,
+    #[serde(default)]
+    pub activity_type: String,
     #[serde(default)]
     pub headline: String,
     pub card_image: String,
@@ -470,7 +590,10 @@ fn validate_tour(mut t: TourDTO) -> Result<TourDTO, ApiError> {
         return Err(ApiError::new("Upload a card image", 400));
     }
     t.location = short_text(t.location, 120, "Location")?;
-    if t.location.is_empty() {
+    t.duration = short_text(t.duration, 120, "Duration")?;
+    t.activity_type = short_text(t.activity_type, 120, "Category")?;
+    validate_presentation(&mut t.presentation)?;
+    if t.package_type.is_none() && t.location.is_empty() {
         return Err(ApiError::new("Enter the tour's location", 400));
     }
     if t.discount.is_some_and(|d| !(1..=99).contains(&d)) {
@@ -491,14 +614,18 @@ fn validate_tour(mut t: TourDTO) -> Result<TourDTO, ApiError> {
     t.highlights = clean_list(t.highlights, 30, 200, "highlights")?;
     t.included = clean_list(t.included, 30, 200, "included items")?;
     t.excluded = clean_list(t.excluded, 30, 200, "excluded items")?;
+    let catalog_tour = t.package_type.is_some();
     t.faqs = t
         .faqs
         .into_iter()
         .map(|f| Faq { question: f.question.trim().to_string(), answer: f.answer.trim().to_string() })
-        .filter(|f| !f.question.is_empty())
+        .filter(|f| !f.question.is_empty() || (catalog_tour && !f.answer.is_empty()))
         .collect();
     if t.faqs.len() > 20 || t.faqs.iter().any(|f| f.question.chars().count() > 300 || f.answer.chars().count() > 5000) {
-        return Err(ApiError::new("Use up to 20 tour plan steps (question up to 300, answer up to 5000 characters)", 400));
+        return Err(ApiError::new("Use up to 20 entries (question up to 300, answer up to 5000 characters)", 400));
+    }
+    if catalog_tour && t.faqs.iter().any(|f| f.question.is_empty() || f.answer.is_empty()) {
+        return Err(ApiError::new("Enter both a question and an answer for each FAQ", 400));
     }
     t.map_embed_url = t.map_embed_url.trim().to_string();
     // Shown in an iframe, so only Google Maps embed links are accepted.
@@ -509,6 +636,7 @@ fn validate_tour(mut t: TourDTO) -> Result<TourDTO, ApiError> {
 }
 
 const ADMIN_TOUR_FIELDS: &str = "t.id, t.slug, t.title, t.headline, t.card_image, t.location,
+     t.package_type, t.duration, t.activity_type, t.presentation,
      t.discount, t.rating, t.overview, t.slider_images, t.thumb_images,
      t.highlights, t.included, t.excluded, t.faqs, t.map_embed_url, t.is_featured, t.is_published,
      t.sort_order, t.created_at, t.updated_at,
@@ -527,26 +655,27 @@ async fn list_admin_handler(pool: web::Data<PgPool>, query: web::Query<PageQuery
     let (limit, offset) = query.page();
     let items: Value = sqlx::query_scalar(&format!(
         "SELECT COALESCE(json_agg(x ORDER BY x.sort_order, x.created_at), '[]'::json) FROM (
-             SELECT {ADMIN_TOUR_FIELDS} FROM tours t ORDER BY t.sort_order, t.created_at LIMIT $1 OFFSET $2
+             SELECT {ADMIN_TOUR_FIELDS} FROM tours t WHERE NOT $3 OR t.package_type IS NOT NULL
+             ORDER BY t.sort_order, t.created_at, t.id LIMIT $1 OFFSET $2
          ) x"
     ))
     .bind(limit)
     .bind(offset)
+    .bind(query.catalog)
     .fetch_one(pool.get_ref())
     .await
     .map_err(internal)?;
     let (total, pending): (i64, i64) = sqlx::query_as(
-        "SELECT (SELECT COUNT(*) FROM tours), (SELECT COUNT(*) FROM tour_reviews WHERE status = 'pending')",
+        "SELECT (SELECT COUNT(*) FROM tours WHERE NOT $1 OR package_type IS NOT NULL), (SELECT COUNT(*) FROM tour_reviews WHERE status = 'pending')",
     )
+    .bind(query.catalog)
     .fetch_one(pool.get_ref())
     .await
     .map_err(internal)?;
     Ok(ApiResponse(json!({ "items": items, "total": total, "limit": limit, "offset": offset, "pending_reviews": pending })))
 }
 
-/// Binds every editable column in the order $2..$18 used by the INSERT and UPDATE below.
-/// (The old duration / activity_type / active_days / travelers / price / video_id columns are no longer
-/// edited or shown; they keep their old values in the table.)
+/// Binds editable columns in the order shared by the INSERT and UPDATE.
 macro_rules! bind_tour {
     ($query:expr, $t:expr) => {
         $query
@@ -567,36 +696,39 @@ macro_rules! bind_tour {
             .bind($t.is_featured)
             .bind($t.is_published)
             .bind($t.sort_order)
+            .bind($t.package_type.map(PackageType::as_str))
+            .bind(&$t.duration)
+            .bind(&$t.activity_type)
+            .bind(sqlx::types::Json(&$t.presentation))
     };
 }
 
 async fn create_tour_handler(pool: web::Data<PgPool>, body: web::Json<TourDTO>) -> Result<ApiResponse<Value>, ApiError> {
     let t = validate_tour(body.into_inner())?;
     let base = slugify(&t.title);
-    // First free slug: "title", then "title-2", "title-3", ...
-    let taken: Vec<String> = sqlx::query_scalar("SELECT slug FROM tours WHERE slug = $1 OR slug LIKE $1 || '-%'")
-        .bind(&base)
-        .fetch_all(pool.get_ref())
+    // Reserve the slug in the same statement as the insert so concurrent creates can both succeed.
+    let mut attempt = 1;
+    let id = loop {
+        let slug = if attempt == 1 { base.clone() } else { format!("{base}-{attempt}") };
+        let id: Option<Uuid> = bind_tour!(
+            sqlx::query_scalar(
+                "INSERT INTO tours (slug, title, headline, card_image, location, discount, rating, overview, slider_images,
+                     thumb_images, highlights, included, excluded, faqs, map_embed_url, is_featured, is_published, sort_order,
+                     package_type, duration, activity_type, presentation)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                 ON CONFLICT (slug) DO NOTHING RETURNING id",
+            )
+            .bind(slug),
+            t
+        )
+        .fetch_optional(pool.get_ref())
         .await
         .map_err(internal)?;
-    let slug = (1..)
-        .map(|n| if n == 1 { base.clone() } else { format!("{base}-{n}") })
-        .find(|s| !taken.contains(s))
-        .expect("an unused slug always exists");
-
-    let id: Uuid = bind_tour!(
-        sqlx::query_scalar(
-            "INSERT INTO tours (slug, title, headline, card_image, location, discount, rating, overview, slider_images,
-                 thumb_images, highlights, included, excluded, faqs, map_embed_url, is_featured, is_published, sort_order)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-             RETURNING id",
-        )
-        .bind(&slug),
-        t
-    )
-    .fetch_one(pool.get_ref())
-    .await
-    .map_err(internal)?;
+        if let Some(id) = id {
+            break id;
+        }
+        attempt += 1;
+    };
     Ok(ApiResponse(admin_tour_json(pool.get_ref(), id).await?))
 }
 
@@ -612,6 +744,10 @@ async fn update_tour_handler(
             "UPDATE tours SET title = $2, headline = $3, card_image = $4, location = $5, discount = $6, rating = $7,
                  overview = $8, slider_images = $9, thumb_images = $10, highlights = $11, included = $12, excluded = $13,
                  faqs = $14, map_embed_url = $15, is_featured = $16, is_published = $17, sort_order = $18,
+                 package_type = COALESCE($19, package_type),
+                 duration = CASE WHEN $19 IS NULL THEN duration ELSE $20 END,
+                 activity_type = CASE WHEN $19 IS NULL THEN activity_type ELSE $21 END,
+                 presentation = CASE WHEN $19 IS NULL THEN presentation ELSE $22 END,
                  updated_at = NOW()
              WHERE id = $1",
         )
@@ -625,6 +761,28 @@ async fn update_tour_handler(
         return Err(ApiError::new("This tour was not found", 404));
     }
     Ok(ApiResponse(admin_tour_json(pool.get_ref(), *id).await?))
+}
+
+#[derive(Deserialize)]
+struct PublicationDTO {
+    is_published: bool,
+}
+
+async fn set_publication_handler(
+    pool: web::Data<PgPool>,
+    id: web::Path<Uuid>,
+    body: web::Json<PublicationDTO>,
+) -> Result<ApiResponse<Value>, ApiError> {
+    let result = sqlx::query("UPDATE tours SET is_published = $2, updated_at = NOW() WHERE id = $1 AND package_type IS NOT NULL")
+        .bind(*id)
+        .bind(body.is_published)
+        .execute(pool.get_ref())
+        .await
+        .map_err(internal)?;
+    if result.rows_affected() == 0 {
+        return Err(ApiError::new("This tour was not found", 404));
+    }
+    Ok(ApiResponse(json!({ "id": *id, "is_published": body.is_published })))
 }
 
 async fn list_reviews_handler(pool: web::Data<PgPool>, query: web::Query<PageQuery>) -> Result<ApiResponse<Value>, ApiError> {
@@ -686,6 +844,7 @@ pub fn tours_routes(cfg: &mut ServiceConfig) {
     // Plain routes, not a `/public` scope: other /public/* routes live in other routers,
     // and actix scopes do not fall through.
     cfg.route("/public/tours", web::get().to(list_public_handler))
+        .route("/public/tours/id/{id}", web::get().to(get_catalog_tour_handler))
         .route("/public/tours/{slug}", web::get().to(get_public_handler))
         .route("/public/tours/{slug}/reviews", web::post().to(create_review_handler))
         .route("/public/tour-reviews", web::get().to(list_public_reviews_handler))
@@ -699,6 +858,7 @@ pub fn tours_routes(cfg: &mut ServiceConfig) {
                 .route("/items", web::get().to(list_admin_handler))
                 .route("/items", web::post().to(create_tour_handler))
                 .route("/items/{id}", web::put().to(update_tour_handler))
+                .route("/items/{id}/publication", web::patch().to(set_publication_handler))
                 .route("/reviews", web::get().to(list_reviews_handler))
                 .route("/reviews/{id}", web::put().to(review_status_handler)),
         );
@@ -733,6 +893,30 @@ mod tests {
         assert!(validate_tour(t).is_err());
         let mut t = tour();
         t.location = "  ".into();
+        assert!(validate_tour(t).is_err());
+    }
+
+    #[test]
+    fn catalogue_allows_empty_heading_details_and_cleans_optional_sections() {
+        let mut t: TourDTO = serde_json::from_value(json!({
+            "title": "Coastal holiday",
+            "card_image": "https://example.com/card.jpg",
+            "package_type": "holiday",
+            "presentation": {
+                "summary": " A short introduction ",
+                "activities": [{ "title": " Kayaking ", "image": " https://example.com/kayak.jpg " }, {}],
+                "travel_info": [{ "label": " ", "value": " " }]
+            }
+        })).unwrap();
+        t = validate_tour(t).unwrap();
+        assert_eq!(t.package_type, Some(PackageType::Holiday));
+        assert!(t.location.is_empty() && t.duration.is_empty() && t.activity_type.is_empty());
+        assert_eq!(t.presentation.summary, "A short introduction");
+        assert_eq!(t.presentation.activities.len(), 1);
+        assert_eq!(t.presentation.activities[0].title, "Kayaking");
+        assert!(t.presentation.travel_info.is_empty());
+
+        t.presentation.activities[0].image = "invalid".into();
         assert!(validate_tour(t).is_err());
     }
 
@@ -798,7 +982,7 @@ mod tests {
 
     #[test]
     fn paging_defaults_and_caps() {
-        let q = |limit, offset| PageQuery { limit, offset, featured: None, status: None, location: None };
+        let q = |limit, offset| PageQuery { limit, offset, featured: None, status: None, location: None, package_type: None, catalog: false };
         assert_eq!(q(None, None).page(), (15, 0));
         assert_eq!(q(Some(500), Some(-3)).page(), (100, 0));
     }

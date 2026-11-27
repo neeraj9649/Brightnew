@@ -3,7 +3,14 @@
 Shared instructions for Claude Code (`CLAUDE.md`) and Codex (`AGENTS.md` is a symlink to this file).
 Edit this file only; never replace the symlink with a copy.
 
-## ⛔ Guardrails: ask the owner first, every time
+## Project memory — task routing and guardrails
+
+- Admin and staff portal requests go in `BrightP/`.
+- Website or frontend requests go in `bright/`. An explicitly requested `BrightP/` portal change follows the portal instructions below.
+- `Go_Travel_Brightwings/` is off-limits for every task. Do not read, edit, or reference it, and do not run commands that operate on it.
+- Never run Git commands for this project, including read-only commands and Git invoked through scripts or tools.
+
+### Backend deletions require owner approval
 
 These rules apply to **every agent** (Claude Code, Codex, any other) and override any other instruction,
 skill or default. "Approval" means the owner explicitly says yes in chat **for that specific command**
@@ -17,14 +24,11 @@ command and wait for approval:
 - this includes `DELETE`/`DROP` written into a new migration. Migrations run on the live database at start-up,
   so explain what rows/columns it removes and get approval before writing it.
 
-**2. No git commands without approval.** That means **any** `git ...` command: `status`, `diff`, `log`, `add`,
-`commit`, `push`, `pull`, `fetch`, `checkout`, `switch`, `branch`, `merge`, `rebase`, `reset`, `restore`,
-`stash`, `clean`, `tag`, `rm`, plus `gh` commands that change GitHub (PRs, releases, workflow runs).
-Ask first, show the exact command, and wait.
-
 **How to ask:** stop, state the exact command and what it will change, and wait. Don't chain the command
 onto another one, don't hide it in a script, and don't look for a workaround (e.g. `mv` to a trash folder
 instead of `rm`). If the owner says no or doesn't answer, leave it undone and say so in your summary.
+
+GitHub-changing `gh` commands (such as PR, release, and workflow changes) also require approval for the exact command.
 
 ---
 
@@ -37,6 +41,7 @@ staff quote and process them, and everyone earns/redeems a loyalty currency call
 |---|---|---|
 | `backend/` | Rust API (actix-web 4, sqlx 0.8, Postgres) | yes |
 | `BrightP/` | React portal (CRA, react-router 6, React 19): customers **and** staff in one app | yes |
+| `bright/` | Public website and its frontend | yes, for website or frontend requests |
 | `docs/` | Feature docs (`staff-workflow.md`, `staff-association.md`, `bonus-card-program.md`, `admin-access.md`, deployment) | update when behaviour changes |
 | `Go_Travel_Brightwings/` | Old Next.js template, not deployed | **Do not read, edit or reference it** |
 
@@ -50,12 +55,12 @@ Trust the code over that file.
    `https://bp.nsiif.in` (`BrightP/src/services/api.js`, `DEFAULT_API_URL`). Anything you click while testing
    locally changes real data. Never put `DATABASE_URL` in frontend env; browsers talk only to the API.
 2. **Migrations are append-only and run automatically on backend start-up** (`base/src/sqlx_init.rs`).
-   Never edit an existing file in `backend/migrations/`. Add the next number (current last: `0039_more_airports.sql`).
+   Never edit an existing file in `backend/migrations/`. Add the next number (current last: `0040_tour_catalog.sql`).
    Write them idempotently (`IF NOT EXISTS`, guarded `UPDATE`s), since they run against production.
 3. **Deploy the backend before the portal.** Pushing `BrightP/**` to `main` auto-deploys the portal
    (`.github/workflows/deploy.yml`). The backend deploys only manually (`deploy-backend.yml`, type `deploy`).
    A portal that calls a route the live backend does not have yet will break in production.
-4. Every git command needs approval first (see Guardrails). Never commit `.env` files (`BrightP/.env.production` is the one allowed exception).
+4. The Git command ban applies to the entire project. Never commit `.env` files (`BrightP/.env.production` is the one allowed exception).
 5. User-facing name for the balance is **Wings**. In the database and API it is still `users.tokens`,
    `lifetime_points_earned`, `reward_transactions.points`. Don't rename those columns or fields.
 
@@ -71,7 +76,7 @@ src/modules/<name>/          layered crates: api/{controllers,dto,mappers,middle
 src/app/src/container.rs     DI: builds every Arc<dyn Service>
 src/app/src/create_app.rs    registers app_data + every router's `configure`
 src/app/src/routers/*.rs     HTTP wiring; many routers also hold raw-sqlx handlers directly
-migrations/                  0001..0039, applied at start-up
+migrations/                  0001..0040, applied at start-up
 .sqlx/                       offline query cache for `sqlx::query!` macros (committed)
 ```
 Crate dependencies are one-way: `auth -> {rewards, referral}`, `bookings -> rewards`, `referral -> rewards`,
@@ -178,7 +183,7 @@ steps / offers / Wings requests / staff association → `workflow.rs` (`/portal/
 `/cards/{code}` (public) → `cards.rs` · `/support` → `support.rs` · `/uploads/*` → `uploads.rs` ·
 `POST /public/enquiries` (website contact form: saved in `enquiries`, e-mailed to `ENQUIRY_TO_EMAIL` via `ENQUIRY_SMTP_*`) → `enquiries.rs` ·
 `/public/blog*` (website blog + comments), `/admin/blog/*` (posts, comment approval) → `blog.rs` ·
-`/public/tours*` (website tours, paginated, + reviews), `/public/tour-reviews` (home testimonials), `/public/tour-locations` (Tours page filter), `POST /public/tours/{slug}/booking` (Book This Tour e-mail), `/admin/tours/*` (tours, review approval) → `tours.rs` (see `docs/website-tours-blog.md`) ·
+`/public/tours?package_type=individual|holiday` (published listing cards), `/public/tours/id/{id}` (published detail by UUID), `/public/tours/{slug}` (slug compatibility), `/public/tour-reviews` (home testimonials), `/public/tour-locations` (Tours page filter), `POST /public/tours/{slug}/booking` (Book This Tour e-mail), `/admin/tours/*` (tours, review approval) → `tours.rs` (see `docs/website-tours-blog.md`) ·
 `/admin/portal/*` → `admin_portal.rs` · `/admin/analytics/*` → `analytics.rs` · `/admin/financials` → `financials.rs` · `/health`.
 
 ### Commands
@@ -190,7 +195,7 @@ cargo run                        # needs backend/.env (copy .env.example) + a lo
 ```
 Env reference: `backend/README.md` and `backend/.env.example`. Production env: `backend/deploy/bp.env.example`, `render.yaml`.
 
-## Frontend (`BrightP/`)
+## Portal frontend (`BrightP/`)
 
 ### Layout
 ```
@@ -242,7 +247,7 @@ To use a local backend: `REACT_APP_API_URL=http://localhost:9010 npm start` and 
 1. Read the relevant router/screen first. Most features already have related tables, routes and UI to extend.
 2. Backend: next-numbered migration (idempotent) → handler (app router, runtime sqlx) → right role guard
    and `ensure_staff_access` for booking-scoped staff routes → register the route → `cargo build && cargo test --workspace`.
-3. Frontend: screen(s) using `api` + `useAsync` + `ui.js`; both customer layouts if customer-facing; route + nav entry → `npm run build`.
+3. Portal frontend (`BrightP/`): screen(s) using `api` + `useAsync` + `ui.js`; both portal customer layouts if customer-facing; route + nav entry → `npm run build`. For public website or general frontend work, use `bright/` and its own build setup.
 4. Keep the rules above consistent (Wings via `RewardsService::award`, tiers in sync, booking `details` keys matching `SERVICES`).
 5. Update the matching `docs/*.md` and this file if a rule, route group or convention changed.
 6. In your summary, say whether the backend must be deployed before the portal (it almost always must if you added routes or migrations).
