@@ -133,7 +133,7 @@ export default function TourDrawer({ tour, onClose, onSaved }) {
   };
 
   return (
-    <Modal open onClose={onClose} side label="Tour package" className="tour-drawer">
+    <Modal open onClose={onClose} side label="Tour package" className={tour ? 'tour-drawer tour-drawer-edit' : 'tour-drawer'}>
       <ModalHead title={tour ? 'Edit package' : 'New tour package'} sub="Fields follow the order visitors see on the website." onClose={onClose} />
       <form onSubmit={save}>
         <fieldset disabled={busy} className="pt-stack" style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>

@@ -23,7 +23,27 @@ Ordering starts with the display order configured in admin, with older records f
 - `GET /public/tours/id/{id}` returns the published tour details, including optional presentation data. Unknown and hidden tours return 404.
 - Admin `GET /admin/tours/items?catalog=true` lists new catalogue tours including drafts. `POST /admin/tours/items` creates a tour, `PUT /admin/tours/items/{id}` edits it, and `PATCH /admin/tours/items/{id}/publication` sets its publication state.
 - `GET /public/tours/{slug}`, `GET /public/tour-locations`, `POST /public/tours/{slug}/reviews`, `GET /public/tour-reviews` and `/admin/tours/reviews` retain the existing slug and moderation flows. Reviews appear publicly after approval.
-- `POST /public/tours/{slug}/booking` sends a quotation email to `BOOKING_TO_EMAIL` (default `info@brightwingstravel.com`). The current website detail form opens WhatsApp with the selected package and traveller details.
+- `POST /public/tours/{slug}/booking` sends a quotation email to `BOOKING_TO_EMAIL` (default `info@brightwingstravel.com`).
+- `POST /public/tours/id/{tour_id}/enquiries` accepts the tour detail form. It looks up the published tour by ID, saves the enquiry, and sends the office an email with the visitor as Reply-To and a Twilio WhatsApp notification. The response reports whether the email was accepted and whether Twilio accepted the notification.
+
+### Tour enquiry WhatsApp template
+
+Set `WHATSAPP_TOUR_ENQUIRY_CONTENT_SID` to an approved Twilio Content SID (`HX…`) with these six variables in order. The notification is sent from `+919252153290` to `+917732957732` and the email goes to `info@brightwingstravel.com`.
+
+```text
+New tour enquiry from the Bright Wings website
+
+Tour: {{1}}
+Name: {{2}}
+Email: {{3}}
+WhatsApp / phone: {{4}}
+Preferred travel date: {{5}}
+Travellers: {{6}}
+
+Please contact the visitor to follow up.
+```
+
+When the date is blank, the notification says “Not specified”. Migration `0043_tour_enquiry_delivery.sql` stores the tour ID and the Twilio outcome alongside the enquiry.
 
 ## Blog and contact
 

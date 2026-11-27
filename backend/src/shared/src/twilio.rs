@@ -158,6 +158,39 @@ pub async fn send_whatsapp_code(stored_phone: &str, code: &str) -> Result<String
     body["sid"].as_str().map(str::to_string).ok_or_else(|| "Twilio returned no message SID".to_string())
 }
 
+/// Sends a tour enquiry to Bright Wings' office using its approved notification template.
+pub async fn send_tour_enquiry_whatsapp(fields: [&str; 6]) -> Result<String, String> {
+    let content_sid = env_optional("WHATSAPP_TOUR_ENQUIRY_CONTENT_SID")
+        .ok_or("WHATSAPP_TOUR_ENQUIRY_CONTENT_SID is not configured")?;
+    if content_sid.len() != 34
+        || !content_sid.strip_prefix("HX").is_some_and(|suffix| suffix.bytes().all(|b| b.is_ascii_hexdigit()))
+    {
+        return Err("Invalid WhatsApp tour enquiry Content SID".into());
+    }
+    let creds = credentials().ok_or("Twilio is not configured")?;
+    let from = format!("whatsapp:{DEFAULT_WHATSAPP_FROM}");
+    let variables: serde_json::Map<String, serde_json::Value> = fields
+        .into_iter()
+        .enumerate()
+        .map(|(i, value)| ((i + 1).to_string(), value.split_whitespace().collect::<Vec<_>>().join(" ").into()))
+        .collect();
+    let variables = serde_json::Value::Object(variables).to_string();
+    let body = call(
+        &format!("{MESSAGES_BASE}/{}/Messages.json", creds.account_sid),
+        Some(&[
+            ("From", from.as_str()),
+            ("To", "whatsapp:+917732957732"),
+            ("ContentSid", content_sid.as_str()),
+            ("ContentVariables", variables.as_str()),
+        ]),
+    )
+    .await?;
+    if matches!(body["status"].as_str(), Some("failed" | "undelivered" | "canceled")) {
+        return Err(format!("Twilio rejected the notification (code {})", body["error_code"]));
+    }
+    body["sid"].as_str().map(str::to_string).ok_or_else(|| "Twilio returned no message SID".into())
+}
+
 /// Current status of a sent message: queued, sending, sent, delivered, read, failed or undelivered,
 /// plus Twilio's error code when there is one.
 pub async fn whatsapp_status(message_sid: &str) -> Result<(String, Option<i64>), String> {

@@ -43,6 +43,25 @@ struct Enquiry {
     source: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct TourEnquiryDTO {
+    name: String,
+    email: String,
+    phone: String,
+    date: Option<chrono::NaiveDate>,
+    travellers: String,
+}
+
+fn traveller_group(value: &str) -> Result<&'static str, ApiError> {
+    match value {
+        "1" => Ok("1 traveller"),
+        "2" => Ok("2 travellers"),
+        "3–5" | "3-5" => Ok("3–5 travellers"),
+        "6+" => Ok("6 or more travellers"),
+        _ => Err(ApiError::new("Please select a valid group size", 400)),
+    }
+}
+
 pub(crate) fn plausible_email(value: &str) -> bool {
     let mut parts = value.split('@');
     matches!((parts.next(), parts.next(), parts.next()), (Some(l), Some(d), None) if !l.is_empty() && d.contains('.') && !d.starts_with('.') && !d.ends_with('.') && !value.contains(' '))
@@ -175,15 +194,108 @@ async fn create_enquiry_handler(
     Ok(ApiResponse(json!({ "id": id, "email_sent": email_error.is_none() })))
 }
 
+async fn create_tour_enquiry_handler(
+    pool: web::Data<PgPool>,
+    req: HttpRequest,
+    tour_id: web::Path<Uuid>,
+    body: web::Json<TourEnquiryDTO>,
+) -> Result<ApiResponse<Value>, ApiError> {
+    let body = body.into_inner();
+    let group = traveller_group(&body.travellers)?;
+    let date = body.date.map(|date| date.format("%d %b %Y").to_string()).unwrap_or_else(|| "Not specified".into());
+    let mut enquiry = validate(EnquiryDTO {
+        name: body.name,
+        email: body.email,
+        phone: body.phone,
+        message: format!("Preferred travel date: {date}\nTravellers: {group}"),
+        subject: Some("Tour enquiry".into()),
+        source: Some("tour".into()),
+    })?;
+    let ip = req.connection_info().realip_remote_addr().unwrap_or("unknown").to_string();
+    base::rate_limit::LIMITER.hit(&format!("tour-enquiry:{ip}"), MAX_PER_HOUR, Duration::from_secs(60 * 60))?;
+
+    let tour: Option<(String, String)> = sqlx::query_as(
+        "SELECT title, location FROM tours WHERE id = $1 AND is_published AND package_type IS NOT NULL",
+    )
+    .bind(*tour_id)
+    .fetch_optional(pool.get_ref())
+    .await
+    .map_err(base::error::internal)?;
+    let (title, location) = tour.ok_or_else(|| ApiError::new("This tour is no longer available", 404))?;
+    let tour = if location.trim().is_empty() { title.clone() } else { format!("{title} ({location})") };
+    enquiry.message = format!("Tour: {tour}\nTour ID: {}\n{}", *tour_id, enquiry.message);
+
+    let id: Uuid = sqlx::query_scalar(
+        "INSERT INTO enquiries (name, email, phone, message, source, ip_address, subject, tour_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+    )
+    .bind(&enquiry.name)
+    .bind(&enquiry.email)
+    .bind(&enquiry.phone)
+    .bind(&enquiry.message)
+    .bind(&enquiry.source)
+    .bind(ip.chars().take(64).collect::<String>())
+    .bind(&enquiry.subject)
+    .bind(*tour_id)
+    .fetch_one(pool.get_ref())
+    .await
+    .map_err(base::error::internal)?;
+
+    let ist = FixedOffset::east_opt(5 * 3600 + 30 * 60).expect("valid IST offset");
+    let received = Utc::now().with_timezone(&ist).format("%d %b %Y, %I:%M %p IST").to_string();
+    let text = email_text(&enquiry, &received);
+    let subject = format!("Bright Wings tour enquiry - {title}");
+    let reply_to = enquiry.email.clone();
+    let email = web::block(move || shared::mail::send_enquiry_email(CONTACT_TO, Some(&reply_to), &subject, &text));
+    let whatsapp = shared::twilio::send_tour_enquiry_whatsapp([
+        &tour, &enquiry.name, &enquiry.email, &enquiry.phone, &date, group,
+    ]);
+    let (email, whatsapp) = futures_util::future::join(email, whatsapp).await;
+    let email_error = email.map_err(|e| e.to_string()).and_then(|result| result).err();
+    let (whatsapp_message_sid, whatsapp_error) = match whatsapp {
+        Ok(sid) => (Some(sid), None),
+        Err(error) => (None, Some(error)),
+    };
+    let email_sent = email_error.is_none();
+    let whatsapp_queued = whatsapp_message_sid.is_some();
+    if !email_sent || !whatsapp_queued {
+        log::warn!("tour enquiry {id}: email accepted={email_sent}, WhatsApp accepted={whatsapp_queued}");
+    }
+    // Do not tell the visitor to resubmit an already-saved enquiry if only the delivery metadata write fails.
+    if let Err(error) = sqlx::query(
+        "UPDATE enquiries SET email_sent = $2, email_error = $3, whatsapp_message_sid = $4, whatsapp_error = $5 WHERE id = $1",
+    )
+    .bind(id)
+    .bind(email_sent)
+    .bind(email_error)
+    .bind(whatsapp_message_sid)
+    .bind(whatsapp_error)
+    .execute(pool.get_ref())
+    .await
+    {
+        log::error!("tour enquiry {id}: could not store notification outcomes: {error}");
+    }
+
+    Ok(ApiResponse(json!({ "id": id, "email_sent": email_sent, "whatsapp_queued": whatsapp_queued })))
+}
+
 pub fn enquiries_routes(cfg: &mut web::ServiceConfig) {
     // A plain route, not a scope: other /public/* routes live in portal.rs, and a
     // `/public` scope here would hide them (actix scopes do not fall through).
-    cfg.route("/public/enquiries", web::post().to(create_enquiry_handler));
+    cfg.route("/public/enquiries", web::post().to(create_enquiry_handler))
+        .route("/public/tours/id/{tour_id}/enquiries", web::post().to(create_tour_enquiry_handler));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn validates_tour_group_sizes() {
+        assert_eq!(traveller_group("3–5").unwrap(), "3–5 travellers");
+        assert_eq!(traveller_group("6+").unwrap(), "6 or more travellers");
+        assert!(traveller_group("arbitrary").is_err());
+    }
 
     fn dto(name: &str, email: &str, phone: &str, message: &str) -> EnquiryDTO {
         EnquiryDTO {

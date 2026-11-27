@@ -1352,5 +1352,11 @@
   .ly-actions .pt-btn { width: 100%; padding-inline: 8px; white-space: nowrap; font-size: 13px; }
 }
 
-/* Admin tour form: a wider drawer (the form is long, with photos and a day-by-day plan). */
+/* Admin tour forms use a wider drawer for the package fields and photos. */
 .pt-drawer.tour-drawer { max-width: 860px; }
+.pt-drawer.tour-drawer-edit { max-width: 688px; }
+.tour-drawer form :is(.pt-btn, .pt-icon-btn):hover:not(:disabled) {
+  background: var(--pt-navy-2);
+  border-color: var(--pt-navy-2);
+  color: #fff;
+}
