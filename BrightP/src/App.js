@@ -31,15 +31,24 @@ import { Notifications, TierBenefits, ReferralActivity, MembershipCardPage, Publ
 
 // Components
 import LoadingSpinner from './components/Common/LoadingSpinner';
+import { ErrorState } from './portal/ui';
+
+const SessionRestoreError = ({ message, onRetry }) => (
+  <main className="mx-auto max-w-md px-4 py-16">
+    <ErrorState title="Couldn’t restore your session" onRetry={onRetry}>{message}</ErrorState>
+  </main>
+);
 
 // Protected Route Component
 const ProtectedRoute = ({ children, adminOnly = false, staffOnly = false }) => {
-  const { currentUser, loading, isAdmin, isStaff } = useAuth();
+  const { currentUser, loading, restoreError, retrySession, isAdmin, isStaff } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <LoadingSpinner message="Loading..." />;
   }
+
+  if (restoreError) return <SessionRestoreError message={restoreError} onRetry={retrySession} />;
 
   if (!currentUser) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
@@ -72,12 +81,14 @@ const CustomerDashboardRoute = () => {
 
 // Public Route Component (redirects to dashboard if already authenticated)
 const PublicRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, restoreError, retrySession } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <LoadingSpinner message="Loading..." />;
   }
+
+  if (restoreError) return <SessionRestoreError message={restoreError} onRetry={retrySession} />;
 
   if (currentUser) {
     // A brand-new member lands on the welcome screen first.

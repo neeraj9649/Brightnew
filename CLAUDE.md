@@ -138,7 +138,8 @@ belongs in `src/app/src/routers/`.
 - **Sessions:** short-lived JWT access token (in memory on the client) + httpOnly rotating refresh cookie
   (`refresh_tokens`, grouped by `family_id` = the JWT `sid`). Rotation has a 10-second grace window for
   duplicate requests. Logout and "sign out other devices" revoke the family. Cookie flags come from
-  `COOKIE_SECURE / COOKIE_SAMESITE / COOKIE_PARTITIONED / COOKIE_DOMAIN`.
+  `COOKIE_SECURE / COOKIE_SAMESITE / COOKIE_PARTITIONED / COOKIE_DOMAIN`. The production portal uses
+  `BrightP/public/session.php` to keep its refresh cookie first-party (see `docs/deployment.md`).
 - **Roles:** `customer`, `employee`, `admin`, `super_admin`. Only super_admin can create or demote admins.
   Nobody can change their own role or deactivate themselves.
 - **Self-signup and staff-created customers both go through `UserServiceImpl::register()`**, so both get

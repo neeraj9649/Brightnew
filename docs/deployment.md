@@ -19,6 +19,24 @@ The backend is never built, tested, or deployed by this workflow.
 BrightP receives an Apache `.htaccess` fallback for client routes if its build
 does not already provide one.
 
+## Portal sessions
+
+The canonical portal uses its own HTTPS session endpoint at `/session.php`
+for sign-in, registration, passcode reset, refresh, and sign-out. The file ships
+with the portal build. Enable PHP with the cURL extension on the portal's
+Hostinger site and allow it to reach `https://bp.nsiif.in` over HTTPS. The
+gateway expects the backend's default refresh-cookie name, `refresh_token`.
+
+The browser keeps a Secure, HttpOnly cookie scoped to the portal session
+endpoint. Bearer-token API calls continue to use the API URL. After deploying
+this change, browsers with an existing API-domain cookie need to sign in once
+to create the new portal cookie. Verify by signing in and reloading a protected
+admin route. The refresh request should go to `/session.php?action=refresh`
+and the same admin page should stay open.
+
+A portal served from another origin, including localhost, uses the API URL
+directly for authentication.
+
 ## GitHub Actions secrets
 
 Set these under repository Settings → Secrets and variables → Actions:

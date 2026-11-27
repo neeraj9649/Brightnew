@@ -2,8 +2,17 @@
 // overrides it, so accounts created anywhere exist everywhere and nothing falls back to localhost.
 const DEFAULT_API_URL = 'https://bp.nsiif.in';
 const API_BASE_URL = (process.env.REACT_APP_API_URL || DEFAULT_API_URL).replace(/\/$/, '');
+const PORTAL_ORIGIN = 'https://portal.brightwingstravel.com';
+const SESSION_ACTIONS = new Map([
+  ['/auth/login', 'login'],
+  ['/auth/register', 'register'],
+  ['/auth/passcode/reset', 'reset'],
+  ['/auth/refresh', 'refresh'],
+  ['/auth/logout', 'logout'],
+]);
 
 let accessToken = null;
+let sessionVersion = 0;
 
 let refreshTimer = null;
 
@@ -34,26 +43,37 @@ const scheduleRefresh = () => {
   }
 };
 
-export const setAccessToken = (token) => {
+const storeAccessToken = (token) => {
   accessToken = token;
   setSessionHint(Boolean(token));
   scheduleRefresh();
 };
 
+export const setAccessToken = (token) => {
+  sessionVersion += 1;
+  storeAccessToken(token);
+};
+
 export const getAccessToken = () => accessToken;
 
-async function rawRequest(path, options = {}) {
+// Only cookie-based session routes use the same-origin portal gateway.
+export function requestUrl(path, origin) {
+  const action = SESSION_ACTIONS.get(path);
+  return action && origin === PORTAL_ORIGIN ? `/session.php?action=${action}` : `${API_BASE_URL}${path}`;
+}
+
+async function rawRequest(path, options = {}, token = accessToken) {
   const headers = { ...(options.headers || {}) };
   if (options.body && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+  if (token && !SESSION_ACTIONS.has(path)) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(requestUrl(path, typeof window === 'undefined' ? undefined : window.location.origin), {
       ...options,
       headers,
       credentials: 'include', // send/receive the httpOnly refresh-token cookie
@@ -75,6 +95,9 @@ async function rawRequest(path, options = {}) {
 // not talking to the Bright Wings API.
 const isEnvelope = (body) => body && typeof body === 'object' && typeof body.success === 'boolean';
 
+export const isSessionRejected = (error) =>
+  !error.network && (error.status === 401 || error.status === 403);
+
 // Refresh tokens are single-use, so every caller (page-load restore, the 401 retry and the
 // pre-expiry timer) must share ONE in-flight request instead of racing the endpoint. The promise
 // is dropped as soon as it settles; React StrictMode's double mount happens while it is in flight.
@@ -82,26 +105,40 @@ let inflightRefresh = null;
 
 /** Rotates the httpOnly refresh cookie. Resolves to {access_token, user}; rejects with `.status` set. */
 export function refreshSession() {
-  if (!inflightRefresh) {
-    inflightRefresh = apiRequest('/auth/refresh', { method: 'POST' }).finally(() => {
-      inflightRefresh = null;
-    });
+  const version = sessionVersion;
+  if (inflightRefresh?.version !== version) {
+    const refresh = apiRequest('/auth/refresh', { method: 'POST', keepalive: true })
+      .then((data) => {
+        if (version !== sessionVersion) {
+          // Sign-out or a new sign-in won the race with this response.
+          throw new Error('This session has changed.');
+        }
+        if (!data?.access_token || !data.user?.id) {
+          throw new Error('The server could not confirm your session.');
+        }
+        storeAccessToken(data.access_token);
+        return data;
+      })
+      .catch((error) => {
+        if (version !== sessionVersion) throw new Error('This session has changed.');
+        if (isSessionRejected(error)) setAccessToken(null);
+        throw error;
+      })
+      .finally(() => {
+        if (inflightRefresh?.version === version) inflightRefresh = null;
+      });
+    inflightRefresh = { version, refresh };
   }
-  return inflightRefresh;
+  return inflightRefresh.refresh;
 }
 
 async function tryRefresh() {
   try {
-    const data = await refreshSession();
-    if (data?.access_token) {
-      setAccessToken(data.access_token);
-      return true;
-    }
-  } catch (error) {
-    // Only a definite rejection ends the session; a 5xx or proxy hiccup must not log the user out.
-    if (error.status === 401 || error.status === 403) setAccessToken(null);
+    await refreshSession();
+    return true;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 /**
@@ -109,13 +146,16 @@ async function tryRefresh() {
  * Throws an Error with `.message` from the API envelope on failure.
  */
 export async function apiRequest(path, options = {}) {
-  let { response, body } = await rawRequest(path, options);
+  const token = accessToken;
+  const version = sessionVersion;
+  let { response, body } = await rawRequest(path, options, token);
 
-  // A failed sign-in on /auth/login is not a session problem: there is nothing to refresh, and a retry would count as a second guess.
-  if (response.status === 401 && path !== '/auth/refresh' && path !== '/auth/login' && hasSessionHint()) {
-    const refreshed = await tryRefresh();
-    if (refreshed) {
-      ({ response, body } = await rawRequest(path, options));
+  // Reuse a token another request already refreshed. Never retry a sign-in
+  // submission or retry a previous user's request under a different session.
+  if (response.status === 401 && isEnvelope(body) && version === sessionVersion &&
+      !SESSION_ACTIONS.has(path) && path !== '/auth/otp/request' && hasSessionHint()) {
+    if ((accessToken && accessToken !== token) || await tryRefresh()) {
+      if (version === sessionVersion) ({ response, body } = await rawRequest(path, options));
     }
   }
 

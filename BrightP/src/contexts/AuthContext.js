@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { api, setAccessToken, hasSessionHint, refreshSession } from "../services/api";
+import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
+import { api, setAccessToken, hasSessionHint, isSessionRejected, refreshSession } from "../services/api";
 import toast from "react-hot-toast";
 
 const AuthContext = createContext();
@@ -41,17 +41,19 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [restoreError, setRestoreError] = useState(null);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
 
-  const applyUserDTO = (dto) => {
+  const applyUserDTO = useCallback((dto) => {
     setCurrentUser({ uid: dto.id, email: dto.email });
     setUserData(mapUserDTO(dto));
     setIsAdmin(dto.role === "admin" || dto.role === "super_admin");
     setIsSuperAdmin(dto.role === "super_admin");
     setIsStaff(["admin", "super_admin", "employee"].includes(dto.role));
-  };
+  }, []);
 
   // Sends a 6-digit code by SMS. purpose: "register" or "reset" (forgot passcode).
   // Resolves to { channel, code_length, expires_in_seconds, resend_after_seconds, dev_code? }.
@@ -157,36 +159,45 @@ export const AuthProvider = ({ children }) => {
 
   // Restore the session on page load using the httpOnly refresh-token cookie.
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       // Never signed in on this browser: there is no refresh cookie, so don't call the API at all.
       if (!hasSessionHint()) {
         setLoading(false);
         return;
       }
-      // Only a definite 401 means "no session". Network errors and 5xx get a few retries
-      // so a server hiccup does not sign the user out.
-      for (let attempt = 0; attempt < 3; attempt += 1) {
+      const attempts = 3;
+      for (let attempt = 0; attempt < attempts && !cancelled; attempt += 1) {
         try {
           const data = await refreshSession();
-          setAccessToken(data.access_token);
-          applyUserDTO(data.user);
+          if (!cancelled) applyUserDTO(data.user);
           break;
         } catch (error) {
-          if (error.status === 401 || error.status === 403) {
-            setAccessToken(null);
-            break;
+          if (cancelled || isSessionRejected(error)) break;
+          if (attempt === attempts - 1) {
+            setRestoreError("We couldn’t reconnect to your session. Please try again.");
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
           }
-          await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
         }
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [applyUserDTO, restoreAttempt]);
+
+  const retrySession = () => {
+    setRestoreError(null);
+    setLoading(true);
+    setRestoreAttempt((attempt) => attempt + 1);
+  };
 
   const contextValue = {
     currentUser,
     userData,
     loading,
+    restoreError,
+    retrySession,
     isAdmin,
     isSuperAdmin,
     isStaff,
