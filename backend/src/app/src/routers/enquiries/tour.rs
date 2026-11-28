@@ -3,7 +3,6 @@ use std::time::Duration;
 use actix_web::{web, HttpRequest};
 use chrono::{DateTime, FixedOffset, NaiveDate, Utc};
 use futures_util::{stream, StreamExt};
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -235,8 +234,7 @@ async fn request_code(
     LIMITER.hit(&format!("tour-enquiry-otp:{ip}"), 15, HOUR)?;
 
     let id = Uuid::new_v4();
-    let code = format!("{:06}", rand::thread_rng().gen_range(0..1_000_000));
-    let hash = code_hash(id, &draft, &code)?;
+    let hash = code_hash(id, &draft, "")?;
     let phone_key = digest(b"tour-enquiry-phone", &[draft.phone.as_bytes()]);
     let draft_data = serde_json::to_vec(&draft).map_err(internal)?;
     let draft_key = digest(b"tour-enquiry-draft", &[&draft_data]);
@@ -269,19 +267,20 @@ async fn request_code(
     .await?;
     tx.commit().await?;
 
-    shared::twilio::send_whatsapp_code(&draft.phone, &code)
+    let sid = shared::twilio::send_enquiry_code(&draft.phone)
         .await
         .map_err(|error| {
             log::warn!(
-                "Tour enquiry verification {id}: WhatsApp could not accept the code: {error}"
+                "Tour enquiry verification {id}: Twilio could not send the SMS: {error}"
             );
             ApiError::new(
-                "We couldn’t send the WhatsApp code. Check the number and try again in a minute.",
+                "We couldn’t send the SMS code. Check the number and try again in a minute.",
                 503,
             )
         })?;
-    sqlx::query("UPDATE tour_enquiry_challenges SET sent = TRUE WHERE id = $1")
+    sqlx::query("UPDATE tour_enquiry_challenges SET sent = TRUE, sms_verification_sid = $2 WHERE id = $1")
         .bind(id)
+        .bind(sid)
         .execute(pool.get_ref())
         .await?;
     Ok(ApiResponse(
@@ -314,14 +313,14 @@ async fn verify_code(
     LIMITER.hit(&format!("tour-enquiry-verify:{ip}"), 75, HOUR)?;
 
     let mut tx = pool.begin().await?;
-    let challenge: Option<(String, i32, Option<Uuid>, String, Option<String>)> = sqlx::query_as(
-        "SELECT code_hash, attempts, enquiry_id, phone_key, draft_key FROM tour_enquiry_challenges
+    let challenge: Option<(String, i32, Option<Uuid>, String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT code_hash, attempts, enquiry_id, phone_key, draft_key, sms_verification_sid FROM tour_enquiry_challenges
          WHERE id = $1 AND sent AND expires_at > NOW() FOR UPDATE",
     )
     .bind(*challenge_id)
     .fetch_optional(&mut *tx)
     .await?;
-    let (expected, attempts, existing_enquiry, phone_key, draft_key) =
+    let (expected, attempts, existing_enquiry, phone_key, draft_key, sms_sid) =
         challenge.ok_or_else(invalid)?;
     if attempts >= MAX_ATTEMPTS {
         return Err(ApiError::new(
@@ -329,7 +328,20 @@ async fn verify_code(
             429,
         ));
     }
-    if code_hash(*challenge_id, &draft, &code)? != expected {
+    let submitted_hash = code_hash(*challenge_id, &draft, &code)?;
+    let approved = if let Some(sid) = sms_sid.filter(|_| existing_enquiry.is_none()) {
+        if code_hash(*challenge_id, &draft, "")? == expected {
+            shared::twilio::check_enquiry_code(&sid, &code).await.map_err(|error| {
+                log::warn!("Enquiry verification {}: SMS check failed: {error}", *challenge_id);
+                ApiError::new("We couldn’t check your SMS code. Please try again.", 503)
+            })?
+        } else {
+            false
+        }
+    } else {
+        submitted_hash == expected
+    };
+    if !approved {
         sqlx::query("UPDATE tour_enquiry_challenges SET attempts = attempts + 1 WHERE id = $1 AND enquiry_id IS NULL")
             .bind(*challenge_id)
             .execute(&mut *tx)
@@ -353,7 +365,7 @@ async fn verify_code(
     .fetch_optional(&mut *tx)
     .await?;
     if let Some(id) = duplicate {
-        link_enquiry(&mut tx, *challenge_id, id).await?;
+        link_enquiry(&mut tx, *challenge_id, id, &submitted_hash).await?;
         tx.commit().await?;
         return Ok(ApiResponse(json!({ "id": id })));
     }
@@ -392,7 +404,7 @@ async fn verify_code(
     .bind(Json(notification))
     .fetch_one(&mut *tx)
     .await?;
-    link_enquiry(&mut tx, *challenge_id, id).await?;
+    link_enquiry(&mut tx, *challenge_id, id, &submitted_hash).await?;
     tx.commit().await?;
     Ok(ApiResponse(json!({ "id": id })))
 }
@@ -401,10 +413,12 @@ async fn link_enquiry(
     conn: &mut PgConnection,
     challenge_id: Uuid,
     enquiry_id: Uuid,
+    verified_hash: &str,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE tour_enquiry_challenges SET enquiry_id = $2 WHERE id = $1")
+    sqlx::query("UPDATE tour_enquiry_challenges SET enquiry_id = $2, code_hash = $3 WHERE id = $1")
         .bind(challenge_id)
         .bind(enquiry_id)
+        .bind(verified_hash)
         .execute(conn)
         .await?;
     Ok(())

@@ -53,14 +53,9 @@ pub fn spawn_refresh_token_cleanup(pool: sqlx::PgPool) {
     });
 }
 
-/// Says at start-up whether sign-in codes can go out by WhatsApp and SMS. The deploy workflow prints this line,
+/// Says at start-up whether sign-in codes can go out by SMS. The deploy workflow prints this line,
 /// so a missing or unreadable Twilio setting is visible straight after a deploy.
 pub fn log_sign_in_code_delivery() {
-    if shared::twilio::whatsapp_configured() {
-        log::warn!("Sign-in codes: WhatsApp is on (SMS is the fallback)");
-    } else {
-        log::warn!("Sign-in codes: WhatsApp is off (WHATSAPP_OTP_FROM=off or no Twilio credentials)");
-    }
     if shared::twilio::verify_configured() {
         log::warn!("Sign-in codes: Twilio Verify is configured");
     } else {

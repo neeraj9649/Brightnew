@@ -55,7 +55,7 @@ Trust the code over that file.
    `https://bp.nsiif.in` (`BrightP/src/services/api.js`, `DEFAULT_API_URL`). Anything you click while testing
    locally changes real data. Never put `DATABASE_URL` in frontend env; browsers talk only to the API.
 2. **Migrations are append-only and run automatically on backend start-up** (`base/src/sqlx_init.rs`).
-   Never edit an existing file in `backend/migrations/`. Add the next number (current last: `0046_tour_enquiry_reliability.sql`).
+   Never edit an existing file in `backend/migrations/`. Add the next number (current last: `0047_enquiry_sms_verification.sql`).
    Write them idempotently (`IF NOT EXISTS`, guarded `UPDATE`s), since they run against production.
 3. **Deploy the backend before the portal.** Pushing `BrightP/**` to `main` auto-deploys the portal
    (`.github/workflows/deploy.yml`). The backend deploys only manually (`deploy-backend.yml`, type `deploy`).
@@ -76,7 +76,7 @@ src/modules/<name>/          layered crates: api/{controllers,dto,mappers,middle
 src/app/src/container.rs     DI: builds every Arc<dyn Service>
 src/app/src/create_app.rs    registers app_data + every router's `configure`
 src/app/src/routers/*.rs     HTTP wiring; many routers also hold raw-sqlx handlers directly
-migrations/                  0001..0046, applied at start-up
+migrations/                  0001..0047, applied at start-up
 .sqlx/                       offline query cache for `sqlx::query!` macros (committed)
 ```
 Crate dependencies are one-way: `auth -> {rewards, referral}`, `bookings -> rewards`, `referral -> rewards`,
@@ -123,12 +123,8 @@ belongs in `src/app/src/routers/`.
   stored in `users.pin_hash`, hashed by `auth/api/utils/pin.rs`, the same scheme as the old PIN). A **6-digit SMS code (OTP)**
   is used only to prove the phone: joining (`POST /auth/otp/request {purpose: "register"}` →
   `POST /auth/register {phone, code, pin, first_name, ...}`) and Forgot passcode (`purpose: "reset"` →
-  `POST /auth/passcode/reset {phone, code, pin}`, which revokes every session and signs in). The first code goes by
-  **WhatsApp** (Twilio Messages API, template `otp_code_whatsapp` from `+919252153290`; we generate and hash the code,
-  stored as channel `'local'`). If Twilio reports it `failed`/`undelivered` within ~8 s, or on any resend while a code is
-  still live, it goes by **SMS via Twilio Verify** (`shared/src/twilio.rs`; `WHATSAPP_OTP_FROM=off` disables WhatsApp; env `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID`;
-  code length **6** is set on the Verify Service in the Twilio Console and must equal `OTP_LENGTH` in `otp.rs`). If Twilio fails, a local code is e-mailed when
-  the account has an e-mail. Core logic and limits: `auth/api/utils/otp.rs` (table `otp_requests`, migration 0034;
+  `POST /auth/passcode/reset {phone, code, pin}`, which revokes every session and signs in). Account codes use **SMS via Twilio Verify** (`TWILIO_VERIFY_SERVICE_SID`). If SMS fails, the existing email fallback can send an account code.
+  Website enquiry codes use SMS over a separate `ENQUIRY_VERIFY_SERVICE_SID`. Both services require six-digit codes. Core logic and limits: `auth/api/utils/otp.rs` (table `otp_requests`, migration 0034;
   10-minute expiry, 5 attempts, 60-second resend, 5 sends/hour per phone). `OTP_DEV_ECHO=true` returns the code
   in the response, local only. OTP purpose "reset" is stored as `'login'` in `otp_requests` (CHECK from 0034).
   Staff-created accounts get an unusable hash (`unusable_pin_hash`); the member sets a passcode via Forgot passcode.

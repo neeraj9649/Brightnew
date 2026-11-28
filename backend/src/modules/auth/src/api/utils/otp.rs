@@ -1,9 +1,4 @@
-//! One-time codes (6 digits) for joining and for resetting a forgotten passcode.
-//!
-//! Delivery order: WhatsApp template with a locally generated code (falls back when Twilio reports
-//! it failed/undelivered; resends skip it) -> Twilio Verify SMS -> e-mail with a local code (only
-//! when the account has an e-mail address) -> error. With `OTP_DEV_ECHO=true` (local development
-//! only) a local code is also returned in the API response.
+//! One-time codes for joining and resetting a forgotten passcode.
 
 use base::constants::PASSWORD_HASH_SECRET;
 use base::error::ApiError;
@@ -93,54 +88,7 @@ fn generate_code() -> String {
     format!("{:0width$}", rand::thread_rng().gen_range(0..10_u32.pow(OTP_LENGTH as u32)), width = OTP_LENGTH)
 }
 
-/// How a WhatsApp status settles the send: `Some(true)` reached the phone, `Some(false)` failed
-/// (fall back to SMS), `None` still on its way.
-fn whatsapp_outcome(status: &str) -> Option<bool> {
-    match status {
-        "delivered" | "read" => Some(true),
-        "failed" | "undelivered" => Some(false),
-        _ => None,
-    }
-}
-
-const WHATSAPP_STATUS_CHECKS: u32 = 8;
-
-/// Sends `code` by WhatsApp and watches the status for a few seconds. A number without WhatsApp
-/// (or a template problem) fails within a second or two. A message still "sent" after the wait
-/// (phone offline) is accepted; "Resend code" then goes by SMS.
-async fn send_whatsapp(phone: &str, code: &str) -> Result<(), String> {
-    let sid = shared::twilio::send_whatsapp_code(phone, code).await?;
-    // Bound the whole wait: each status call may take up to its own 15 s timeout.
-    match actix_web::rt::time::timeout(std::time::Duration::from_secs(12), watch_whatsapp(&sid)).await {
-        Ok(result) => result,
-        Err(_) => {
-            log::warn!("WhatsApp status of {sid} still unknown after 12 s, keeping it");
-            Ok(())
-        }
-    }
-}
-
-async fn watch_whatsapp(sid: &str) -> Result<(), String> {
-    for _ in 0..WHATSAPP_STATUS_CHECKS {
-        actix_web::rt::time::sleep(std::time::Duration::from_secs(1)).await;
-        match shared::twilio::whatsapp_status(sid).await {
-            Ok((status, error_code)) => match whatsapp_outcome(&status) {
-                Some(true) => return Ok(()),
-                Some(false) => return Err(format!("message {sid} {status} (error {error_code:?})")),
-                None => {}
-            },
-            // Can't read the status: the message was accepted, so don't send a second code.
-            Err(err) => {
-                log::warn!("Could not read WhatsApp status of {sid}: {err}");
-                return Ok(());
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Sends a code to `phone` (stored form). `email` is the account's address for the fallback.
-/// Order: WhatsApp (first send only) -> SMS via Twilio Verify -> e-mail.
+/// Sends a code by SMS, with the existing account email fallback.
 pub async fn send_code(
     pool: &PgPool,
     phone: &str,
@@ -159,31 +107,6 @@ pub async fn send_code(
         return Err(ApiError::new("Please wait a minute before requesting another code", 429));
     }
 
-    // A live, unused code already exists, so this is "Resend code": the first message may not have
-    // reached them on WhatsApp, so the resend goes by SMS.
-    let is_resend: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM otp_requests WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL AND expires_at > NOW())",
-    )
-    .bind(phone)
-    .bind(purpose.as_str())
-    .fetch_one(pool)
-    .await
-    .map_err(db_err)?;
-
-    // Our own code: used for WhatsApp and the e-mail fallback (SMS via Verify makes its own).
-    let code = generate_code();
-
-    if !is_resend && shared::twilio::whatsapp_configured() {
-        match send_whatsapp(phone, &code).await {
-            Ok(()) => {
-                // ponytail: stored as channel 'local' (we hold the hash), the value the 0034 CHECK allows.
-                insert_request(pool, phone, purpose, "local", Some(code_hash(&code, phone, purpose))).await?;
-                return Ok(OtpSent { channel: "whatsapp", dev_code: dev_echo().then(|| code.clone()) });
-            }
-            Err(err) => log::warn!("WhatsApp code to {phone} failed, falling back to SMS: {err}"),
-        }
-    }
-
     if shared::twilio::verify_configured() {
         match shared::twilio::send_code(phone).await {
             Ok(()) => {
@@ -194,6 +117,7 @@ pub async fn send_code(
         }
     }
 
+    let code = generate_code();
     // Fallback: our own code, by e-mail (or echoed back on a development machine).
     let mut channel = None;
     if let Some(email) = email {
@@ -222,8 +146,7 @@ pub async fn check_code(pool: &PgPool, phone: &str, purpose: OtpPurpose, code: &
     if !is_valid_otp_format(code) {
         return Err(invalid());
     }
-    // Every live code counts, not only the newest: after "Resend" (by SMS) the first WhatsApp
-    // message may still arrive, and the member may type that one.
+    // Every live code counts, including a code that arrived just after a resend.
     let live: Vec<(Uuid, String, Option<String>)> = sqlx::query_as(
         r#"SELECT id, channel, code_hash FROM otp_requests
            WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL AND expires_at > NOW()
@@ -253,7 +176,7 @@ pub async fn check_code(pool: &PgPool, phone: &str, purpose: OtpPurpose, code: &
         return Err(ApiError::new("Too many attempts. Please request a new code", 429));
     }
 
-    // Our own codes (WhatsApp / e-mail) first: no network call. Then Twilio Verify, if an SMS went out.
+    // Our own codes (e-mail or previously issued codes) first: no network call. Then Twilio Verify, if an SMS went out.
     let hash = code_hash(code, phone, purpose);
     let mut approved = live
         .iter()
@@ -268,7 +191,7 @@ pub async fn check_code(pool: &PgPool, phone: &str, purpose: OtpPurpose, code: &
         return Err(invalid());
     }
 
-    // Used once: consuming every live code means the other one (WhatsApp vs SMS) can't be used
+    // Used once: consuming every live code means an earlier code can't be used
     // later, and of two parallel correct submissions only the first wins.
     let ids: Vec<Uuid> = live.iter().map(|(id, _, _)| *id).collect();
     let consumed = sqlx::query("UPDATE otp_requests SET consumed_at = NOW() WHERE id = ANY($1) AND consumed_at IS NULL")
@@ -301,13 +224,4 @@ mod tests {
         }
     }
 
-    #[test]
-    fn whatsapp_statuses() {
-        assert_eq!(whatsapp_outcome("delivered"), Some(true));
-        assert_eq!(whatsapp_outcome("read"), Some(true));
-        assert_eq!(whatsapp_outcome("failed"), Some(false));
-        assert_eq!(whatsapp_outcome("undelivered"), Some(false));
-        assert_eq!(whatsapp_outcome("sent"), None);
-        assert_eq!(whatsapp_outcome("queued"), None);
-    }
 }

@@ -1,13 +1,4 @@
-//! Twilio: one-time codes by WhatsApp (Messages API + an approved authentication template)
-//! and by SMS (Twilio Verify).
-//!
-//! Credentials: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`; SMS also needs `TWILIO_VERIFY_SERVICE_SID`.
-//! The Verify code length (6 digits, must equal `OTP_LENGTH` in auth/api/utils/otp.rs) and expiry are
-//! set on the Verify Service in the Twilio Console, not here.
-//!
-//! WhatsApp sender and template default to Bright Wings' own (below). `WHATSAPP_OTP_FROM` /
-//! `WHATSAPP_OTP_CONTENT_SID` override them, and `WHATSAPP_OTP_FROM=off` turns WhatsApp off.
-//! (Deliberately not `TWILIO_*`: the deploy workflow rewrites every `TWILIO_*` line of the server .env.)
+//! Twilio Verify SMS and WhatsApp enquiry notifications.
 
 use std::time::Duration;
 
@@ -16,8 +7,6 @@ const MESSAGES_BASE: &str = "https://api.twilio.com/2010-04-01/Accounts";
 const CONTENT_BASE: &str = "https://content.twilio.com/v1/Content";
 /// Bright Wings' WhatsApp sender (connected in WhatsApp Manager and Twilio).
 const DEFAULT_WHATSAPP_FROM: &str = "+919252153290";
-/// Template `otp_code_whatsapp` (Authentication): "{{1}} is your verification code..." + Copy code button.
-const DEFAULT_WHATSAPP_CONTENT_SID: &str = "HX611fe1a9d4dae2ff54ef7bfddaec21db";
 const TOUR_ENQUIRY_CONTENT_SID: &str = "HX3a61dfb446ff277339f7524eda4c26be";
 const TOUR_GREETING_CONTENT_SID: &str = "HXa35576af9f780a4216a7dd8b1c351c47";
 
@@ -42,25 +31,8 @@ fn verify_service_sid() -> Option<String> {
     env_optional("TWILIO_VERIFY_SERVICE_SID")
 }
 
-/// (sender in E.164, template ContentSid), or None when WhatsApp is switched off.
-fn whatsapp_sender() -> Option<(String, String)> {
-    let from = env_optional("WHATSAPP_OTP_FROM").unwrap_or_else(|| DEFAULT_WHATSAPP_FROM.to_string());
-    if from.eq_ignore_ascii_case("off") {
-        return None;
-    }
-    let content_sid =
-        env_optional("WHATSAPP_OTP_CONTENT_SID").unwrap_or_else(|| DEFAULT_WHATSAPP_CONTENT_SID.to_string());
-    Some((from.trim_start_matches("whatsapp:").to_string(), content_sid))
-}
-
-/// True when the SMS path (Twilio Verify) has all three settings.
 pub fn verify_configured() -> bool {
     credentials().is_some() && verify_service_sid().is_some()
-}
-
-/// True when codes can go out by WhatsApp (credentials present and WhatsApp not switched off).
-pub fn whatsapp_configured() -> bool {
-    credentials().is_some() && whatsapp_sender().is_some()
 }
 
 /// Stored phones are bare 10 digits for India and `+<country><number>` for everyone else;
@@ -139,26 +111,30 @@ pub async fn check_code(stored_phone: &str, code: &str) -> Result<bool, String> 
     }
 }
 
-/// Sends `code` (generated and checked by us) through the WhatsApp authentication template.
-/// Returns the message SID, for `whatsapp_status`.
-pub async fn send_whatsapp_code(stored_phone: &str, code: &str) -> Result<String, String> {
-    let creds = credentials().ok_or("Twilio is not configured")?;
-    let (from, content_sid) = whatsapp_sender().ok_or("WhatsApp codes are switched off")?;
-    let from = format!("whatsapp:{from}");
-    let to = format!("whatsapp:{}", to_e164(stored_phone));
-    let variables = serde_json::json!({ "1": code }).to_string();
-    let url = format!("{MESSAGES_BASE}/{}/Messages.json", creds.account_sid);
-    let body = call(
-        &url,
-        Some(&[
-            ("From", from.as_str()),
-            ("To", to.as_str()),
-            ("ContentSid", content_sid.as_str()),
-            ("ContentVariables", variables.as_str()),
-        ]),
-    )
-    .await?;
-    whatsapp_message_sid(&body)
+fn enquiry_verify_service() -> Result<String, String> {
+    let sid = env_optional("ENQUIRY_VERIFY_SERVICE_SID").ok_or("Enquiry Verify service is not configured")?;
+    if verify_service_sid().as_deref() == Some(sid.as_str()) {
+        return Err("Enquiry Verify service must be separate from account verification".into());
+    }
+    if sid.len() != 34 || !sid.strip_prefix("VA").is_some_and(|part| part.bytes().all(|byte| byte.is_ascii_hexdigit())) {
+        return Err("Invalid enquiry Verify service SID".into());
+    }
+    Ok(sid)
+}
+
+pub async fn send_enquiry_code(phone: &str) -> Result<String, String> {
+    let service = enquiry_verify_service()?;
+    let result = call(&format!("{VERIFY_BASE}/{service}/Verifications"), Some(&[("To", phone), ("Channel", "sms")])).await?;
+    result["sid"].as_str().map(str::to_owned).ok_or_else(|| "Twilio returned no verification SID".into())
+}
+
+pub async fn check_enquiry_code(sid: &str, code: &str) -> Result<bool, String> {
+    let service = enquiry_verify_service()?;
+    match call(&format!("{VERIFY_BASE}/{service}/VerificationCheck"), Some(&[("VerificationSid", sid), ("Code", code)])).await {
+        Ok(result) => Ok(result["status"] == "approved"),
+        Err(error) if error.starts_with("Twilio 404") => Ok(false),
+        Err(error) => Err(error),
+    }
 }
 
 /// Notifies the office of a verified enquiry with the approved WhatsApp template.
