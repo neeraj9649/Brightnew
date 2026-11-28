@@ -88,9 +88,9 @@ export function DeskLogin({ title = 'Welcome back', lede, errors, busy, onSubmit
         <button type="button" className="da2-logo" onClick={() => navigate('/')} aria-label="Bright Wings home"><img src={BrightLogo} alt="" /><span><b>Bright Wings</b><small>Travel further together</small></span></button>
         <form onSubmit={onSubmit} noValidate className="da2-form">
           <div className="dp-eyebrow" style={{ padding: 0, color: '#b8832a', fontSize: 12 }}>BRIGHT WINGS LOYALTY PORTAL</div>
-          <h1 className="pt-title" style={{ marginTop: 14, fontSize: 'clamp(46px, 4.6vw, 62px)' }}>{title}</h1>
-          <p className="pt-lede" style={{ marginTop: 14, fontSize: 18 }}>{lede || 'Sign in to manage your bookings, view and redeem your Wings, and unlock a more rewarding tomorrow — all in one place.'}</p>
-          <div className="pt-stack lg" style={{ marginTop: 30 }}>
+          <h1 className="pt-title da2-title">{title}</h1>
+          <p className="pt-lede da2-lede">{lede || 'Sign in to manage your bookings, view and redeem your Wings, and unlock a more rewarding tomorrow — all in one place.'}</p>
+          <div className="pt-stack da2-fields">
             {errors.form && <Notice tone="red" icon={CircleAlert}>{errors.form}</Notice>}
             {children}
             <button type="submit" className="pt-navy-btn da2-submit" disabled={busy}>{submit}</button>

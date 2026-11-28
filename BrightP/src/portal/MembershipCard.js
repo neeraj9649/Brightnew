@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { toPng } from 'html-to-image';
 import { Database, Plane, RefreshCw, Star } from 'lucide-react';
-import BrightLogo from '../assets/BrightLogo.png';
+import BrightLogo from '../assets/BrightLogo.webp';
 import frontArt from '../assets/card-front.jpg';
 import backArt from '../assets/card-back.jpg';
 

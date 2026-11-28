@@ -61,8 +61,15 @@ fn validate(body: EnquiryDTO) -> Result<Enquiry, ApiError> {
         return Err(ApiError::new("Please enter a shorter name", 400));
     }
 
+    let source = body
+        .source
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty() && s.len() <= 50 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+        .unwrap_or_else(|| "contact".to_string());
+
     let email = body.email.trim().to_lowercase();
-    if email.len() > 200 || email.chars().any(char::is_control) || !plausible_email(&email) {
+    let email_omitted = source == "trip-plan" && email.is_empty();
+    if !email_omitted && (email.len() > 200 || email.chars().any(char::is_control) || !plausible_email(&email)) {
         return Err(ApiError::new("Please enter a valid e-mail address", 400));
     }
 
@@ -86,20 +93,24 @@ fn validate(body: EnquiryDTO) -> Result<Enquiry, ApiError> {
         return Err(ApiError::new("Please enter a subject of up to 120 characters on one line", 400));
     }
 
-    let source = body
-        .source
-        .map(|s| s.trim().to_lowercase())
-        .filter(|s| !s.is_empty() && s.len() <= 50 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
-        .unwrap_or_else(|| "contact".to_string());
-
     Ok(Enquiry { name, email, phone, message, subject: subject.to_string(), source })
 }
 
 fn email_text(e: &Enquiry, received: &str) -> String {
-    let source = if e.source == "contact" { "Website contact form" } else { e.source.as_str() };
+    let source = match e.source.as_str() {
+        "contact" => "Website contact form",
+        "trip-plan" => "Plan Your Trip",
+        _ => e.source.as_str(),
+    };
+    let introduction = if e.source == "trip-plan" { "New website trip enquiry" } else { "New website contact enquiry" };
+    let (email, follow_up) = if e.email.is_empty() {
+        ("Not provided", "Contact the traveller using the phone number above.".to_string())
+    } else {
+        (e.email.as_str(), format!("Reply to this email to answer {} directly.", e.name))
+    };
     format!(
         "BRIGHT WINGS TRAVEL\n\
-         New website contact enquiry\n\n\
+         {introduction}\n\n\
          CUSTOMER DETAILS\n\
          Full name            {}\n\
          Email address        {}\n\
@@ -110,13 +121,13 @@ fn email_text(e: &Enquiry, received: &str) -> String {
          Received             {received}\n\n\
          MESSAGE\n\
          {}\n\n\
-         Reply to this email to answer {} directly.\n",
-        e.name, e.email, e.phone, e.subject, e.message, e.name
+         {follow_up}\n",
+        e.name, email, e.phone, e.subject, e.message
     )
 }
 
 fn recipient(source: &str) -> String {
-    if matches!(source, "contact" | "website-service") {
+    if matches!(source, "contact" | "website-service" | "trip-plan") {
         return CONTACT_TO.to_string();
     }
     std::env::var("ENQUIRY_TO_EMAIL")
@@ -156,9 +167,9 @@ async fn create_enquiry_handler(
     let received = Utc::now().with_timezone(&ist).format("%d %b %Y, %I:%M %p IST").to_string();
     let subject = format!("Bright Wings website enquiry - {}", enquiry.subject);
     let text = email_text(&enquiry, &received);
-    let reply_to = enquiry.email.clone();
+    let reply_to = (!enquiry.email.is_empty()).then(|| enquiry.email.clone());
 
-    let result = web::block(move || shared::mail::send_enquiry_email(&to, Some(reply_to.as_str()), &subject, &text))
+    let result = web::block(move || shared::mail::send_enquiry_email(&to, reply_to.as_deref(), &subject, &text))
         .await
         .map_err(|e| e.to_string())
         .and_then(|r| r);
@@ -188,6 +199,18 @@ pub fn enquiries_routes(cfg: &mut web::ServiceConfig) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trip_plan_enquiries_can_be_emailed_without_a_visitor_email() {
+        let mut body = dto("Asha", "", "+91 9876543210", "Preferred destination: Jaipur");
+        body.source = Some("trip-plan".into());
+        let enquiry = validate(body).unwrap();
+        assert_eq!(recipient(&enquiry.source), CONTACT_TO);
+        let email = email_text(&enquiry, "Today");
+        assert!(email.contains("New website trip enquiry"));
+        assert!(email.contains("Email address        Not provided"));
+        assert!(email.contains("Preferred destination: Jaipur"));
+    }
 
     fn dto(name: &str, email: &str, phone: &str, message: &str) -> EnquiryDTO {
         EnquiryDTO {

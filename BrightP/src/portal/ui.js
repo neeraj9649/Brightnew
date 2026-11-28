@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { fileUrl } from '../services/storage';
 import { useBooking } from '../contexts/BookingContext';
-import BrightLogo from '../assets/BrightLogo.png';
+import BrightLogo from '../assets/BrightLogo.webp';
 import DatePicker from './DatePicker';
 import chairs from '../assets/travel/hero-palace.jpg';
 import coast from '../assets/travel/hero-coast.jpg';

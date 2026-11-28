@@ -1,5 +1,5 @@
 import React from 'react';
-import BrightLogo from '../../assets/BrightLogo.png';
+import BrightLogo from '../../assets/BrightLogo.webp';
 
 // ponytail: LoadingSpinner.css migrated to Tailwind utilities. Size variants
 // (small/medium/large) via the map below. Ring = 4 partial-circle divs spun

@@ -56,9 +56,11 @@ For visitors who confirm the WhatsApp notice by verifying the detail enquiry, mi
 | Website part | Admin portal | API |
 |---|---|---|
 | Blog posts and comments | — | `GET /public/blog`, `GET /public/blog/{slug}`, `POST /public/blog/{slug}/comments`, and `/admin/blog/*` |
-| Contact form | Email to `info@brightwingstravel.com` | `POST /public/enquiries` |
+| Contact and Plan Your Trip forms | Email to `info@brightwingstravel.com` | `POST /public/enquiries` |
 
 The contact form sends the visitor's name, email, full phone number, subject and message. The API saves the enquiry first and emails it using `ENQUIRY_SMTP_*` with the visitor's email as Reply-To. The form confirms that the message was sent only if the API returns `email_sent: true`. If SMTP fails, the saved enquiry remains available in the database and the visitor sees a delivery notice.
+
+Plan Your Trip includes the destination, dates, group size, traveller type, budget and additional requirements in the email. Its email address field is optional.
 
 Migration `0042_enquiry_subject.sql` adds the stored subject. Older submitters can omit it, in which case the API uses “General Enquiry”. For local development, set `VITE_PUBLIC_API_URL` in `bright/` to the backend base URL.
 
