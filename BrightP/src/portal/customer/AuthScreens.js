@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, ChartNoAxesColumn, CircleAlert, CircleCheck, Coins, Gift } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,9 +10,7 @@ import {
 } from '../ui';
 import { DeskJoin, DeskLogin, OTP_LENGTH, OtpEntry, PasscodeCreate, PasscodeInput } from '../desktop/Auth';
 
-// Support contact details are configured per deployment (REACT_APP_CONTACT_EMAIL / _PHONE).
-const CONTACT_EMAIL = (process.env.REACT_APP_CONTACT_EMAIL || '').trim();
-const CONTACT_PHONE = (process.env.REACT_APP_CONTACT_PHONE || '').trim();
+const inactiveMessage = 'Your account is inactive. Contact Bright Wings support to reactivate it.';
 
 export function TermsModal({ open, onClose }) {
   return (
@@ -24,7 +22,7 @@ export function TermsModal({ open, onClose }) {
         <p><strong style={{ color: 'var(--pt-navy)' }}>Tiers.</strong> Your tier is based on lifetime Wings earned. Redeeming Wings never reduces your lifetime Wings or lowers your tier.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Redemptions.</strong> Rewards are subject to availability and approval. Wings are reserved when you submit a request and refunded in full if it is rejected or cancelled. Vouchers are valid until the date shown on the voucher.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Quotations.</strong> Prices are confirmed by your travel advisor in a written quotation. A quotation is valid until the date shown and no payment is taken in the portal.</p>
-        <p><strong style={{ color: 'var(--pt-navy)' }}>Privacy.</strong> We use your details only to provide travel services, support and the Wings program. Public membership verification shows only your name, member number, tier and validity.</p>
+        <p><strong style={{ color: 'var(--pt-navy)' }}>Privacy.</strong> We use your details only to provide travel services, support and the Wings program. The membership verification page shows only your name, member number, tier and validity.</p>
         <p><strong style={{ color: 'var(--pt-navy)' }}>Changes.</strong> Bright Wings may update program rules with notice in the portal. Accounts may be deactivated for misuse.</p>
       </div>
       <button type="button" className="pt-btn full" style={{ marginTop: 20 }} onClick={onClose}>Close</button>
@@ -45,10 +43,12 @@ const PASSCODE_LENGTH = 4;
 export default function AuthPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const { requestOtp, signIn, signUp, resetPasscode } = useAuth();
   const wide = useWide();
   const initialRef = params.get('ref') || '';
-  const initialMode = initialRef || params.get('mode') === 'register' ? 'register' : params.get('mode') === 'forgot' ? 'forgot' : 'login';
+  const requestedMode = params.get('mode');
+  const initialMode = requestedMode === 'login' || requestedMode === 'forgot' ? requestedMode : initialRef || requestedMode === 'register' ? 'register' : 'login';
   const [mode, setMode] = useState(initialMode); // login | register | forgot
 
   const [step, setStep] = useState('phone'); // register/forgot: phone -> code -> passcode
@@ -81,11 +81,12 @@ export default function AuthPage() {
     setMode(next);
     backToPhone();
     const nextParams = new URLSearchParams(params);
-    nextParams.delete('mode');
-    setParams(nextParams, { replace: true });
+    if (next === 'login' && !nextParams.has('ref')) nextParams.delete('mode');
+    else nextParams.set('mode', next);
+    setParams(nextParams, { replace: true, state: location.state });
   };
 
-  const goHome = (user) => navigate(user?.role === 'customer' ? '/dashboard' : '/admin', { replace: true });
+  const goHome = (user) => navigate(location.state?.from || (user?.role === 'customer' ? '/dashboard' : '/admin'), { replace: true });
 
   const sendCode = async () => {
     const purpose = mode === 'register' ? 'register' : 'reset';
@@ -99,7 +100,7 @@ export default function AuthPage() {
       setCooldown(data?.resend_after_seconds || 60);
     } catch (error) {
       const message = error.message || 'We could not send your code. Please try again.';
-      if (error.status === 403) navigate('/inactive', { replace: true });
+      if (error.status === 403) setErrors({ form: inactiveMessage });
       else if (purpose === 'register' && message.toLowerCase().includes('referral')) setErrors({ referral: 'That code is not valid — check it and try again' });
       else if (purpose === 'register' && error.status === 409) setErrors({ form: 'This phone number is already registered. Sign in instead, or use Forgot passcode.' });
       else if (error.status === 404) setErrors({ phone: message });
@@ -128,7 +129,7 @@ export default function AuthPage() {
 
   // A rejected code (400/429) goes back to the code step; the chosen passcode is kept.
   const finishError = (error) => {
-    if (error.status === 403) { navigate('/inactive', { replace: true }); return; }
+    if (error.status === 403) { setErrors({ form: inactiveMessage }); return; }
     if (error.status === 400 && /passcode/i.test(error.message || '')) { setErrors({ passcode: error.message }); return; }
     if (error.status === 400 || error.status === 429) {
       setStep('code');
@@ -151,7 +152,7 @@ export default function AuthPage() {
     try {
       goHome(await signIn(toStoredPhone(phone), pin));
     } catch (error) {
-      if (error.status === 403) navigate('/inactive', { replace: true });
+      if (error.status === 403) setErrors({ form: inactiveMessage });
       else if (error.status === 404) setErrors({ phone: error.message });
       else if (error.status === 401 || error.status === 400) { setErrors({ passcode: error.message || 'That passcode is incorrect' }); setPasscode(''); document.getElementById('passcode-0')?.focus(); }
       else setErrors({ form: error.message || 'Something went wrong. Please try again.' });
@@ -410,28 +411,3 @@ export function WelcomePage() {
     </div>
   );
 }
-
-/* --------------------------------------------------------- inactive account */
-
-export function InactivePage() {
-  const navigate = useNavigate();
-  const { logout, currentUser } = useAuth();
-  return (
-    <div className="pt-app">
-      <div className="pt-auth">
-        <Hero image={IMG.palace} className="pt-auth-art" tall style={{ minHeight: 320 }} />
-        <div className="pt-auth-panel" style={{ paddingTop: 0 }}>
-          <div className="pt-stack lg" style={{ textAlign: 'center' }}>
-            <div style={{ marginTop: -44 }}><div className="pt-success-mark" style={{ width: 76, height: 76, background: '#fbe4e1', color: '#c0443a', boxShadow: '0 0 0 8px #fff' }}><CircleAlert size={38} /></div></div>
-            <div><h1 className="pt-h1">Your account is inactive</h1></div>
-            <p className="pt-sub">For your security, this account is currently inactive. This may happen due to prolonged inactivity or a security review.</p>
-            <p className="pt-sub">To reactivate your account, please contact our support team. We’ll be happy to help you get back to exploring with Bright Wings.</p>
-            {CONTACT_EMAIL ? <a className="pt-btn full" href={`mailto:${CONTACT_EMAIL}?subject=Reactivate%20my%20Bright%20Wings%20account`}>Contact support</a> : CONTACT_PHONE ? <a className="pt-btn full" href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}>Call support</a> : null}
-            <button type="button" className="pt-btn ghost full" onClick={async () => { if (currentUser) await logout().catch(() => {}); navigate('/auth', { replace: true }); }}>Return to sign in</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-

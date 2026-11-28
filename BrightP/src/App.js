@@ -8,8 +8,7 @@ import { CrmProvider } from './contexts/CrmContext';
 import { AnalyticsProvider } from './contexts/AnalyticsContext';
 
 // Pages
-import Landing from './portal/Landing';
-import AuthPage, { WelcomePage, InactivePage } from './portal/customer/AuthScreens';
+import AuthPage, { WelcomePage } from './portal/customer/AuthScreens';
 import { HomeRoute, BookingsRoute, ServiceSelectRoute, WizardRoute, BookingDetailRoute, WalletRoute, CatalogRoute, RewardDetailRoute, AccountRoute, ToAccountOnDesktop, ReferRoute } from './portal/desktop/routes';
 import { BookingReceived } from './portal/customer/BookingNew';
 import { QuoteReview } from './portal/customer/BookingDetail';
@@ -81,7 +80,7 @@ const CustomerDashboardRoute = () => {
 
 // Public Route Component (redirects to dashboard if already authenticated)
 const PublicRoute = ({ children }) => {
-  const { currentUser, loading, restoreError, retrySession } = useAuth();
+  const { currentUser, loading, restoreError, retrySession, isStaff } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -94,20 +93,24 @@ const PublicRoute = ({ children }) => {
     // A brand-new member lands on the welcome screen first.
     if (sessionStorage.getItem('bw_welcome')) return <Navigate to="/welcome" replace />;
     // Redirect to originally intended page or dashboard
-    const from = location.state?.from?.pathname || '/dashboard';
+    const from = location.state?.from || (isStaff ? '/admin' : '/dashboard');
     return <Navigate to={from} replace />;
   }
 
   return children;
 };
 
+function AuthRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: '/auth', search }} replace />;
+}
+
 // Main App Routes Component
 const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/" element={<Landing />} />
-      <Route path="/card/:code" element={<PublicCard />} />
+      <Route path="/" element={<AuthRedirect />} />
       <Route 
         path="/auth" 
         element={
@@ -117,10 +120,10 @@ const AppRoutes = () => {
         } 
       />
 
-      <Route path="/inactive" element={<InactivePage />} />
       <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
 
       {/* Protected Routes */}
+      <Route path="/card/:code" element={<ProtectedRoute><PublicCard /></ProtectedRoute>} />
       <Route
         path="/dashboard"
         element={
@@ -178,8 +181,8 @@ const AppRoutes = () => {
       <Route path="/admin/analytics" element={<ProtectedRoute adminOnly><Analytics /></ProtectedRoute>} />
       <Route path="/admin/loyalty" element={<ProtectedRoute adminOnly><LoyaltySettings /></ProtectedRoute>} />
 
-      {/* Catch All Route - Redirect to Home */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Catch All Route - Redirect to Sign In */}
+      <Route path="*" element={<Navigate to="/auth" replace />} />
     </Routes>
   );
 };

@@ -109,7 +109,7 @@ export default function DeskAccount() {
                 <MembershipCardPair ref={cardRef} name={card.data?.name || userData?.displayName} code={code} tier={card.data?.membership_tier || tier} validUntil={card.data?.valid_until} />
               </div>
               <div className="da-card-actions"><button type="button" className="pt-navy-btn" disabled={downloading} onClick={download}><Download size={17} /> {downloading ? 'Preparing…' : 'Download card'}</button><button type="button" className="pt-navy-btn ghost" onClick={share}><Share2 size={17} /> Share card</button></div>
-              <div className="da-private"><span><ShieldCheck size={26} /></span><div><b>Private and secure verification</b><p>When your QR code is scanned in public, it will show only your name, membership code, tier and validity date. Your Wings balance and personal contact details are never displayed.</p></div></div>
+              <div className="da-private"><span><ShieldCheck size={26} /></span><div><b>Private and secure verification</b><p>Signed-in visitors who scan your QR code can see your name, membership code, tier and validity date. Your Wings balance and personal contact details are never displayed.</p></div></div>
             </section>
 
             <section className="pt-card da-panel">

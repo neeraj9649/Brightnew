@@ -1117,10 +1117,9 @@
 .da2-submit { width: 100%; height: 58px; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
 .da2-feats { list-style: none; margin: 34px 0 0; padding: 22px 0 0; border-top: 1px solid var(--pt-line); display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .da2-feats li { display: grid; justify-items: start; gap: 10px; font-size: 14px; color: #3d4c63; line-height: 1.35; } .da2-feats svg { color: #b8832a; }
-.da2-right { position: relative; background-size: cover; background-position: center; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; color: #fff; }
+.da2-right { position: relative; background-size: cover; background-position: center; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; color: #fff; }
 .da2-right::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 24, 48, 0.45), rgba(10, 24, 48, 0) 35%, rgba(10, 24, 48, 0.7)); }
 .da2-right > * { position: relative; }
-.da2-right nav { display: flex; justify-content: flex-end; gap: 34px; padding: 36px 56px; } .da2-right nav a { color: #fff; font-weight: 600; font-size: 16px; text-decoration: none; }
 .da2-tag { padding: 0 56px 64px; } .da2-tag h2 { color: #fff; font: italic 600 clamp(36px, 3.6vw, 52px)/1.12 var(--pt-serif, Georgia, serif); margin: 0; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35); }
 .da2-tag span { display: block; width: 56px; height: 2px; background: #e4b45c; margin: 22px 0 14px; } .da2-tag small { letter-spacing: 0.3em; font-size: 12px; font-weight: 600; }
 @media (max-width: 1100px) { .da2-feats { grid-template-columns: 1fr; } }
@@ -1128,9 +1127,6 @@
 .da2-join { min-height: 100vh; background-size: cover; background-position: center; position: relative; color: #fff; }
 .da2-join::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8, 22, 46, 0.3), rgba(8, 22, 46, 0.78)); }
 .da2-join > * { position: relative; }
-.da2-nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px clamp(24px, 5vw, 72px); background: rgba(8, 22, 46, 0.78); backdrop-filter: blur(8px); }
-.da2-nav nav { display: flex; gap: 36px; } .da2-nav nav a { color: #fff; text-decoration: none; font-weight: 600; padding: 8px 0; border-bottom: 2px solid transparent; } .da2-nav nav a.on { border-color: #e4b45c; }
-.da2-nav .pt-row > i { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.4); } .da2-nav .pt-row button { background: none; border: 0; color: #fff; font-weight: 600; cursor: pointer; font-size: 16px; }
 .da2-join-grid { display: grid; grid-template-columns: minmax(420px, 560px) minmax(0, 1fr); gap: clamp(32px, 6vw, 110px); padding: 40px clamp(24px, 5vw, 72px) 56px; align-items: start; }
 .da2-card { background: #fff; color: var(--pt-navy); border-radius: 22px; padding: 34px 38px 30px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35); }
 .da2-pwd { display: flex; align-items: center; gap: 12px; height: 54px; padding: 0 16px; border: 1.5px solid var(--pt-line-strong); border-radius: 12px; background: #fff; color: #6b7a90; position: relative; }
@@ -1144,7 +1140,7 @@
 .da2-benefits li > span { width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.55); color: #e4b45c; background: rgba(255, 255, 255, 0.08); }
 .da2-benefits b { font-size: 19px; } .da2-benefits b em { font-style: normal; color: #e4b45c; } .da2-benefits p { margin: 4px 0 0; color: rgba(255, 255, 255, 0.85); font-size: 15px; line-height: 1.45; }
 .da2-benefits > em { display: block; margin-top: 44px; font: italic 600 26px/1.25 var(--pt-serif, Georgia, serif); color: #fff; }
-@media (max-width: 1100px) { .da2-join-grid { grid-template-columns: minmax(0, 1fr); } .da2-benefits { display: none; } .da2-card { max-width: 560px; margin: 0 auto; } .da2-nav nav { display: none; } }
+@media (max-width: 1100px) { .da2-join-grid { grid-template-columns: minmax(0, 1fr); } .da2-benefits { display: none; } .da2-card { max-width: 560px; margin: 0 auto; } }
 
 /* ---- desktop public membership page ---- */
 .dpc { min-height: 100vh; position: relative; background: var(--pt-paper); display: flex; flex-direction: column; align-items: center; padding: 28px 24px 40px; overflow: hidden; }

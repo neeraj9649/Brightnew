@@ -56,6 +56,13 @@ enum Target {
         travellers: String,
         whatsapp_opt_in: bool,
     },
+    Service {
+        service_slug: String,
+        email: String,
+        date: Option<NaiveDate>,
+        travellers: String,
+        whatsapp_opt_in: bool,
+    },
 }
 
 #[derive(Deserialize, Serialize)]
@@ -115,6 +122,9 @@ impl Draft {
 
         if let Target::Tour {
             email, travellers, ..
+        }
+        | Target::Service {
+            email, travellers, ..
         } = &mut self.target
         {
             *email = email.trim().to_lowercase();
@@ -133,6 +143,13 @@ impl Draft {
         match &self.target {
             Target::Destination { .. } => ("", "Not specified".into(), "Not specified", None),
             Target::Tour {
+                email,
+                date,
+                travellers,
+                whatsapp_opt_in,
+                ..
+            }
+            | Target::Service {
                 email,
                 date,
                 travellers,
@@ -158,6 +175,22 @@ async fn resolve_trip(conn: &mut PgConnection, target: &Target) -> Result<Trip, 
                 url: format!("{SITE}/{}", title.to_ascii_lowercase()),
                 tour_id: None,
                 details: format!("Destination: {title}"),
+            })
+        }
+        Target::Service { service_slug, .. } => {
+            let title: Option<String> = sqlx::query_scalar(
+                "SELECT content->>'title' FROM website_services WHERE slug = $1 AND is_published",
+            )
+            .bind(service_slug)
+            .fetch_optional(conn)
+            .await?;
+            let title =
+                title.ok_or_else(|| ApiError::new("This service is no longer available", 404))?;
+            Ok(Trip {
+                details: format!("Service: {title}"),
+                label: title,
+                url: format!("{SITE}/services/{service_slug}"),
+                tour_id: None,
             })
         }
         Target::Tour { tour_id, .. } => {
@@ -239,7 +272,7 @@ async fn request_code(
     let draft_data = serde_json::to_vec(&draft).map_err(internal)?;
     let draft_key = digest(b"tour-enquiry-draft", &[&draft_data]);
     let mut tx = pool.begin().await?;
-    if matches!(draft.target, Target::Tour { .. }) {
+    if !matches!(draft.target, Target::Destination { .. }) {
         resolve_trip(&mut tx, &draft.target).await?;
     }
     lock_phone(&mut tx, &phone_key).await?;
@@ -270,19 +303,19 @@ async fn request_code(
     let sid = shared::twilio::send_enquiry_code(&draft.phone)
         .await
         .map_err(|error| {
-            log::warn!(
-                "Tour enquiry verification {id}: Twilio could not send the SMS: {error}"
-            );
+            log::warn!("Tour enquiry verification {id}: Twilio could not send the SMS: {error}");
             ApiError::new(
                 "We couldn’t send the SMS code. Check the number and try again in a minute.",
                 503,
             )
         })?;
-    sqlx::query("UPDATE tour_enquiry_challenges SET sent = TRUE, sms_verification_sid = $2 WHERE id = $1")
-        .bind(id)
-        .bind(sid)
-        .execute(pool.get_ref())
-        .await?;
+    sqlx::query(
+        "UPDATE tour_enquiry_challenges SET sent = TRUE, sms_verification_sid = $2 WHERE id = $1",
+    )
+    .bind(id)
+    .bind(sid)
+    .execute(pool.get_ref())
+    .await?;
     Ok(ApiResponse(
         json!({ "challenge_id": id, "resend_after": 60 }),
     ))
@@ -331,10 +364,15 @@ async fn verify_code(
     let submitted_hash = code_hash(*challenge_id, &draft, &code)?;
     let approved = if let Some(sid) = sms_sid.filter(|_| existing_enquiry.is_none()) {
         if code_hash(*challenge_id, &draft, "")? == expected {
-            shared::twilio::check_enquiry_code(&sid, &code).await.map_err(|error| {
-                log::warn!("Enquiry verification {}: SMS check failed: {error}", *challenge_id);
-                ApiError::new("We couldn’t check your SMS code. Please try again.", 503)
-            })?
+            shared::twilio::check_enquiry_code(&sid, &code)
+                .await
+                .map_err(|error| {
+                    log::warn!(
+                        "Enquiry verification {}: SMS check failed: {error}",
+                        *challenge_id
+                    );
+                    ApiError::new("We couldn’t check your SMS code. Please try again.", 503)
+                })?
         } else {
             false
         }
@@ -372,10 +410,10 @@ async fn verify_code(
 
     let trip = resolve_trip(&mut tx, &draft.target).await?;
     let (email, date, travellers, greeting_to) = draft.trip_preferences();
-    let subject = if trip.tour_id.is_some() {
-        "Tour enquiry"
-    } else {
-        "Destination enquiry"
+    let (source, subject) = match &draft.target {
+        Target::Tour { .. } => ("tour", "Tour enquiry"),
+        Target::Destination { .. } => ("destination", "Destination enquiry"),
+        Target::Service { .. } => ("website-service", "Service enquiry"),
     };
     let message = format!(
         "{}\nPage: {}\nPreferred travel date: {date}\nTravellers: {travellers}",
@@ -395,7 +433,7 @@ async fn verify_code(
     .bind(email)
     .bind(&draft.phone)
     .bind(&message)
-    .bind(if trip.tour_id.is_some() { "tour" } else { "destination" })
+    .bind(source)
     .bind(ip.chars().take(64).collect::<String>())
     .bind(subject)
     .bind(trip.tour_id)
@@ -579,6 +617,29 @@ pub(super) fn configure(cfg: &mut web::ServiceConfig) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn service_enquiry_preserves_the_selected_slug_and_trip_preferences() {
+        let draft: Draft = serde_json::from_value(json!({
+            "name": "Asha", "phone": "9876543210",
+            "target": { "kind": "service", "service_slug": "flights", "email": " Asha@Example.com ",
+                "date": null, "travellers": "2", "whatsapp_opt_in": true }
+        }))
+        .unwrap();
+        let draft = draft.validate().unwrap();
+        assert_eq!(
+            draft.trip_preferences(),
+            (
+                "asha@example.com",
+                "Not specified".into(),
+                "2 travellers",
+                Some("+919876543210")
+            )
+        );
+        assert!(
+            matches!(draft.target, Target::Service { service_slug, .. } if service_slug == "flights")
+        );
+    }
 
     #[test]
     fn quick_enquiry_accepts_only_supported_destinations() {

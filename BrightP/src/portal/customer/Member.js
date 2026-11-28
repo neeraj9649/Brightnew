@@ -254,7 +254,7 @@ export function MembershipCardPage() {
           <MembershipCardPair ref={ref} name={card?.name || memberName(userData)} code={code} tier={card?.membership_tier || userData?.membershipTier} validUntil={card?.valid_until} />
           <div className="pt-grid2"><button type="button" className="pt-btn" onClick={download} disabled={busy}><Download size={17} /> {busy ? 'Preparing…' : 'Download card'}</button><button type="button" className="pt-btn soft" onClick={share}><Share2 size={17} /> Share card</button></div>
           <div className="pt-notice gold" style={{ alignItems: 'center' }}><Sparkles size={24} /><div>Show this card or QR code at Bright Wings partner locations to enjoy your member benefits.</div></div>
-          <button type="button" className="pt-link" style={{ justifySelf: 'center', color: 'var(--pt-blue)' }} onClick={() => navigate(`/card/${code}`)}>Preview public verification</button>
+          <button type="button" className="pt-link" style={{ justifySelf: 'center', color: 'var(--pt-blue)' }} onClick={() => navigate(`/card/${code}`)}>Preview verification</button>
         </div>
       </Page>
     </Shell>

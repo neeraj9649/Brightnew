@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ChartNoAxesColumn, CircleAlert, Eye, EyeOff, Gift, IdCard, Plane, Search, ShieldCheck, Smartphone, Star, Ticket, User, Wallet } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, ChartNoAxesColumn, CircleAlert, Eye, EyeOff, Gift, IdCard, Plane, ShieldCheck, Smartphone, Star, Ticket, User, Wallet } from 'lucide-react';
 import { api } from '../../services/api';
 import { BrightLogo, Field, Notice, PhoneField, PinBoxes, fmtNum, formatPhone, useAsync } from '../ui';
 import { PHOTO } from '../photos';
@@ -101,7 +101,6 @@ export function DeskLogin({ title = 'Welcome back', lede, errors, busy, onSubmit
         </form>
       </section>
       <section className="da2-right" style={{ backgroundImage: `url(${PHOTO.domes})` }}>
-        <nav aria-label="Bright Wings"><Link to="/#services">Fly</Link><Link to="/#wings">Earn</Link><Link to="/rewards">Redeem</Link><Link to="/#destinations">Offers</Link><Link to="/#faq">Help</Link></nav>
         <div className="da2-tag"><h2>More places.<br />Brighter tomorrows.</h2><span /><small>TRAVEL FURTHER TOGETHER</small></div>
       </section>
     </div>
@@ -111,7 +110,6 @@ export function DeskLogin({ title = 'Welcome back', lede, errors, busy, onSubmit
 /* ------------------------------------------------------------------- join */
 
 export function DeskJoin({ name, setName, phone, setPhone, step, referral, setReferral, agree, setAgree, errors, busy, onSubmit, onSignIn, onTerms, submit, children }) {
-  const navigate = useNavigate();
   const { data: program } = useAsync(() => api.get('/public/program').catch(() => null), []);
   const welcome = program?.welcome_bonus;
   const benefits = [
@@ -122,11 +120,6 @@ export function DeskJoin({ name, setName, phone, setPhone, step, referral, setRe
   ];
   return (
     <div className="pt-app da2-join" style={{ backgroundImage: `url(${PHOTO.santorini})` }}>
-      <header className="da2-nav">
-        <button type="button" className="da2-logo" onClick={() => navigate('/')}><img src={BrightLogo} alt="" /><span><b>BRIGHT WINGS</b><small>FLY MORE · LIVE BRIGHTER</small></span></button>
-        <nav aria-label="Sections"><Link to="/#services">Flights</Link><Link to="/#destinations">Holidays</Link><Link to="/#wings" className="on">Bright Wings</Link><Link to="/#destinations">Offers</Link><Link to="/#faq">Help</Link></nav>
-        <div className="pt-row" style={{ gap: 18 }}><Search size={20} /><i /><button type="button" onClick={onSignIn}>Sign in</button></div>
-      </header>
       <div className="da2-join-grid">
         <form className="da2-card" onSubmit={onSubmit} noValidate>
           <div className="dp-eyebrow" style={{ padding: 0, fontSize: 12, color: '#b8832a' }}>BRIGHT WINGS LOYALTY PROGRAM</div>

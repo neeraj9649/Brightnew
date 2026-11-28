@@ -54,7 +54,7 @@ function ServiceEditor({ service, onClose, onSaved }) {
       <Field label="Service title" hint="Shown on the homepage card and in the detail hero.">
         <Input required maxLength={120} value={form.title} onChange={(event) => set('title', event.target.value)} />
       </Field>
-      <Field label="Service type" hint="Controls the icon, default images and enquiry fields.">
+      <Field label="Service type" hint="Controls the icon used on the website.">
         <select className="pt-input" value={form.kind} onChange={(event) => set('kind', event.target.value)}>
           {Object.entries(kinds).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
         </select>
@@ -62,7 +62,7 @@ function ServiceEditor({ service, onClose, onSaved }) {
       <Field label="Description" hint="Shown under the title on the card and detail page.">
         <textarea className="pt-input" required rows={3} maxLength={800} value={form.description} onChange={(event) => set('description', event.target.value)} />
       </Field>
-      <Field label="Card and hero image" optional hint="Leave empty to use the service type’s default photo.">
+      <Field label="Card and hero image" optional hint="Shown on the homepage card and in the service hero.">
         <ImagePick label="Service hero photo" value={form.image} onChange={(url) => set('image', url)} onUploadChange={changeUploads} />
       </Field>
       <Field label="Why choose us banner" optional hint="Shown behind the Why Choose Bright Wings? section.">

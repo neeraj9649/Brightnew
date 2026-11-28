@@ -24,7 +24,6 @@ logged in the booking activity).
   credit nothing. An admin's own request is applied immediately.
 
 **Offers.** Staff and admins publish offers at `/admin/offers` (title, details, badge, code, optional service, dates,
-image, published on/off). Live offers show on every customer's Home, on `/offers`, and in an "Offers" section on the
-public landing page.
+image, published on/off). Live offers show on every customer's Home and on `/offers`.
 
 Database: migration `0027_staff_workflow.sql` (`bookings.recorded_by`, `booking_steps`, `wings_requests`, `offers`).
