@@ -16,7 +16,6 @@ struct Offer {
 
 #[derive(Deserialize, Serialize)]
 struct Service {
-    slug: String,
     title: String,
     description: String,
     kind: String,
@@ -38,10 +37,6 @@ fn tidy(value: &mut String, max: usize, required: bool) -> Result<(), ApiError> 
 
 impl Service {
     fn validate(&mut self) -> Result<(), ApiError> {
-        tidy(&mut self.slug, 80, true)?;
-        if !self.slug.split('-').all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())) {
-            return Err(ApiError::new("Use lowercase letters, numbers and hyphens for the URL slug.", 400));
-        }
         if !matches!(self.kind.as_str(), "flights" | "hotels" | "tours" | "transfers" | "activities" | "visa" | "general") {
             return Err(ApiError::new("Choose a service type.", 400));
         }
@@ -94,30 +89,43 @@ async fn detail(pool: web::Data<PgPool>, slug: web::Path<String>) -> Result<ApiR
     Ok(ApiResponse(item.ok_or_else(|| ApiError::new("This service is unavailable.", 404))?))
 }
 
+fn service_slug(title: &str, number: u32) -> String {
+    let base = if title.bytes().any(|byte| byte.is_ascii_alphanumeric()) {
+        super::blog::slugify(title)
+    } else {
+        "service".to_owned()
+    };
+    let suffix = if number == 1 { String::new() } else { format!("-{number}") };
+    let prefix = &base[..base.len().min(80 - suffix.len())];
+    format!("{}{suffix}", prefix.trim_end_matches('-'))
+}
+
 async fn create(pool: web::Data<PgPool>, body: web::Json<Service>) -> Result<ApiResponse<Value>, ApiError> {
     let mut service = body.into_inner();
     service.validate()?;
     let content = serde_json::to_value(&service).map_err(base::error::internal)?;
-    let inserted = sqlx::query("INSERT INTO website_services (slug, content, is_published, sort_order)
-         VALUES ($1, $2, $3, $4) ON CONFLICT (slug) DO NOTHING")
-        .bind(&service.slug).bind(content).bind(service.is_published).bind(service.sort_order).execute(pool.get_ref()).await?;
-    if inserted.rows_affected() == 0 {
-        return Err(ApiError::new("This service URL is already in use.", 409));
+    for number in 1..=1000 {
+        let slug = service_slug(&service.title, number);
+        let inserted = sqlx::query("INSERT INTO website_services (slug, content, is_published, sort_order)
+             VALUES ($1, $2, $3, $4) ON CONFLICT (slug) DO NOTHING")
+            .bind(&slug).bind(&content).bind(service.is_published).bind(service.sort_order).execute(pool.get_ref()).await?;
+        if inserted.rows_affected() == 1 {
+            return Ok(ApiResponse(json!({ "slug": slug })));
+        }
     }
-    Ok(ApiResponse(json!({ "slug": service.slug })))
+    Err(ApiError::new("Too many services use this title. Choose a different title.", 409))
 }
 
 async fn update(pool: web::Data<PgPool>, slug: web::Path<String>, body: web::Json<Service>) -> Result<ApiResponse<Value>, ApiError> {
     let mut service = body.into_inner();
-    service.slug = slug.into_inner();
     service.validate()?;
     let content = serde_json::to_value(&service).map_err(base::error::internal)?;
     let updated = sqlx::query("UPDATE website_services SET content=$2, is_published=$3, sort_order=$4 WHERE slug=$1")
-        .bind(&service.slug).bind(content).bind(service.is_published).bind(service.sort_order).execute(pool.get_ref()).await?;
+        .bind(slug.as_str()).bind(content).bind(service.is_published).bind(service.sort_order).execute(pool.get_ref()).await?;
     if updated.rows_affected() == 0 {
         return Err(ApiError::new("This service does not exist.", 404));
     }
-    Ok(ApiResponse(json!({ "slug": service.slug })))
+    Ok(ApiResponse(json!({ "slug": slug.as_str() })))
 }
 
 pub fn services_routes(cfg: &mut web::ServiceConfig) {
@@ -128,4 +136,17 @@ pub fn services_routes(cfg: &mut web::ServiceConfig) {
             .route("", web::get().to(admin_list))
             .route("", web::post().to(create))
             .route("/{slug}", web::put().to(update)));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn service_slugs_use_the_title_and_fit_the_database_limit() {
+        assert_eq!(service_slug(" Hotel & Stay ", 1), "hotel-stay");
+        assert_eq!(service_slug(" Hotel & Stay ", 2), "hotel-stay-2");
+        assert_eq!(service_slug("यात्रा", 1), "service");
+        assert_eq!(service_slug(&"a".repeat(120), 1000).len(), 80);
+    }
 }

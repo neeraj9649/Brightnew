@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, ExternalLink, Map as MapIcon, MessageSquare, Pencil, Plus, Star, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
-import { Badge, Card, Empty, ErrorState, Skeleton, Tabs, fmtDateTime, useAsync } from '../ui';
+import { Card, Empty, ErrorState, Skeleton, Tabs, fmtDateTime, useAsync } from '../ui';
 import StaffShell from './StaffShell';
 import TourDrawer from './TourDrawer';
+import WebsiteCatalogueCard, { catalogueGridStyle } from './WebsiteCatalogueCard';
 
 // Tours appear on the public website (Tours list, home page, tour pages).
 const WEBSITE = 'https://brightwingstravel.com';
@@ -92,27 +93,14 @@ export default function Tours() {
         <Card><Empty icon={MapIcon} title="No tours yet" action={<button type="button" className="pt-btn" onClick={() => setEdit(null)}>Add the first tour</button>}>Create an individual experience or holiday package with photos and travel details.</Empty></Card>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 18 }}>
+          <div style={catalogueGridStyle}>
             {list.data.items.map((t) => (
-              <Card key={t.id} pad={false}>
-                <div style={{ height: 150, background: `center / cover url(${t.card_image})`, borderRadius: '16px 16px 0 0', position: 'relative' }}>
-                  <span style={{ position: 'absolute', right: 12, top: 12, display: 'flex', gap: 6 }}>
-                    {t.is_featured && <Badge tone="gold">Featured</Badge>}
-                    <Badge tone={t.is_published ? 'green' : ''}>{t.is_published ? 'Published' : 'Hidden'}</Badge>
-                  </span>
-                </div>
-                <div style={{ padding: 16 }}>
-                  <strong style={{ fontSize: 16, color: 'var(--pt-navy)' }}>{t.title}</strong>
-                  <div className="pt-tiny" style={{ marginTop: 6 }}>
-                    {[t.package_type === 'holiday' ? 'Holiday package' : 'Individual package', t.location, t.duration].filter(Boolean).join(' · ')}
-                  </div>
-                  <div className="pt-row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                    <button type="button" className="pt-btn ghost sm" onClick={() => setEdit(t)}><Pencil size={14} /> Edit</button>
-                    <button type="button" className="pt-btn ghost sm" disabled={updating !== null} onClick={() => togglePublished(t)}>{t.is_published ? 'Hide' : 'Publish'}</button>
-                    {t.is_published && <a className="pt-btn ghost sm" href={tourLink(t.id)} target="_blank" rel="noreferrer"><ExternalLink size={14} /> View</a>}
-                  </div>
-                </div>
-              </Card>
+              <WebsiteCatalogueCard key={t.id} image={t.card_image} title={t.title} published={t.is_published} featured={t.is_featured}
+                details={[t.package_type === 'holiday' ? 'Holiday package' : 'Individual package', t.location, t.duration].filter(Boolean).join(' · ')}>
+                <button type="button" className="pt-btn ghost sm" onClick={() => setEdit(t)}><Pencil size={14} /> Edit</button>
+                <button type="button" className="pt-btn ghost sm" disabled={updating !== null} onClick={() => togglePublished(t)}>{t.is_published ? 'Hide' : 'Publish'}</button>
+                {t.is_published && <a className="pt-btn ghost sm" href={tourLink(t.id)} target="_blank" rel="noreferrer"><ExternalLink size={14} /> View</a>}
+              </WebsiteCatalogueCard>
             ))}
           </div>
           <Pager offset={offset} total={list.data.total} onChange={setOffset} />

@@ -2,16 +2,23 @@ import React, { useState } from 'react';
 import { ExternalLink, Pencil, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
-import { Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Skeleton, useAsync } from '../ui';
+import { Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Skeleton, useAsync } from '../ui';
 import StaffShell from './StaffShell';
 import { ImagePick } from './Blog';
+import { SERVICE_PHOTO } from '../photos';
+import WebsiteCatalogueCard, { catalogueGridStyle } from './WebsiteCatalogueCard';
 
 const endpoint = '/admin/website-services';
 const kinds = {
   flights: 'Flight Arrangements', hotels: 'Hotel & Stay', tours: 'Tour Plan',
   transfers: 'Airport Transfers', activities: 'Activities', visa: 'Visa Assistance', general: 'General service',
 };
-const blank = { slug: '', kind: 'general', title: '', description: '', image: '', secondary_image: '', offers: [], benefits: [], sort_order: 0, is_published: false };
+const servicePhotos = {
+  flights: SERVICE_PHOTO.flight, hotels: SERVICE_PHOTO.hotel, tours: SERVICE_PHOTO.tour,
+  transfers: SERVICE_PHOTO.airport_transfer, activities: SERVICE_PHOTO.activity,
+  visa: SERVICE_PHOTO.visa, general: SERVICE_PHOTO.custom,
+};
+const blank = { kind: 'general', title: '', description: '', image: '', secondary_image: '', offers: [], benefits: [], sort_order: 0, is_published: false };
 const lineList = (text) => text.split('\n').map((line) => line.trim()).filter(Boolean);
 
 function ServiceEditor({ service, onClose, onSaved }) {
@@ -47,9 +54,6 @@ function ServiceEditor({ service, onClose, onSaved }) {
       <Field label="Service title" hint="Shown on the homepage card and in the detail hero.">
         <Input required maxLength={120} value={form.title} onChange={(event) => set('title', event.target.value)} />
       </Field>
-      <Field label="Page URL slug" hint="Use lowercase letters, numbers and hyphens. The slug becomes part of the public URL.">
-        <Input required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={80} readOnly={Boolean(service)} value={form.slug} onChange={(event) => set('slug', event.target.value)} />
-      </Field>
       <Field label="Service type" hint="Controls the icon, default images and enquiry fields.">
         <select className="pt-input" value={form.kind} onChange={(event) => set('kind', event.target.value)}>
           {Object.entries(kinds).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
@@ -61,8 +65,8 @@ function ServiceEditor({ service, onClose, onSaved }) {
       <Field label="Card and hero image" optional hint="Leave empty to use the service type’s default photo.">
         <ImagePick label="Service hero photo" value={form.image} onChange={(url) => set('image', url)} onUploadChange={changeUploads} />
       </Field>
-      <Field label="Benefits image" optional hint="Shown behind the benefits section.">
-        <ImagePick label="Benefits photo" value={form.secondary_image} onChange={(url) => set('secondary_image', url)} onUploadChange={changeUploads} />
+      <Field label="Why choose us banner" optional hint="Shown behind the Why Choose Bright Wings? section.">
+        <ImagePick label="Why choose us banner" value={form.secondary_image} onChange={(url) => set('secondary_image', url)} onUploadChange={changeUploads} />
       </Field>
       <div className="pt-stack" style={{ gap: 12 }}>
         <h3>What We Offer</h3>
@@ -95,16 +99,14 @@ export default function WebsiteServices() {
     {list.loading && <Skeleton />}
     {list.error && <ErrorState onRetry={list.reload}>{list.error}</ErrorState>}
     {list.data?.length === 0 && <Empty title="No services yet" />}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 16 }}>
-      {list.data?.map((service) => <Card key={service.slug}>
-        <Badge tone={service.is_published ? 'green' : 'muted'}>{service.is_published ? 'Published' : 'Draft'}</Badge>
-        <h2 style={{ margin: '12px 0 6px' }}>{service.title}</h2>
-        <p className="pt-tiny">{service.description}</p>
-        <div className="pt-row" style={{ gap: 8, marginTop: 14 }}>
-          <button type="button" className="pt-btn ghost sm" onClick={() => setEditing(service)}><Pencil size={15} /> Edit</button>
-          {service.is_published && <a className="pt-btn ghost sm" href={`https://brightwingstravel.com/services/${encodeURIComponent(service.slug)}`} target="_blank" rel="noreferrer"><ExternalLink size={15} /> View</a>}
-        </div>
-      </Card>)}
+    <div style={catalogueGridStyle}>
+      {list.data?.map((service) => (
+        <WebsiteCatalogueCard key={service.slug} image={service.image || servicePhotos[service.kind] || servicePhotos.general}
+          title={service.title} details={kinds[service.kind]} published={service.is_published}>
+          <button type="button" className="pt-btn ghost sm" onClick={() => setEditing(service)}><Pencil size={14} /> Edit</button>
+          {service.is_published && <a className="pt-btn ghost sm" href={`https://brightwingstravel.com/services/${encodeURIComponent(service.slug)}`} target="_blank" rel="noreferrer"><ExternalLink size={14} /> View</a>}
+        </WebsiteCatalogueCard>
+      ))}
     </div>
     {editing !== undefined && <ServiceEditor service={editing} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); list.reload(); }} />}
   </StaffShell>;

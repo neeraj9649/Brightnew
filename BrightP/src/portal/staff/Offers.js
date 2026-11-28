@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Pencil, Plus, Tag, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
-import { fileUrl, uploadProfileImage, validateFile } from '../../services/storage';
+import { fileUrl, uploadProfileImage, validateFile, IMAGE_UPLOAD_TYPES, IMAGE_UPLOAD_ACCEPT } from '../../services/storage';
 import { Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Select, Skeleton, TextArea, fmtDate, useAsync } from '../ui';
 import { SERVICES, SERVICE_ORDER } from '../booking';
 import StaffShell from './StaffShell';
@@ -77,7 +77,7 @@ function OfferDrawer({ offer, onClose, onSaved }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUp(true);
-    try { validateFile(file, 5 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/jpg']); const { file_id: id } = await uploadProfileImage(file); set('image_file_id', id); toast.success('Image uploaded'); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); e.target.value = ''; }
+    try { validateFile(file, 5 * 1024 * 1024, IMAGE_UPLOAD_TYPES); const { file_id: id } = await uploadProfileImage(file); set('image_file_id', id); toast.success('Image uploaded'); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); e.target.value = ''; }
   };
   const save = async () => {
     const next = {};
@@ -107,7 +107,7 @@ function OfferDrawer({ offer, onClose, onSaved }) {
         <Field label="Image" optional>
           <div className="pt-row" style={{ gap: 14 }}>
             {f.image_file_id ? <img src={fileUrl(f.image_file_id)} alt="" style={{ width: 110, height: 70, objectFit: 'cover', borderRadius: 10 }} /> : <div style={{ width: 110, height: 70, borderRadius: 10, background: 'linear-gradient(135deg, #10283f, #c9963e)' }} />}
-            <div><input ref={ref} type="file" hidden accept="image/png,image/jpeg" onChange={upload} /><button type="button" className="pt-btn soft sm" disabled={up} onClick={() => ref.current?.click()}><Upload size={15} /> {up ? 'Uploading…' : f.image_file_id ? 'Change image' : 'Upload image'}</button><div className="pt-tiny" style={{ marginTop: 6 }}>JPG or PNG, up to 5MB</div></div>
+            <div><input ref={ref} type="file" hidden accept={IMAGE_UPLOAD_ACCEPT} onChange={upload} /><button type="button" className="pt-btn soft sm" disabled={up} onClick={() => ref.current?.click()}><Upload size={15} /> {up ? 'Uploading…' : f.image_file_id ? 'Change image' : 'Upload image'}</button><div className="pt-tiny" style={{ marginTop: 6 }}>JPG, PNG or WebP, up to 5MB</div></div>
           </div>
         </Field>
         <label className="pt-check"><input type="checkbox" checked={f.is_active} onChange={(e) => set('is_active', e.target.checked)} /><span className="box">{f.is_active ? '✓' : ''}</span><span>Published — visible to customers (within the dates above)</span></label>

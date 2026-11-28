@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Check, ExternalLink, MessageSquare, Newspaper, Pencil, Plus, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../services/api';
-import { fileUrl, uploadProfileImage, validateFile } from '../../services/storage';
+import { fileUrl, uploadProfileImage, validateFile, IMAGE_UPLOAD_TYPES, IMAGE_UPLOAD_ACCEPT } from '../../services/storage';
 import { Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Skeleton, Tabs, TextArea, fmtDate, fmtDateTime, useAsync } from '../ui';
 import StaffShell from './StaffShell';
 
@@ -99,13 +99,13 @@ export function ImagePick({ value, onChange, label, onUploadChange }) {
     if (!file) return;
     setUp(true);
     onUploadChange?.(true);
-    try { validateFile(file, 5 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/jpg']); const { file_id: id, url } = await uploadProfileImage(file); onChange(url || fileUrl(id)); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); onUploadChange?.(false); e.target.value = ''; }
+    try { validateFile(file, 5 * 1024 * 1024, IMAGE_UPLOAD_TYPES); const { file_id: id, url } = await uploadProfileImage(file); onChange(url || fileUrl(id)); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); onUploadChange?.(false); e.target.value = ''; }
   };
   return (
     <div className="pt-row" style={{ gap: 12 }}>
       {value ? <img src={value} alt="" style={{ width: 110, height: 70, objectFit: 'cover', borderRadius: 10 }} /> : <div style={{ width: 110, height: 70, borderRadius: 10, background: 'linear-gradient(135deg, #10283f, #c9963e)' }} />}
       <div className="pt-row" style={{ gap: 6, flexWrap: 'wrap' }}>
-        <input ref={ref} type="file" hidden accept="image/png,image/jpeg" onChange={upload} />
+        <input ref={ref} type="file" hidden accept={IMAGE_UPLOAD_ACCEPT} onChange={upload} />
         <button type="button" className="pt-btn soft sm" disabled={up} onClick={() => ref.current?.click()}><Upload size={15} /> {up ? 'Uploading…' : value ? `Change ${label}` : `Upload ${label}`}</button>
         {value && <button type="button" className="pt-btn ghost sm" onClick={() => onChange('')}>Remove</button>}
       </div>

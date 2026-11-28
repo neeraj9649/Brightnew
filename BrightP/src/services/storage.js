@@ -28,11 +28,14 @@ export const uploadBookingDocument = (file) =>
 export const uploadVisaDocument = (file) =>
   uploadFile('/uploads/visa-document', file);
 
+export const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+export const IMAGE_UPLOAD_ACCEPT = [...IMAGE_UPLOAD_TYPES, '.webp'].join(',');
+
 // Validate file type and size
 export const validateFile = (
   file,
   maxSize = 5 * 1024 * 1024,
-  allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
+  allowedTypes = [...IMAGE_UPLOAD_TYPES, 'application/pdf']
 ) => {
   if (file.size > maxSize) {
     throw new Error(`File size must be less than ${maxSize / (1024 * 1024)}MB`);

@@ -7,7 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
-import { uploadProfileImage, validateFile } from '../../services/storage';
+import { uploadProfileImage, validateFile, IMAGE_UPLOAD_TYPES, IMAGE_UPLOAD_ACCEPT } from '../../services/storage';
 import {
   AppBar, Avatar, Badge, BellButton, BrightLogo, Card, Check2, Empty, ErrorState, Field, Hero, IMG, Input, Modal, ModalHead, Notice, Page, Progress, Select, Shell, Skeleton, Switch, TextArea,
   WingsIcon, bg, fmtDate, fmtNum, formatPhone, humanize, maskPhone, memberName, relTime, useAsync, useCopy, useWide, SearchBox, Tabs, tierTitle } from '../ui';
@@ -414,7 +414,7 @@ export function EditProfile() {
     if (!file) return;
     setPhotoBusy(true);
     try {
-      validateFile(file, 3 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/jpg']);
+      validateFile(file, 3 * 1024 * 1024, IMAGE_UPLOAD_TYPES);
       const { file_id: fileId } = await uploadProfileImage(file);
       await api.patch('/users/me', { profile_image_file_id: fileId });
       await refreshUser();
@@ -429,7 +429,7 @@ export function EditProfile() {
         <form onSubmit={save} className="pt-stack lg" style={{ maxWidth: 640, marginTop: wide ? 16 : 0 }}>
           <div className="pt-row" style={{ gap: 16 }}>
             <Avatar user={userData} size="lg" />
-            <div><button type="button" className="pt-btn soft sm" onClick={() => fileRef.current?.click()} disabled={photoBusy}><Camera size={15} /> {photoBusy ? 'Uploading…' : 'Change photo'}</button><input ref={fileRef} type="file" accept="image/png,image/jpeg" hidden onChange={onPhoto} /></div>
+            <div><button type="button" className="pt-btn soft sm" onClick={() => fileRef.current?.click()} disabled={photoBusy}><Camera size={15} /> {photoBusy ? 'Uploading…' : 'Change photo'}</button><input ref={fileRef} type="file" accept={IMAGE_UPLOAD_ACCEPT} hidden onChange={onPhoto} /></div>
           </div>
           <Card>
             <h2 className="pt-h3" style={{ marginBottom: 12 }}>Personal details</h2>

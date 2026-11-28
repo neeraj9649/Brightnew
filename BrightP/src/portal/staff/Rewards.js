@@ -4,7 +4,7 @@ import { Check, CircleAlert, Gift, MoreVertical, Plus, RefreshCw, Upload, X } fr
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
-import { fileUrl, uploadProfileImage, validateFile } from '../../services/storage';
+import { fileUrl, uploadProfileImage, validateFile, IMAGE_UPLOAD_TYPES, IMAGE_UPLOAD_ACCEPT } from '../../services/storage';
 import { Avatar, Badge, Card, Empty, ErrorState, Field, Input, Modal, ModalHead, Notice, RupeeCoin, SearchBox, Select, Skeleton, Tabs, TextArea, fmtDate, fmtDateTime, fmtNum, useAsync } from '../ui';
 import { RewardArt, TierIcon } from '../customer/parts';
 import StaffShell from './StaffShell';
@@ -69,7 +69,7 @@ function RewardDrawer({ item, categories, onClose, onSaved }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUp(true);
-    try { validateFile(file, 5 * 1024 * 1024, ['image/jpeg', 'image/png', 'image/jpg']); const { file_id: id } = await uploadProfileImage(file); set('image_file_id', id); toast.success('Image uploaded'); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); e.target.value = ''; }
+    try { validateFile(file, 5 * 1024 * 1024, IMAGE_UPLOAD_TYPES); const { file_id: id } = await uploadProfileImage(file); set('image_file_id', id); toast.success('Image uploaded'); } catch (err) { toast.error(err.message || 'Upload failed'); } finally { setUp(false); e.target.value = ''; }
   };
   const save = async (asActive) => {
     const next = {};
@@ -96,7 +96,7 @@ function RewardDrawer({ item, categories, onClose, onSaved }) {
         <div className="pt-grid2"><Field label="Validity (days from issue) *" error={errors.validity_days}><Input type="number" min="1" value={f.validity_days} onChange={(e) => set('validity_days', e.target.value)} error={errors.validity_days} /></Field><Field label="Reward value" optional><Input value={f.reward_value} onChange={(e) => set('reward_value', e.target.value)} placeholder="₹500 booking credit" /></Field></div>
         <Field label="Terms & conditions *" error={errors.terms} hint="One condition per line — shown as bullet points to members."><TextArea value={f.terms} onChange={(e) => set('terms', e.target.value)} max={500} error={errors.terms} placeholder="Valid on hotel bookings across partner hotels.&#10;Minimum booking value ₹3,000." /></Field>
         <Field label="Reward image">
-          <div className="pt-row" style={{ gap: 14 }}>{f.image_file_id ? <img src={fileUrl(f.image_file_id)} alt="" style={{ width: 96, height: 70, objectFit: 'cover', borderRadius: 10 }} /> : <RewardArt item={{ category: f.category }} height={70} style={{ width: 96, borderRadius: 10 }} />}<div><input ref={ref} type="file" hidden accept="image/png,image/jpeg" onChange={upload} /><button type="button" className="pt-btn soft sm" disabled={up} onClick={() => ref.current?.click()}><Upload size={15} /> {up ? 'Uploading…' : f.image_file_id ? 'Change image' : 'Upload image'}</button><div className="pt-tiny" style={{ marginTop: 6 }}>JPG or PNG, up to 5MB</div></div></div>
+          <div className="pt-row" style={{ gap: 14 }}>{f.image_file_id ? <img src={fileUrl(f.image_file_id)} alt="" style={{ width: 96, height: 70, objectFit: 'cover', borderRadius: 10 }} /> : <RewardArt item={{ category: f.category }} height={70} style={{ width: 96, borderRadius: 10 }} />}<div><input ref={ref} type="file" hidden accept={IMAGE_UPLOAD_ACCEPT} onChange={upload} /><button type="button" className="pt-btn soft sm" disabled={up} onClick={() => ref.current?.click()}><Upload size={15} /> {up ? 'Uploading…' : f.image_file_id ? 'Change image' : 'Upload image'}</button><div className="pt-tiny" style={{ marginTop: 6 }}>JPG, PNG or WebP, up to 5MB</div></div></div>
         </Field>
         <div className="pt-grid2"><button type="button" className="pt-btn ghost" onClick={onClose}>Cancel</button>{!item || !item.is_active ? <button type="button" className="pt-btn soft" disabled={busy} onClick={() => save(false)}>Save as draft</button> : <span />}</div>
         <button type="button" className="pt-btn full" disabled={busy} onClick={() => save(true)}>{busy ? 'Saving…' : item ? 'Save reward' : 'Save & activate'}</button>
