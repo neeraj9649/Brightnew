@@ -88,6 +88,7 @@ pub fn create_app(
         .configure(support::support_routes)
         .configure(portal::portal_routes)
         .configure(enquiries::enquiries_routes)
+        .configure(crate::routers::services::services_routes)
         .configure(blog::blog_routes)
         .configure(tours::tours_routes)
         .configure(media::media_routes)

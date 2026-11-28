@@ -20,3 +20,4 @@ pub mod uploads;
 pub mod workflow;
 pub mod support;
 pub mod tours;
+pub mod services;

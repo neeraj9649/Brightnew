@@ -11,7 +11,7 @@ const ADMIN_NAV = [
   ['group', 'Workspace'],
   ['overview', 'Overview', '/admin', LayoutDashboard], ['bookings', 'Bookings', '/admin/bookings', CalendarDays], ['customers', 'Customers', '/admin/customers', Users], ['crm', 'CRM & follow-ups', '/admin/crm', MessageCircleMore],
   ['group', 'Loyalty & rewards'],
-  ['rewards', 'Rewards', '/admin/rewards', Gift], ['redemptions', 'Redemptions', '/admin/redemptions', ShieldCheck], ['approvals', 'Wings approvals', '/admin/wings-approvals', BadgeCheck], ['offers', 'Offers', '/admin/offers', Tag], ['tours', 'Tours', '/admin/tours', Map], ['loyalty', 'Loyalty settings', '/admin/loyalty', Settings],
+  ['rewards', 'Rewards', '/admin/rewards', Gift], ['redemptions', 'Redemptions', '/admin/redemptions', ShieldCheck], ['approvals', 'Wings approvals', '/admin/wings-approvals', BadgeCheck], ['offers', 'Offers', '/admin/offers', Tag], ['tours', 'Tours', '/admin/tours', Map], ['website-services', 'Website Services', '/admin/website-services', Map], ['loyalty', 'Loyalty settings', '/admin/loyalty', Settings],
   ['group', 'Insights & team'],
   ['analytics', 'Analytics', '/admin/analytics', ChartNoAxesColumn], ['employees', 'Employees & permissions', '/admin/employees', UserCog],
 ];

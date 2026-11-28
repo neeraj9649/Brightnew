@@ -71,3 +71,9 @@ Migration `0041_clear_blog_data.sql` clears existing blog posts and comments onc
 2. Deploy the `BrightP/` admin portal.
 3. Run the production build in `bright/` and deploy `dist/`, including its `.htaccess`. The SPA fallback serves direct visits to `/packages/{id}` and `/experiences`. The public catalogue defaults to `https://bp.nsiif.in`. Use `VITE_TOURS_API_URL` to target another API.
    Upload the hashed `assets/`, `js/` and `css/` files before publishing the new `index.html`. The homepage video and its poster are included in `assets/`. The original recording is stored locally under `bright/media-source/` outside the deployment artifact. Flush the Hostinger CDN cache after publishing if the site still serves old asset responses.
+
+## Website services
+
+The homepage Services section reads published cards from `GET /public/services`. Each card opens `/services/{slug}`, which reads the matching published record. A draft is visible only in BrightP. Website service enquiries use the existing contact mail workflow and include the chosen service and form details.
+
+In BrightP, open **Website Services** to create a draft or edit a service. The editor manages the title, stable page slug, description, images, offers, benefits, display order and publishing. Its service type selects the enquiry form. Migration `0048_website_services.sql` copies the six existing service offerings into the editable catalogue. Deploy the backend before updating BrightP and the public website.

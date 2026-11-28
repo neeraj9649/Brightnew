@@ -116,7 +116,7 @@ fn email_text(e: &Enquiry, received: &str) -> String {
 }
 
 fn recipient(source: &str) -> String {
-    if source == "contact" {
+    if matches!(source, "contact" | "website-service") {
         return CONTACT_TO.to_string();
     }
     std::env::var("ENQUIRY_TO_EMAIL")

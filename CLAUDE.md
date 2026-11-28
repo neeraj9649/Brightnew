@@ -55,7 +55,7 @@ Trust the code over that file.
    `https://bp.nsiif.in` (`BrightP/src/services/api.js`, `DEFAULT_API_URL`). Anything you click while testing
    locally changes real data. Never put `DATABASE_URL` in frontend env; browsers talk only to the API.
 2. **Migrations are append-only and run automatically on backend start-up** (`base/src/sqlx_init.rs`).
-   Never edit an existing file in `backend/migrations/`. Add the next number (current last: `0047_enquiry_sms_verification.sql`).
+   Never edit an existing file in `backend/migrations/`. Add the next number (current last: `0048_website_services.sql`).
    Write them idempotently (`IF NOT EXISTS`, guarded `UPDATE`s), since they run against production.
 3. **Deploy the backend before the portal.** Pushing `BrightP/**` to `main` auto-deploys the portal
    (`.github/workflows/deploy.yml`). The backend deploys only manually (`deploy-backend.yml`, type `deploy`).
@@ -76,7 +76,7 @@ src/modules/<name>/          layered crates: api/{controllers,dto,mappers,middle
 src/app/src/container.rs     DI: builds every Arc<dyn Service>
 src/app/src/create_app.rs    registers app_data + every router's `configure`
 src/app/src/routers/*.rs     HTTP wiring; many routers also hold raw-sqlx handlers directly
-migrations/                  0001..0047, applied at start-up
+migrations/                  0001..0048, applied at start-up
 .sqlx/                       offline query cache for `sqlx::query!` macros (committed)
 ```
 Crate dependencies are one-way: `auth -> {rewards, referral}`, `bookings -> rewards`, `referral -> rewards`,
@@ -179,6 +179,7 @@ steps / offers / Wings requests / staff association → `workflow.rs` (`/portal/
 `/referrals`, `/admin/referrals` → `referral.rs` · `/crm/*` → `crm.rs` · `/notifications` → `notifications.rs` ·
 `/cards/{code}` (public) → `cards.rs` · `/support` → `support.rs` · `/uploads/*` → `uploads.rs` ·
 `POST /public/enquiries` (website contact form: saved in `enquiries`, e-mailed to `info@brightwingstravel.com` via `ENQUIRY_SMTP_*`), `POST /public/tour-enquiries/otp` and `POST /public/tour-enquiries/otp/{challenge_id}/verify` (phone-verified destination and tour enquiries) → `enquiries.rs` ·
+`GET /public/services`, `GET /public/services/{slug}`, and `/admin/website-services` → `services.rs` ·
 `/public/blog*` (website blog + comments), `/admin/blog/*` (posts, comment approval) → `blog.rs` ·
 `/public/tours?package_type=individual|holiday` (published listing cards), `/public/tours/id/{id}` (published detail by UUID), `/public/tours/{slug}` (slug compatibility), `/public/tour-reviews` (home testimonials), `/public/tour-locations` (Tours page filter), `POST /public/tours/{slug}/booking` (Book This Tour e-mail), `/admin/tours/*` (tours, review approval) → `tours.rs` (see `docs/website-tours-blog.md`) ·
 `/admin/portal/*` → `admin_portal.rs` · `/admin/analytics/*` → `analytics.rs` · `/admin/financials` → `financials.rs` · `/health`.
